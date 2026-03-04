@@ -147,7 +147,7 @@ export default function Dashboard() {
     const total = filteredClients.length;
     const pendientes = filteredClients.filter(c => c.status === 'Nuevo').length;
     const citados = filteredClients.filter(c => c.status === 'Citado').length;
-    const sinAsignar = filteredClients.filter(c => !c.assigned_to).length;
+    const sinAsignar = filteredClients.filter(c => !c.assigned_to && !c.sheet_assigned).length;
 
     // --- Donut: distribución por estado ---
     const statusCounts: Record<string, number> = {};
@@ -292,10 +292,10 @@ export default function Dashboard() {
                                     <div key={c.id} style={{
                                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                         padding: '10px 12px',
-                                        background: !c.assigned_to && c.assigned_email !== 'pendiente'
+                                        background: !c.assigned_to && !c.sheet_assigned
                                             ? 'rgba(239,68,68,0.05)'
                                             : 'rgba(255,255,255,0.02)',
-                                        border: !c.assigned_to && c.assigned_email !== 'pendiente'
+                                        border: !c.assigned_to && !c.sheet_assigned
                                             ? '1px solid rgba(239,68,68,0.2)'
                                             : '1px solid rgba(80,200,255,0.08)',
                                         borderRadius: '8px'
@@ -317,7 +317,7 @@ export default function Dashboard() {
                                                     : c.status === 'Nuevo' ? 'var(--primary-accent)'
                                                         : 'var(--text-muted)'
                                             }}>{c.status}</span>
-                                            {!c.assigned_to && c.assigned_email !== 'pendiente' && (
+                                            {!c.assigned_to && !c.sheet_assigned && (
                                                 <span style={{ fontSize: '0.6rem', color: '#ef4444' }}>Sin asignar</span>
                                             )}
                                         </div>
