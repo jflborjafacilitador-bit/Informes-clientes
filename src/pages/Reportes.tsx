@@ -324,13 +324,14 @@ function TabNotas({ session, role }: { session: any; role: string }) {
     const [editingText, setEditingText] = useState('');
 
     useEffect(() => {
-        if (!session || !role) return;
+        if (!session?.user?.id || !role) return;
         loadAll();
         const channel = supabase.channel('realtime_notes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'client_notes' }, loadAll)
             .subscribe();
         return () => { supabase.removeChannel(channel); };
-    }, [role, session?.user?.id]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [session?.user?.id, role]);
 
     const loadAll = async () => {
         setLoading(true);
