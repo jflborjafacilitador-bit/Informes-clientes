@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, Edit2, Trash2, Eye, RefreshCw, UserPlus } from 'lucide-react';
+import { Search, Filter, Edit2, Trash2, RefreshCw } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 
