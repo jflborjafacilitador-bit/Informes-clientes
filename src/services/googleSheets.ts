@@ -1,15 +1,16 @@
 import Papa from 'papaparse';
 
 export interface ClientData {
-    id: string; // ID artificial basado en Nombre y Fecha para conciliar con Supabase
+    id: string;
     name: string;
     segment: string;
     budget: string;
     date: string;
     status: string;
-    assigned_to?: string; // Vendrá de Supabase
-    assigned_email?: string; // Vendrá de Supabase
-    budget_range?: string; // Vendrá de Supabase (override de presupuesto)
+    sheet_assigned?: string; // Asesor asignado en el Google Sheet ('Asignado a')
+    assigned_to?: string;   // ID del usuario en Supabase (override)
+    assigned_email?: string; // Email del asesor (override de Supabase)
+    budget_range?: string;  // Override de presupuesto de Supabase
 }
 
 const csvUrl = 'https://docs.google.com/spreadsheets/d/1yPbtGw1cPbbo7VDldJO_zCphq0LjJREjfriKGuBs3PI/export?format=csv';
@@ -54,7 +55,8 @@ export const fetchClientsFromSheet = (): Promise<ClientData[]> => {
                         segment: row['¿En qué casa estás interesado?'] || row['Segmento'] || 'General',
                         budget: row['¿Cual seria tu forma de pago?'] || row['Presupuesto'] || '$0',
                         date: isoDate,
-                        status: estadoOriginal
+                        status: estadoOriginal,
+                        sheet_assigned: row['Asignado a'] || undefined,
                     };
                 });
 

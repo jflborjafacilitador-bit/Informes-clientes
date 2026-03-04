@@ -14,7 +14,7 @@ export default function Clientes() {
     useEffect(() => {
         if (session) {
             loadData();
-            if (role === 'super_admin') loadAsesores();
+            if (role === 'super_admin' || role === 'gerente') loadAsesores();
 
             // Realtime: actualiza cuando alguien cambia un override (estado/asignación)
             const channel = supabase.channel('realtime_clients').on('postgres_changes', { event: '*', schema: 'public', table: 'client_overrides' }, () => {
@@ -51,7 +51,11 @@ export default function Clientes() {
                 return client;
             });
 
-            setClients(merged);
+            // 4. Asesor solo ve sus clientes asignados
+            const visible = role === 'asesor'
+                ? merged.filter(c => c.assigned_to === session?.user?.id)
+                : merged;
+            setClients(visible);
         } catch (error) {
             console.error('Error cargando clientes:', error);
         }
@@ -158,7 +162,7 @@ export default function Clientes() {
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Asignación</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Presupuesto</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Estado</th>
-                                    {(role === 'super_admin' || role === 'asesor') && (
+                                    {(role === 'super_admin' || role === 'gerente' || role === 'asesor') && (
                                         <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500', textAlign: 'center' }}>Acciones</th>
                                     )}
                                 </tr>
@@ -176,7 +180,7 @@ export default function Clientes() {
                                         <td style={{ padding: '16px', fontWeight: '500' }}>{client.name}</td>
                                         <td style={{ padding: '16px' }}>{client.segment}</td>
                                         <td style={{ padding: '16px' }}>
-                                            {role === 'super_admin' ? (
+                                            {(role === 'super_admin' || role === 'gerente') ? (
                                                 <select
                                                     value={client.assigned_to || ''}
                                                     onChange={(e) => handleAssign(client.id, e.target.value)}
@@ -188,11 +192,13 @@ export default function Clientes() {
                                                     {asesores.map(a => <option key={a.id} value={a.id}>{a.email.split('@')[0]}</option>)}
                                                 </select>
                                             ) : (
-                                                <span style={{ color: 'var(--text-muted)' }}>{client.assigned_email?.split('@')[0] || 'Sin asignar'}</span>
+                                                <span style={{ color: client.assigned_email || client.sheet_assigned ? 'var(--text-main)' : 'var(--text-muted)' }}>
+                                                    {client.assigned_email?.split('@')[0] || client.sheet_assigned || 'Sin asignar'}
+                                                </span>
                                             )}
                                         </td>
                                         <td style={{ padding: '16px' }}>
-                                            {(role === 'super_admin' || role === 'asesor') ? (
+                                            {(role === 'super_admin' || role === 'gerente' || role === 'asesor') ? (
                                                 <select
                                                     value={client.budget_range || ''}
                                                     onChange={(e) => handleBudgetChange(client.id, e.target.value)}
@@ -217,7 +223,7 @@ export default function Clientes() {
                                             )}
                                         </td>
                                         <td style={{ padding: '16px' }}>
-                                            {(role === 'super_admin' || role === 'asesor') ? (
+                                            {(role === 'super_admin' || role === 'gerente' || role === 'asesor') ? (
                                                 <select
                                                     value={client.status}
                                                     onChange={(e) => handleStatusChange(client.id, e.target.value)}
@@ -268,7 +274,7 @@ export default function Clientes() {
                                                 </span>
                                             )}
                                         </td>
-                                        {(role === 'super_admin' || role === 'asesor') && (
+                                        {(role === 'super_admin' || role === 'gerente' || role === 'asesor') && (
                                             <td style={{ padding: '16px', textAlign: 'center' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
                                                     <button style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} title="Editar Datos"><Edit2 size={18} /></button>

@@ -60,7 +60,7 @@ const CustomTooltip = ({ active, payload }: any) => {
 };
 
 export default function Dashboard() {
-    const { session } = useAuth();
+    const { session, role } = useAuth();
     const [clients, setClients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -94,7 +94,12 @@ export default function Dashboard() {
                 }
                 return client;
             });
-            setClients(merged);
+
+            // Asesor solo ve sus propios clientes
+            const visible = role === 'asesor'
+                ? merged.filter(c => c.assigned_to === session?.user?.id)
+                : merged;
+            setClients(visible);
         } catch (error) {
             console.error(error);
         }

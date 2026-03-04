@@ -5,6 +5,7 @@ import Header from './components/layout/Header';
 import Dashboard from './pages/Dashboard';
 import Clientes from './pages/Clientes';
 import Login from './pages/Login';
+import Usuarios from './pages/Usuarios';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -46,6 +47,7 @@ function App() {
             <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
             <Route path="/reportes" element={<ProtectedRoute><div className="glass-panel" style={{ padding: '2rem' }}><h2>Sección de Reportes</h2></div></ProtectedRoute>} />
             <Route path="/configuracion" element={<ProtectedRoute><div className="glass-panel" style={{ padding: '2rem' }}><h2>Configuración Global</h2></div></ProtectedRoute>} />
+            <Route path="/usuarios" element={<ProtectedRoute><Usuarios /></ProtectedRoute>} />
           </Routes>
         </AppLayout>
       </Router>

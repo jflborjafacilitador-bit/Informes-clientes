@@ -1,16 +1,17 @@
-import { Home, Users, BarChart2, Settings, LogOut } from 'lucide-react';
+import { Home, Users, BarChart2, Settings, LogOut, UserCog } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function Sidebar() {
   const location = useLocation();
-  const { signOut } = useAuth();
+  const { signOut, role } = useAuth();
 
   const links = [
     { to: '/', icon: Home, label: 'Dashboard' },
     { to: '/clientes', icon: Users, label: 'Clientes' },
     { to: '/reportes', icon: BarChart2, label: 'Reportes' },
     { to: '/configuracion', icon: Settings, label: 'Configuración' },
+    ...(role === 'super_admin' ? [{ to: '/usuarios', icon: UserCog, label: 'Usuarios' }] : []),
   ];
 
   return (
