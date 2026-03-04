@@ -1,16 +1,9 @@
-DirectoryIndex dist/index.html
-
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
 
-  # Serve compiled JS/CSS assets from dist/assets/
-  RewriteCond %{REQUEST_URI} ^/assets/
-  RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
-
-  # Serve other static files from dist/ (vite.svg, favicon, etc.)
+  # React SPA: serve index.html for any route that isn't a real file/folder
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteCond %{REQUEST_URI} !^/dist/
-  RewriteRule ^(.*)$ dist/index.html [L]
+  RewriteRule ^ index.html [L]
 </IfModule>
