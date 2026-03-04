@@ -1,5 +1,6 @@
-import { Bell, Search, User, Menu } from 'lucide-react';
+import { Bell, Search, User, Menu, Download } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useState, useEffect } from 'react';
 
 interface HeaderProps {
     onMenuClick: () => void;
@@ -7,6 +8,24 @@ interface HeaderProps {
 
 export default function Header({ onMenuClick }: HeaderProps) {
     const { session, role } = useAuth();
+    const [installPrompt, setInstallPrompt] = useState<any>(null);
+    const [installed, setInstalled] = useState(false);
+
+    useEffect(() => {
+        // Captura el evento antes de que el navegador muestre su propio banner
+        const handler = (e: any) => { e.preventDefault(); setInstallPrompt(e); };
+        window.addEventListener('beforeinstallprompt', handler);
+        // Detecta si ya está instalada (modo standalone)
+        if (window.matchMedia('(display-mode: standalone)').matches) setInstalled(true);
+        return () => window.removeEventListener('beforeinstallprompt', handler);
+    }, []);
+
+    const handleInstall = async () => {
+        if (!installPrompt) return;
+        installPrompt.prompt();
+        const { outcome } = await installPrompt.userChoice;
+        if (outcome === 'accepted') { setInstalled(true); setInstallPrompt(null); }
+    };
 
     return (
         <header className="top-header">
@@ -65,7 +84,28 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {/* Botón instalar PWA — visible solo si el navegador lo permite y no está instalada */}
+                {installPrompt && !installed && (
+                    <button
+                        onClick={handleInstall}
+                        title="Instalar app"
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: '6px',
+                            padding: '8px 14px', borderRadius: '20px',
+                            background: 'rgba(0,240,255,0.1)',
+                            border: '1px solid var(--primary-accent)',
+                            color: 'var(--primary-accent)',
+                            cursor: 'pointer', fontFamily: 'inherit',
+                            fontSize: '0.8rem', fontWeight: '600',
+                            animation: 'pulse 2s infinite',
+                            flexShrink: 0,
+                        }}
+                    >
+                        <Download size={15} />
+                        <span className="header-user-info">Instalar app</span>
+                    </button>
+                )}
                 <button style={{
                     background: 'rgba(255,255,255,0.05)',
                     border: 'none', borderRadius: '50%',
