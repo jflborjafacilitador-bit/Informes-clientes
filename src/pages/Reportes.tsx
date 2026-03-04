@@ -376,6 +376,10 @@ function TabNotas({ session, role }: { session: any; role: string }) {
             created_by: session?.user?.id,
             created_by_email: session?.user?.email,
         });
+        supabase.from('profiles').update({
+            last_seen: new Date().toISOString(),
+            last_action: `Agregó nota · ${selectedClient.name}`
+        }).eq('id', session?.user?.id).then(() => { });
         setNewNote('');
         setSaving(false);
         loadAll();
@@ -399,6 +403,10 @@ function TabNotas({ session, role }: { session: any; role: string }) {
     const saveEdit = async () => {
         if (!editingId || !editingText.trim()) return;
         await supabase.from('client_notes').update({ note: editingText.trim() }).eq('id', editingId);
+        supabase.from('profiles').update({
+            last_seen: new Date().toISOString(),
+            last_action: selectedClient ? `Editó nota · ${selectedClient.name}` : 'Editó nota'
+        }).eq('id', session?.user?.id).then(() => { });
         setEditingId(null);
         setEditingText('');
         loadAll();

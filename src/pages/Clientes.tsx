@@ -94,6 +94,11 @@ export default function Clientes() {
             alert(`No se pudo guardar el cambio de estado: ${error.message}`);
             return;
         }
+        const clientName = clients.find(c => c.id === id)?.name ?? id;
+        supabase.from('profiles').update({
+            last_seen: new Date().toISOString(),
+            last_action: `Cambió estado · ${clientName}`
+        }).eq('id', session?.user?.id).then(() => { });
         loadData();
     };
 
@@ -118,6 +123,11 @@ export default function Clientes() {
                 { onConflict: 'client_id' }
             );
         }
+        const clientName = clients.find(c => c.id === id)?.name ?? id;
+        supabase.from('profiles').update({
+            last_seen: new Date().toISOString(),
+            last_action: `Asignó cliente · ${clientName}`
+        }).eq('id', session?.user?.id).then(() => { });
         loadData();
     };
 

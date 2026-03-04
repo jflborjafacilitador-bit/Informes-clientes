@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
@@ -9,6 +9,7 @@ import Usuarios from './pages/Usuarios';
 import Reportes from './pages/Reportes';
 import Configuracion from './pages/Configuracion';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { supabase } from './services/supabaseClient';
 import { PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -20,6 +21,33 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Heartbeat de presencia: actualiza last_seen cada 2 min y registra en canal Realtime
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const userId = session.user.id;
+    const userEmail = session.user.email ?? '';
+
+    const updateLastSeen = () =>
+      supabase.from('profiles').update({ last_seen: new Date().toISOString() }).eq('id', userId);
+
+    updateLastSeen();
+    const interval = setInterval(updateLastSeen, 2 * 60 * 1000);
+
+    const channel = supabase.channel('online_users', { config: { presence: { key: userId } } });
+    channel
+      .on('presence', { event: 'sync' }, () => { })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ user_id: userId, email: userEmail, online_at: new Date().toISOString() });
+        }
+      });
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
+  }, [session?.user?.id]);
 
   if (!session) return <>{children}</>;
 
