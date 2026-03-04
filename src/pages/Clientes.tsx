@@ -1,25 +1,63 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, Edit2, Trash2, Eye, RefreshCw } from 'lucide-react';
-import { fetchClientsFromSheet, type ClientData } from '../services/googleSheets';
+import { Search, Filter, Edit2, Trash2, Eye, RefreshCw, UserPlus } from 'lucide-react';
+import { supabase } from '../services/supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Clientes() {
+    const { role, session } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
-    const [clients, setClients] = useState<ClientData[]>([]);
+    const [clients, setClients] = useState<any[]>([]);
+    const [asesores, setAsesores] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        loadData();
-    }, []);
+        if (session) {
+            loadData();
+            if (role === 'super_admin') loadAsesores();
+
+            // Suscripción al realtime para actualizar la UI si otro asesor cambia algo
+            const channel = supabase.channel('realtime_clients').on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => {
+                loadData();
+            }).subscribe();
+
+            return () => { supabase.removeChannel(channel); };
+        }
+    }, [session, role]);
 
     const loadData = async () => {
         setLoading(true);
         try {
-            const data = await fetchClientsFromSheet();
-            setClients(data);
+            // RLS ya filtra lo que puede ver el usuario actual en la BD.
+            const { data, error } = await supabase
+                .from('clients')
+                .select(`
+                    *,
+                    profiles:assigned_to (email)
+                `)
+                .order('created_at', { ascending: false });
+
+            if (!error && data) {
+                setClients(data);
+            }
         } catch (error) {
             console.error(error);
         }
         setLoading(false);
+    };
+
+    const loadAsesores = async () => {
+        const { data } = await supabase.from('profiles').select('*').eq('role', 'asesor');
+        if (data) setAsesores(data);
+    };
+
+    const handleStatusChange = async (id: string, newStatus: string) => {
+        const { error } = await supabase.from('clients').update({ status: newStatus }).eq('id', id);
+        if (!error) loadData();
+    };
+
+    const handleAssign = async (id: string, userId: string) => {
+        const { error } = await supabase.from('clients').update({ assigned_to: userId }).eq('id', id);
+        if (!error) loadData();
     };
 
     const filteredClients = clients.filter(client =>
@@ -32,7 +70,10 @@ export default function Clientes() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
                     <h1 style={{ fontSize: '2rem', margin: 0 }}>Gestión de <span className="glow-text" style={{ color: 'var(--primary-accent)' }}>Clientes</span></h1>
-                    <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Visualiza y segmenta todos los registros en tiempo real.</p>
+                    <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>
+                        Visualiza y segmenta todos los registros en tiempo real.
+                        <span style={{ marginLeft: '10px', color: 'var(--text-main)', fontWeight: 'bold' }}>Total: {clients.length} / Activos: {clients.filter(c => c.status === 'Activo').length}</span>
+                    </p>
                 </div>
                 <button style={{
                     background: 'linear-gradient(135deg, var(--primary-accent), var(--secondary-accent))',
@@ -87,10 +128,12 @@ export default function Clientes() {
                                 <tr style={{ borderBottom: '1px solid var(--border-glass)' }}>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Nombre del Cliente</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Segmento</th>
-                                    <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Presupuesto</th>
+                                    <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Asignación</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Fecha Registro</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Estado</th>
-                                    <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500', textAlign: 'center' }}>Acciones</th>
+                                    {(role === 'super_admin' || role === 'asesor') && (
+                                        <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500', textAlign: 'center' }}>Acciones</th>
+                                    )}
                                 </tr>
                             </thead>
                             <tbody>
@@ -104,26 +147,85 @@ export default function Clientes() {
                                     >
                                         <td style={{ padding: '16px', fontWeight: '500' }}>{client.name}</td>
                                         <td style={{ padding: '16px' }}>{client.segment}</td>
-                                        <td style={{ padding: '16px' }}>{client.budget}</td>
-                                        <td style={{ padding: '16px' }}>{client.date}</td>
                                         <td style={{ padding: '16px' }}>
-                                            <span style={{
-                                                display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600',
-                                                background: client.status === 'Activo' ? 'rgba(16, 185, 129, 0.1)' :
-                                                    client.status === 'En espera' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                                                color: client.status === 'Activo' ? 'var(--success)' :
-                                                    client.status === 'En espera' ? 'var(--warning)' : 'var(--danger)'
-                                            }}>
-                                                {client.status}
-                                            </span>
+                                            {role === 'super_admin' ? (
+                                                <select
+                                                    value={client.assigned_to || ''}
+                                                    onChange={(e) => handleAssign(client.id, e.target.value)}
+                                                    style={{
+                                                        background: 'var(--bg-panel)', color: 'var(--text-main)', border: '1px solid var(--border-glass)',
+                                                        padding: '4px 8px', borderRadius: '4px', outline: 'none'
+                                                    }}>
+                                                    <option value="">Sin asignar</option>
+                                                    {asesores.map(a => <option key={a.id} value={a.id}>{a.email.split('@')[0]}</option>)}
+                                                </select>
+                                            ) : (
+                                                <span style={{ color: 'var(--text-muted)' }}>{client.profiles?.email?.split('@')[0] || 'Sin asignar'}</span>
+                                            )}
                                         </td>
-                                        <td style={{ padding: '16px', textAlign: 'center' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                                                <button style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} title="Ver Detalle"><Eye size={18} /></button>
-                                                <button style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} title="Editar"><Edit2 size={18} /></button>
-                                                <button style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }} title="Eliminar"><Trash2 size={18} /></button>
-                                            </div>
+                                        <td style={{ padding: '16px' }}>{new Date(client.date).toLocaleDateString()}</td>
+                                        <td style={{ padding: '16px' }}>
+                                            {(role === 'super_admin' || role === 'asesor') ? (
+                                                <select
+                                                    value={client.status}
+                                                    onChange={(e) => handleStatusChange(client.id, e.target.value)}
+                                                    style={{
+                                                        padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600',
+                                                        background: client.status === 'Activo' || client.status === 'Citado' ? 'rgba(16, 185, 129, 0.1)' :
+                                                            client.status === 'En espera' || client.status === 'En seguimiento' ? 'rgba(245, 158, 11, 0.1)' :
+                                                                client.status === 'No responde' || client.status === 'Repetido' ? 'rgba(239, 68, 68, 0.1)' :
+                                                                    client.status === 'Numero sin Whatsapp' ? 'rgba(234, 179, 8, 0.1)' :
+                                                                        client.status === 'Reprogramo' ? 'rgba(56, 189, 248, 0.1)' : 'rgba(139, 92, 246, 0.1)',
+                                                        color: client.status === 'Activo' || client.status === 'Citado' ? 'var(--success)' :
+                                                            client.status === 'En espera' || client.status === 'En seguimiento' ? 'var(--warning)' :
+                                                                client.status === 'No responde' || client.status === 'Repetido' ? 'var(--danger)' :
+                                                                    client.status === 'Numero sin Whatsapp' ? '#eab308' :
+                                                                        client.status === 'Reprogramo' ? '#38bdf8' : '#8b5cf6',
+                                                        border: '1px solid var(--border-glass)',
+                                                        outline: 'none',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    <option value="Nuevo">Nuevo</option>
+                                                    <option value="No responde">No responde</option>
+                                                    <option value="Numero sin Whatsapp">Numero sin Whatsapp</option>
+                                                    <option value="Reprogramo">Reprogramo</option>
+                                                    <option value="Citado">Citado</option>
+                                                    <option value="En seguimiento">En seguimiento</option>
+                                                    <option value="No esta interesado">No esta interesado</option>
+                                                    <option value="Repetido">Repetido</option>
+                                                    <option value="Presupuesto insuficiente">Presupuesto insuficiente</option>
+                                                    <option value="Activo">Activo</option>
+                                                    <option value="En espera">En espera</option>
+                                                </select>
+                                            ) : (
+                                                <span style={{
+                                                    display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600',
+                                                    background: client.status === 'Activo' || client.status === 'Citado' ? 'rgba(16, 185, 129, 0.1)' :
+                                                        client.status === 'En espera' || client.status === 'En seguimiento' ? 'rgba(245, 158, 11, 0.1)' :
+                                                            client.status === 'No responde' || client.status === 'Repetido' ? 'rgba(239, 68, 68, 0.1)' :
+                                                                client.status === 'Numero sin Whatsapp' ? 'rgba(234, 179, 8, 0.1)' :
+                                                                    client.status === 'Reprogramo' ? 'rgba(56, 189, 248, 0.1)' : 'rgba(139, 92, 246, 0.1)',
+                                                    color: client.status === 'Activo' || client.status === 'Citado' ? 'var(--success)' :
+                                                        client.status === 'En espera' || client.status === 'En seguimiento' ? 'var(--warning)' :
+                                                            client.status === 'No responde' || client.status === 'Repetido' ? 'var(--danger)' :
+                                                                client.status === 'Numero sin Whatsapp' ? '#eab308' :
+                                                                    client.status === 'Reprogramo' ? '#38bdf8' : '#8b5cf6'
+                                                }}>
+                                                    {client.status}
+                                                </span>
+                                            )}
                                         </td>
+                                        {(role === 'super_admin' || role === 'asesor') && (
+                                            <td style={{ padding: '16px', textAlign: 'center' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                                                    <button style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} title="Editar Datos"><Edit2 size={18} /></button>
+                                                    {role === 'super_admin' && (
+                                                        <button style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }} title="Eliminar"><Trash2 size={18} /></button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
                             </tbody>

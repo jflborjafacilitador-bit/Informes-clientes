@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Users, TrendingUp, Activity, DollarSign, ArrowUpRight, RefreshCw } from 'lucide-react';
-import { fetchClientsFromSheet, type ClientData } from '../services/googleSheets';
+import { supabase } from '../services/supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
 
 const StatCard = ({ title, value, icon: Icon, trend, color }: any) => (
     <div className="glass-panel" style={{ padding: '24px', position: 'relative', overflow: 'hidden' }}>
@@ -35,18 +36,33 @@ const StatCard = ({ title, value, icon: Icon, trend, color }: any) => (
 );
 
 export default function Dashboard() {
-    const [clients, setClients] = useState<ClientData[]>([]);
+    const { session } = useAuth();
+    const [clients, setClients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        loadData();
-    }, []);
+        if (session) {
+            loadData();
+
+            const channel = supabase.channel('realtime_dashboard').on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => {
+                loadData();
+            }).subscribe();
+
+            return () => { supabase.removeChannel(channel); };
+        }
+    }, [session]);
 
     const loadData = async () => {
         setLoading(true);
         try {
-            const data = await fetchClientsFromSheet();
-            setClients(data);
+            const { data, error } = await supabase
+                .from('clients')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (!error && data) {
+                setClients(data);
+            }
         } catch (error) {
             console.error(error);
         }
@@ -93,23 +109,8 @@ export default function Dashboard() {
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
-                    <h1 style={{ fontSize: '2rem', margin: 0 }}>Vista General en <span style={{ color: 'var(--primary-accent)' }} className="glow-text">Tiempo Real</span></h1>
-                    <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Monitorea el comportamiento y los registros de tus clientes al instante.</p>
-                </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                    <button style={{
-                        background: 'var(--bg-panel)', border: '1px solid var(--border-glass)',
-                        color: 'var(--text-main)', padding: '10px 20px', borderRadius: '8px',
-                        cursor: 'pointer', transition: 'all 0.2s', fontWeight: '500'
-                    }}
-                        onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--primary-accent)'}
-                        onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-glass)'}
-                    >Filtrar Datos</button>
-                    <button style={{
-                        background: 'linear-gradient(135deg, var(--primary-accent), var(--secondary-accent))',
-                        border: 'none', color: '#fff', padding: '10px 20px', borderRadius: '8px',
-                        cursor: 'pointer', fontWeight: '600', boxShadow: '0 0 15px rgba(34, 197, 94, 0.4)'
-                    }}>+ Nuevo Registro</button>
+                    <h1 style={{ fontSize: '2rem', margin: 0 }}>Dashboard <span className="glow-text" style={{ color: 'var(--primary-accent)' }}>General</span></h1>
+                    <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Métricas en tiempo real de tu cartera de prospectos.</p>
                 </div>
             </div>
 
@@ -203,6 +204,6 @@ export default function Dashboard() {
                     </button>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
