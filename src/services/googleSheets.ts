@@ -56,7 +56,13 @@ export const fetchClientsFromSheet = (): Promise<ClientData[]> => {
                         budget: row['¿Cual seria tu forma de pago?'] || row['Presupuesto'] || '$0',
                         date: isoDate,
                         status: estadoOriginal,
-                        sheet_assigned: row['Asignado a'] || undefined,
+                        sheet_assigned: (() => {
+                            const raw = (row['Asignado a'] || '').trim().toLowerCase();
+                            // Solo Ninguno y vacíos colapsan a undefined (= "Sin asignar")
+                            // "Pendiente" se preserva como categoría propia
+                            const sinAsignar = ['', 'ninguno', 'n/a'];
+                            return sinAsignar.includes(raw) ? undefined : row['Asignado a'].trim();
+                        })(),
                     };
                 });
 

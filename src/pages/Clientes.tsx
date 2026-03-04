@@ -8,6 +8,7 @@ export default function Clientes() {
     const { role, session } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
+    const [assignFilter, setAssignFilter] = useState('');
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState(25);
     const [clients, setClients] = useState<ClientData[]>([]);
@@ -87,13 +88,27 @@ export default function Clientes() {
         loadData();
     };
 
-    const handleAssign = async (id: string, userId: string) => {
-        // Buscamos el email del asesor para guardarlo también
-        const asesor = asesores.find(a => a.id === userId);
-        await supabase.from('client_overrides').upsert(
-            { client_id: id, assigned_to: userId, assigned_email: asesor?.email || '' },
-            { onConflict: 'client_id' }
-        );
+    const handleAssign = async (id: string, value: string) => {
+        if (value === '') {
+            // Sin asignar: limpiar asignación
+            await supabase.from('client_overrides').upsert(
+                { client_id: id, assigned_to: null, assigned_email: null },
+                { onConflict: 'client_id' }
+            );
+        } else if (value === 'pendiente') {
+            // Pendiente: en espera, sin asesor específico
+            await supabase.from('client_overrides').upsert(
+                { client_id: id, assigned_to: null, assigned_email: 'pendiente' },
+                { onConflict: 'client_id' }
+            );
+        } else {
+            // Asesor específico
+            const asesor = asesores.find(a => a.id === value);
+            await supabase.from('client_overrides').upsert(
+                { client_id: id, assigned_to: value, assigned_email: asesor?.email || '' },
+                { onConflict: 'client_id' }
+            );
+        }
         loadData();
     };
 
@@ -101,7 +116,17 @@ export default function Clientes() {
         const matchSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             client.segment.toLowerCase().includes(searchTerm.toLowerCase());
         const matchStatus = statusFilter === '' || client.status === statusFilter;
-        return matchSearch && matchStatus;
+        const matchAssign = assignFilter === ''
+            ? true
+            : assignFilter === 'sin_asignar'
+                // Sin asesor real asignado Y no marcado como Pendiente desde el app
+                ? (!client.assigned_to && client.assigned_email !== 'pendiente')
+                : assignFilter === 'pendiente'
+                    // Solo clientes marcados explícitamente como Pendiente desde el app
+                    ? client.assigned_email === 'pendiente'
+                    // Filtrar por asesor específico (email)
+                    : (client.assigned_email === assignFilter);
+        return matchSearch && matchStatus && matchAssign;
     });
 
     const totalPages = Math.ceil(filteredClients.length / pageSize);
@@ -109,6 +134,8 @@ export default function Clientes() {
 
     const handleSearchChange = (v: string) => { setSearchTerm(v); setPage(0); };
     const handleStatusFilter = (v: string) => { setStatusFilter(v); setPage(0); };
+    const handleAssignFilter = (v: string) => { setAssignFilter(v); setPage(0); };
+    const clearFilters = () => { setStatusFilter(''); setAssignFilter(''); setPage(0); };
 
     const STATUSES = ['Nuevo', 'No responde', 'Numero sin Whatsapp', 'Reprogramo', 'Citado', 'En seguimiento', 'No esta interesado', 'Repetido', 'Presupuesto insuficiente', 'Activo', 'En espera'];
 
@@ -160,6 +187,24 @@ export default function Clientes() {
                             {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
 
+                        {/* Filtro Asignación */}
+                        <select
+                            value={assignFilter}
+                            onChange={(e) => handleAssignFilter(e.target.value)}
+                            style={{
+                                padding: '10px 14px', borderRadius: '8px',
+                                background: 'var(--bg-panel)', border: assignFilter ? '1px solid var(--secondary-accent)' : '1px solid var(--border-glass)',
+                                color: assignFilter ? 'var(--secondary-accent)' : 'var(--text-muted)',
+                                outline: 'none', cursor: 'pointer', fontFamily: 'inherit'
+                            }}>
+                            <option value="">Todas las asignaciones</option>
+                            <option value="sin_asignar">Sin asignar</option>
+                            <option value="pendiente">⏳ Pendiente</option>
+                            {asesores.map(a => (
+                                <option key={a.id} value={a.email}>{a.email.split('@')[0]}</option>
+                            ))}
+                        </select>
+
                         {/* Selector de tamaño de página */}
                         <select
                             value={pageSize}
@@ -174,12 +219,12 @@ export default function Clientes() {
                             <option value={50}>50 / pág</option>
                         </select>
 
-                        {statusFilter && (
-                            <button onClick={() => handleStatusFilter('')} style={{
+                        {(statusFilter || assignFilter) && (
+                            <button onClick={clearFilters} style={{
                                 background: 'rgba(239,68,68,0.1)', border: '1px solid var(--danger)',
                                 color: 'var(--danger)', padding: '8px 12px', borderRadius: '8px',
                                 cursor: 'pointer', fontSize: '0.8rem'
-                            }}>✕ Limpiar filtro</button>
+                            }}>✕ Limpiar filtros</button>
                         )}
                     </div>
                 </div>
@@ -220,18 +265,21 @@ export default function Clientes() {
                                         <td style={{ padding: '16px' }}>
                                             {(role === 'super_admin' || role === 'gerente') ? (
                                                 <select
-                                                    value={client.assigned_to || ''}
+                                                    value={client.assigned_to || (client.assigned_email === 'pendiente' ? 'pendiente' : '')}
                                                     onChange={(e) => handleAssign(client.id, e.target.value)}
                                                     style={{
                                                         background: 'var(--bg-panel)', color: 'var(--text-main)', border: '1px solid var(--border-glass)',
                                                         padding: '4px 8px', borderRadius: '4px', outline: 'none'
                                                     }}>
                                                     <option value="">Sin asignar</option>
+                                                    <option value="pendiente">⏳ Pendiente</option>
                                                     {asesores.map(a => <option key={a.id} value={a.id}>{a.email.split('@')[0]}</option>)}
                                                 </select>
                                             ) : (
-                                                <span style={{ color: client.assigned_email || client.sheet_assigned ? 'var(--text-main)' : 'var(--text-muted)' }}>
-                                                    {client.assigned_email?.split('@')[0] || client.sheet_assigned || 'Sin asignar'}
+                                                <span style={{ color: client.assigned_to || client.assigned_email || client.sheet_assigned ? 'var(--text-main)' : 'var(--text-muted)' }}>
+                                                    {client.assigned_email === 'pendiente' ? '⏳ Pendiente'
+                                                        : client.assigned_email?.includes('@') ? client.assigned_email.split('@')[0]
+                                                            : client.sheet_assigned || 'Sin asignar'}
                                                 </span>
                                             )}
                                         </td>
