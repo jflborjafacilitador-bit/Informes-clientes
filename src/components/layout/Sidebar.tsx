@@ -1,9 +1,11 @@
 import React from 'react';
 import { Home, Users, BarChart2, Settings, LogOut } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function Sidebar() {
   const location = useLocation();
+  const { signOut } = useAuth();
 
   const links = [
     { to: '/', icon: Home, label: 'Dashboard' },
@@ -56,16 +58,18 @@ export default function Sidebar() {
       </nav>
 
       <div style={{ padding: '1.5rem', borderTop: '1px solid var(--border-glass)' }}>
-        <button style={{
-          display: 'flex', alignItems: 'center', gap: '10px',
-          width: '100%', padding: '10px',
-          background: 'transparent',
-          border: 'none',
-          color: 'var(--text-muted)',
-          cursor: 'pointer',
-          borderRadius: '8px',
-          transition: 'color 0.2s'
-        }}
+        <button
+          onClick={() => signOut()}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            width: '100%', padding: '10px',
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
+            borderRadius: '8px',
+            transition: 'color 0.2s'
+          }}
           onMouseEnter={(e) => e.currentTarget.style.color = 'var(--danger)'}
           onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
         >
