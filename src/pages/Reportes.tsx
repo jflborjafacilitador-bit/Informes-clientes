@@ -335,26 +335,31 @@ function TabNotas({ session, role }: { session: any; role: string }) {
     const loadAll = async () => {
         setLoading(true);
         try {
-            const [sheetData, { data: notesData, error: notesError }, { data: overrides }] = await Promise.all([
+            const [sheetData, { data: notesData, error: notesError }, { data: overrides, error: ovError }] = await Promise.all([
                 fetchClientsFromSheet(),
                 supabase.from('client_notes').select('*').order('created_at', { ascending: false }),
                 supabase.from('client_overrides').select('client_id, assigned_to, assigned_email, status'),
             ]);
-            if (notesError) console.error('Error cargando notas:', notesError);
+            if (notesError) console.error('Error notas:', notesError);
+            if (ovError) console.error('Error overrides:', ovError);
 
-            // Mezclar assigned_to de Supabase sobre datos del Sheet (igual que Clientes.tsx)
+            const emailPrefix = session?.user?.email?.split('@')[0]?.toLowerCase() || '';
+            console.log('[DEBUG Notas] role:', role, '| emailPrefix:', emailPrefix, '| session.id:', session?.user?.id);
+            console.log('[DEBUG Notas] sheetData:', sheetData.length, '| overrides:', overrides?.length ?? 'null');
+
+            // Mezclar assigned_to de Supabase sobre datos del Sheet
             const merged = sheetData.map(client => {
                 const override = overrides?.find(o => o.client_id === client.id);
                 return override ? { ...client, assigned_to: override.assigned_to || client.assigned_to } : client;
             });
 
-            const emailPrefix = session?.user?.email?.split('@')[0]?.toLowerCase() || '';
             const visible = role === 'asesor'
                 ? merged.filter(c =>
                     c.assigned_to === session?.user?.id ||
                     (c.sheet_assigned && c.sheet_assigned.toLowerCase().includes(emailPrefix))
                 )
                 : merged;
+            console.log('[DEBUG Notas] visible:', visible.length);
             setClients(visible);
             setNotes(notesData || []);
         } catch (err) {
