@@ -1,6 +1,7 @@
+import { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, TrendingUp, Activity, DollarSign, ArrowUpRight } from 'lucide-react';
-import { mockChartData, mockClients } from '../services/mockData';
+import { Users, TrendingUp, Activity, DollarSign, ArrowUpRight, RefreshCw } from 'lucide-react';
+import { fetchClientsFromSheet, type ClientData } from '../services/googleSheets';
 
 const StatCard = ({ title, value, icon: Icon, trend, color }: any) => (
     <div className="glass-panel" style={{ padding: '24px', position: 'relative', overflow: 'hidden' }}>
@@ -34,6 +35,60 @@ const StatCard = ({ title, value, icon: Icon, trend, color }: any) => (
 );
 
 export default function Dashboard() {
+    const [clients, setClients] = useState<ClientData[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            const data = await fetchClientsFromSheet();
+            setClients(data);
+        } catch (error) {
+            console.error(error);
+        }
+        setLoading(false);
+    };
+
+    // Cálculos dinámicos basados en Sheets
+    const totalClients = clients.length;
+
+    // Contamos cuantos están inactivos para un placeholder de "Interacciones"
+    const activeClients = clients.filter(c => c.status.toLowerCase() === 'activo').length;
+
+    // Tasa de conversión simulada
+    const conversionRate = totalClients > 0 ? ((activeClients / totalClients) * 100).toFixed(1) : '0';
+
+    // Sumar presupuesto (simplificado)
+    const totalBudget = clients.reduce((acc, curr) => {
+        const val = parseInt(curr.budget.replace(/[^0-9.-]+/g, "")) || 0;
+        return acc + val;
+    }, 0);
+    const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumSignificantDigits: 3 });
+    const formattedBudget = formatter.format(totalBudget);
+
+    // Agrupar para el gráfico por Tipo de Segmento
+    const segmentCounts: any = {};
+    clients.forEach(c => {
+        const seg = c.segment || 'Otros';
+        if (!segmentCounts[seg]) segmentCounts[seg] = { usuarios: 0, interesados: 0 };
+
+        if (c.status.toLowerCase() === 'activo') {
+            segmentCounts[seg].usuarios += 1;
+        } else {
+            segmentCounts[seg].interesados += 1;
+        }
+    });
+
+    const chartData = Object.keys(segmentCounts).map(seg => ({
+        name: seg.substring(0, 10), // Truncar largo
+        usuarios: segmentCounts[seg].usuarios * 100, // Multiplicador para escala visual
+        interesados: segmentCounts[seg].interesados * 100
+    }));
+
     return (
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -59,10 +114,10 @@ export default function Dashboard() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                <StatCard title="Total Clientes" value="1,284" icon={Users} trend="12.5" color="var(--primary-accent)" />
-                <StatCard title="Interacciones" value="8,492" icon={Activity} trend="8.2" color="var(--secondary-accent)" />
-                <StatCard title="Tasa de Conversión" value="24.8%" icon={TrendingUp} trend="4.1" color="var(--success)" />
-                <StatCard title="Valor Proyectado" value="$4.2M" icon={DollarSign} trend="15.3" color="var(--warning)" />
+                <StatCard title="Total Clientes" value={loading ? "..." : totalClients} icon={Users} trend="12.5" color="var(--primary-accent)" />
+                <StatCard title="Interacciones Activas" value={loading ? "..." : activeClients} icon={Activity} trend="8.2" color="var(--secondary-accent)" />
+                <StatCard title="Tasa de Conversión" value={loading ? "..." : `${conversionRate}%`} icon={TrendingUp} trend="4.1" color="var(--success)" />
+                <StatCard title="Valor Proyectado" value={loading ? "..." : formattedBudget} icon={DollarSign} trend="15.3" color="var(--warning)" />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '20px' }}>
@@ -70,13 +125,13 @@ export default function Dashboard() {
                 <div className="glass-panel" style={{ padding: '24px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                         <h3 style={{ margin: 0 }}>Rendimiento de Segmentos</h3>
-                        <span style={{ padding: '6px 12px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '600' }}>
-                            ● Live Data
+                        <span style={{ padding: '6px 12px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            {loading ? <RefreshCw size={14} className="animate-spin" /> : "●"} Live Data
                         </span>
                     </div>
                     <div style={{ height: '300px', width: '100%' }}>
                         <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={mockChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                            <AreaChart data={chartData.length > 0 ? chartData : [{ name: 'Cargando...', usuarios: 0, interesados: 0 }]} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                 <defs>
                                     <linearGradient id="colorUsuarios" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="var(--primary-accent)" stopOpacity={0.8} />
@@ -105,30 +160,35 @@ export default function Dashboard() {
                 <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
                     <h3 style={{ margin: '0 0 20px 0' }}>Registros Recientes</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', overflowY: 'auto', flex: 1, paddingRight: '10px' }}>
-                        {mockClients.slice(0, 4).map(client => (
-                            <div key={client.id} style={{
-                                padding: '16px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-glass)',
-                                borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                transition: 'transform 0.2s'
-                            }}
-                                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(5px)'}
-                                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}
-                            >
-                                <div>
-                                    <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem' }}>{client.name}</h4>
-                                    <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>{client.segment}</p>
+                        {loading ? (
+                            <div style={{ textAlign: 'center', color: 'var(--text-muted)', paddingTop: '20px' }}>Cargando desde Google Sheets...</div>
+                        ) : clients.length === 0 ? (
+                            <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No hay registros aún.</div>
+                        ) : (
+                            clients.slice(0, 5).map(client => (
+                                <div key={client.id} style={{
+                                    padding: '16px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-glass)',
+                                    borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    transition: 'transform 0.2s'
+                                }}
+                                    onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(5px)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}
+                                >
+                                    <div>
+                                        <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem' }}>{client.name}</h4>
+                                        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>{client.segment}</p>
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                        <span style={{
+                                            display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: '600',
+                                            background: client.status === 'Activo' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                                            color: client.status === 'Activo' ? 'var(--success)' : 'var(--warning)'
+                                        }}>
+                                            {client.status}
+                                        </span>
+                                    </div>
                                 </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <span style={{
-                                        display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: '600',
-                                        background: client.status === 'Activo' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                                        color: client.status === 'Activo' ? 'var(--success)' : 'var(--warning)'
-                                    }}>
-                                        {client.status}
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
+                            )))}
                     </div>
                     <button style={{
                         width: '100%', padding: '12px', marginTop: '20px',

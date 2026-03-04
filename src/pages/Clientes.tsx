@@ -1,11 +1,28 @@
-import { useState } from 'react';
-import { Search, Filter, Edit2, Trash2, Eye } from 'lucide-react';
-import { mockClients } from '../services/mockData';
+import { useState, useEffect } from 'react';
+import { Search, Filter, Edit2, Trash2, Eye, RefreshCw } from 'lucide-react';
+import { fetchClientsFromSheet, type ClientData } from '../services/googleSheets';
 
 export default function Clientes() {
     const [searchTerm, setSearchTerm] = useState('');
+    const [clients, setClients] = useState<ClientData[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const filteredClients = mockClients.filter(client =>
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            const data = await fetchClientsFromSheet();
+            setClients(data);
+        } catch (error) {
+            console.error(error);
+        }
+        setLoading(false);
+    };
+
+    const filteredClients = clients.filter(client =>
         client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         client.segment.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -59,53 +76,60 @@ export default function Clientes() {
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                        <thead>
-                            <tr style={{ borderBottom: '1px solid var(--border-glass)' }}>
-                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Nombre del Cliente</th>
-                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Segmento</th>
-                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Presupuesto</th>
-                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Fecha Registro</th>
-                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Estado</th>
-                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500', textAlign: 'center' }}>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredClients.map((client) => (
-                                <tr key={client.id} style={{
-                                    borderBottom: '1px solid rgba(80, 200, 255, 0.05)',
-                                    transition: 'background 0.2s'
-                                }}
-                                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
-                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                >
-                                    <td style={{ padding: '16px', fontWeight: '500' }}>{client.name}</td>
-                                    <td style={{ padding: '16px' }}>{client.segment}</td>
-                                    <td style={{ padding: '16px' }}>{client.budget}</td>
-                                    <td style={{ padding: '16px' }}>{client.date}</td>
-                                    <td style={{ padding: '16px' }}>
-                                        <span style={{
-                                            display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600',
-                                            background: client.status === 'Activo' ? 'rgba(16, 185, 129, 0.1)' :
-                                                client.status === 'En espera' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                                            color: client.status === 'Activo' ? 'var(--success)' :
-                                                client.status === 'En espera' ? 'var(--warning)' : 'var(--danger)'
-                                        }}>
-                                            {client.status}
-                                        </span>
-                                    </td>
-                                    <td style={{ padding: '16px', textAlign: 'center' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                                            <button style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} title="Ver Detalle"><Eye size={18} /></button>
-                                            <button style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} title="Editar"><Edit2 size={18} /></button>
-                                            <button style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }} title="Eliminar"><Trash2 size={18} /></button>
-                                        </div>
-                                    </td>
+                    {loading ? (
+                        <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            <RefreshCw className="animate-spin" size={30} style={{ margin: '0 auto 15px auto', display: 'block' }} color="var(--primary-accent)" />
+                            Sincronizando registros con Google Sheets...
+                        </div>
+                    ) : (
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                            <thead>
+                                <tr style={{ borderBottom: '1px solid var(--border-glass)' }}>
+                                    <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Nombre del Cliente</th>
+                                    <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Segmento</th>
+                                    <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Presupuesto</th>
+                                    <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Fecha Registro</th>
+                                    <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Estado</th>
+                                    <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500', textAlign: 'center' }}>Acciones</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    {filteredClients.length === 0 && (
+                            </thead>
+                            <tbody>
+                                {filteredClients.map((client) => (
+                                    <tr key={client.id} style={{
+                                        borderBottom: '1px solid rgba(80, 200, 255, 0.05)',
+                                        transition: 'background 0.2s'
+                                    }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        <td style={{ padding: '16px', fontWeight: '500' }}>{client.name}</td>
+                                        <td style={{ padding: '16px' }}>{client.segment}</td>
+                                        <td style={{ padding: '16px' }}>{client.budget}</td>
+                                        <td style={{ padding: '16px' }}>{client.date}</td>
+                                        <td style={{ padding: '16px' }}>
+                                            <span style={{
+                                                display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600',
+                                                background: client.status === 'Activo' ? 'rgba(16, 185, 129, 0.1)' :
+                                                    client.status === 'En espera' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                                                color: client.status === 'Activo' ? 'var(--success)' :
+                                                    client.status === 'En espera' ? 'var(--warning)' : 'var(--danger)'
+                                            }}>
+                                                {client.status}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                                                <button style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} title="Ver Detalle"><Eye size={18} /></button>
+                                                <button style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} title="Editar"><Edit2 size={18} /></button>
+                                                <button style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }} title="Eliminar"><Trash2 size={18} /></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                    {!loading && filteredClients.length === 0 && (
                         <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
                             No se encontraron clientes que coincidan con la búsqueda.
                         </div>
