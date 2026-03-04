@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, X, CalendarDays, FileText, BarChart3, Save } from 'lucide-react';
+import { Search, X, CalendarDays, FileText, BarChart3, Save, Edit2, Trash2 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { fetchClientsFromSheet, type ClientData } from '../services/googleSheets';
 import { useAuth } from '../contexts/AuthContext';
@@ -299,9 +299,12 @@ function TabNotas({ session, role }: { session: any; role: string }) {
     const [notes, setNotes] = useState<ClientNote[]>([]);
     const [selectedClient, setSelectedClient] = useState<ClientData | null>(null);
     const [search, setSearch] = useState('');
+    const [filterHasNotes, setFilterHasNotes] = useState(false);
     const [newNote, setNewNote] = useState('');
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editingText, setEditingText] = useState('');
 
     useEffect(() => {
         loadAll();
@@ -344,10 +347,34 @@ function TabNotas({ session, role }: { session: any; role: string }) {
         loadAll();
     };
 
-    const filtered = clients.filter(c =>
-        c.name.toLowerCase().includes(search.toLowerCase()) ||
-        c.phone.includes(search)
-    );
+    // Permisos: asesores solo editan/eliminan sus notas; admins/gerentes todas
+    const canEdit = (note: ClientNote) =>
+        role !== 'asesor' || note.created_by === session?.user?.id;
+
+    const deleteNote = async (id: string) => {
+        if (!window.confirm('¿Eliminar esta nota? Esta acción no se puede deshacer.')) return;
+        await supabase.from('client_notes').delete().eq('id', id);
+        loadAll();
+    };
+
+    const startEdit = (note: ClientNote) => {
+        setEditingId(note.id);
+        setEditingText(note.note);
+    };
+
+    const saveEdit = async () => {
+        if (!editingId || !editingText.trim()) return;
+        await supabase.from('client_notes').update({ note: editingText.trim() }).eq('id', editingId);
+        setEditingId(null);
+        setEditingText('');
+        loadAll();
+    };
+
+    const filtered = clients.filter(c => {
+        const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search);
+        const hasNotes = notes.some(n => n.client_id === c.id);
+        return matchSearch && (!filterHasNotes || hasNotes);
+    });
 
     const clientNotes = selectedClient ? notes.filter(n => n.client_id === selectedClient.id) : [];
 
@@ -360,6 +387,11 @@ function TabNotas({ session, role }: { session: any; role: string }) {
                     <input type="text" placeholder="Buscar cliente..." value={search} onChange={e => setSearch(e.target.value)}
                         style={{ width: '100%', padding: '10px 12px 10px 36px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-glass)', color: 'var(--text-main)', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
+                {/* Filtro: solo con notas */}
+                <button onClick={() => setFilterHasNotes(f => !f)}
+                    style={{ padding: '6px 12px', borderRadius: '20px', border: `1px solid ${filterHasNotes ? 'var(--primary-accent)' : 'var(--border-glass)'}`, background: filterHasNotes ? 'rgba(0,240,255,0.1)' : 'transparent', color: filterHasNotes ? 'var(--primary-accent)' : 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.78rem', fontWeight: filterHasNotes ? '700' : '400', transition: 'all 0.2s', textAlign: 'left' }}>
+                    {filterHasNotes ? '✓ ' : ''}📝 Solo con notas
+                </button>
 
                 {loading ? <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cargando...</p> : (
                     filtered.map(c => {
@@ -414,14 +446,50 @@ function TabNotas({ session, role }: { session: any; role: string }) {
                             {clientNotes.length === 0 ? (
                                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '20px' }}>Sin notas aún para este cliente.</p>
                             ) : (
-                                clientNotes.map(n => (
-                                    <div key={n.id} className="glass-panel" style={{ padding: '14px 18px' }}>
-                                        <p style={{ margin: '0 0 8px', fontSize: '0.9rem', lineHeight: '1.5' }}>{n.note}</p>
-                                        <p style={{ margin: 0, fontSize: '0.73rem', color: 'var(--text-muted)' }}>
-                                            👤 {n.created_by_email?.split('@')[0]} · {new Date(n.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                        </p>
-                                    </div>
-                                ))
+                                clientNotes.map(n => {
+                                    const isEditing = editingId === n.id;
+                                    return (
+                                        <div key={n.id} className="glass-panel" style={{ padding: '14px 18px' }}>
+                                            {isEditing ? (
+                                                <>
+                                                    <textarea value={editingText} onChange={e => setEditingText(e.target.value)} rows={3} autoFocus
+                                                        style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--primary-accent)', color: 'var(--text-main)', fontFamily: 'inherit', resize: 'vertical', outline: 'none', boxSizing: 'border-box', marginBottom: '8px' }} />
+                                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                                        <button onClick={saveEdit}
+                                                            style={{ padding: '6px 14px', borderRadius: '8px', background: 'var(--primary-accent)', border: 'none', color: '#000', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem' }}>
+                                                            <Save size={13} /> Guardar
+                                                        </button>
+                                                        <button onClick={() => setEditingId(null)}
+                                                            style={{ padding: '6px 14px', borderRadius: '8px', background: 'transparent', border: '1px solid var(--border-glass)', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.82rem' }}>
+                                                            Cancelar
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <p style={{ margin: '0 0 8px', fontSize: '0.9rem', lineHeight: '1.5' }}>{n.note}</p>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <p style={{ margin: 0, fontSize: '0.73rem', color: 'var(--text-muted)' }}>
+                                                            👤 {n.created_by_email?.split('@')[0]} · {new Date(n.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                        </p>
+                                                        {canEdit(n) && (
+                                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                                <button onClick={() => startEdit(n)} title="Editar nota"
+                                                                    style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-glass)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}>
+                                                                    <Edit2 size={12} /> Editar
+                                                                </button>
+                                                                <button onClick={() => deleteNote(n.id)} title="Eliminar nota"
+                                                                    style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.3)', background: 'transparent', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}>
+                                                                    <Trash2 size={12} /> Eliminar
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    );
+                                })
                             )}
                         </div>
                     </div>
