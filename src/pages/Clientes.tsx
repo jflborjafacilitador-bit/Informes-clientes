@@ -9,6 +9,7 @@ export default function Clientes() {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [assignFilter, setAssignFilter] = useState('');
+    const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState(25);
     const [clients, setClients] = useState<ClientData[]>([]);
@@ -130,7 +131,15 @@ export default function Clientes() {
     });
 
     const totalPages = Math.ceil(filteredClients.length / pageSize);
-    const paginatedClients = filteredClients.slice(page * pageSize, (page + 1) * pageSize);
+
+    // Ordenar por fecha antes de paginar
+    const sortedClients = [...filteredClients].sort((a, b) => {
+        const da = new Date(a.date).getTime();
+        const db = new Date(b.date).getTime();
+        return sortOrder === 'desc' ? db - da : da - db;
+    });
+
+    const paginatedClients = sortedClients.slice(page * pageSize, (page + 1) * pageSize);
 
     const handleSearchChange = (v: string) => { setSearchTerm(v); setPage(0); };
     const handleStatusFilter = (v: string) => { setStatusFilter(v); setPage(0); };
@@ -203,6 +212,19 @@ export default function Clientes() {
                             {asesores.map(a => (
                                 <option key={a.id} value={a.email}>{a.email.split('@')[0]}</option>
                             ))}
+                        </select>
+
+                        {/* Selector de orden */}
+                        <select
+                            value={sortOrder}
+                            onChange={(e) => { setSortOrder(e.target.value as 'desc' | 'asc'); setPage(0); }}
+                            style={{
+                                padding: '10px 12px', borderRadius: '8px',
+                                background: 'var(--bg-panel)', border: '1px solid var(--border-glass)',
+                                color: 'var(--text-muted)', outline: 'none', cursor: 'pointer', fontFamily: 'inherit'
+                            }}>
+                            <option value="desc">📅 Más recientes primero</option>
+                            <option value="asc">📅 Más antiguos primero</option>
                         </select>
 
                         {/* Selector de tamaño de página */}
