@@ -197,12 +197,29 @@ function TabCitas({ session, role }: { session: any; role: string }) {
 
     const loadAll = async () => {
         setLoading(true);
-        const [sheetData, { data: appts }] = await Promise.all([
+        const [sheetData, { data: appts }, { data: overrides }] = await Promise.all([
             fetchClientsFromSheet(),
             supabase.from('appointments').select('*').order('created_at', { ascending: false }),
+            supabase.from('client_overrides').select('client_id, status, assigned_to, assigned_email'),
         ]);
-        // Clientes citados: estado Citado en sheet O que ya tienen cita registrada
-        const citados = sheetData.filter(c => c.status === 'Citado' || appts?.some(a => a.client_id === c.id));
+
+        // Mezclar status de Supabase sobre datos del Sheet
+        const merged = sheetData.map(client => {
+            const override = overrides?.find(o => o.client_id === client.id);
+            if (override) {
+                return {
+                    ...client,
+                    status: override.status || client.status,
+                    assigned_to: override.assigned_to || client.assigned_to,
+                    assigned_email: override.assigned_email || client.assigned_email,
+                };
+            }
+            return client;
+        });
+
+        // Clientes citados: status Citado (ya sea del Sheet o de override) O con cita ya registrada
+        const citados = merged.filter(c => c.status === 'Citado' || appts?.some(a => a.client_id === c.id));
+
         // Asesor ve los suyos por app (assigned_to) O por Excel (sheet_assigned contiene su email prefix)
         const emailPrefix = session?.user?.email?.split('@')[0]?.toLowerCase() || '';
         setClients(role === 'asesor'
