@@ -34,7 +34,7 @@ export default function Clientes() {
             // 2. Supabase guarda solo las modificaciones (estado y asignación)
             const { data: overrides } = await supabase
                 .from('client_overrides')
-                .select('client_id, status, assigned_to, assigned_email');
+                .select('client_id, status, assigned_to, assigned_email, budget_range');
 
             // 3. Mezclamos: el override de Supabase sobreescribe el dato de Sheets
             const merged = sheetData.map(client => {
@@ -45,6 +45,7 @@ export default function Clientes() {
                         status: override.status || client.status,
                         assigned_to: override.assigned_to || undefined,
                         assigned_email: override.assigned_email || undefined,
+                        budget_range: override.budget_range || undefined,
                     };
                 }
                 return client;
@@ -60,6 +61,14 @@ export default function Clientes() {
     const loadAsesores = async () => {
         const { data } = await supabase.from('profiles').select('*').eq('role', 'asesor');
         if (data) setAsesores(data);
+    };
+
+    const handleBudgetChange = async (id: string, newBudget: string) => {
+        await supabase.from('client_overrides').upsert(
+            { client_id: id, budget_range: newBudget },
+            { onConflict: 'client_id' }
+        );
+        loadData();
     };
 
     const handleStatusChange = async (id: string, newStatus: string) => {
@@ -96,11 +105,7 @@ export default function Clientes() {
                         <span style={{ marginLeft: '10px', color: 'var(--text-main)', fontWeight: 'bold' }}>Total: {clients.length} / Activos: {clients.filter(c => c.status === 'Activo').length}</span>
                     </p>
                 </div>
-                <button style={{
-                    background: 'linear-gradient(135deg, var(--primary-accent), var(--secondary-accent))',
-                    border: 'none', color: '#fff', padding: '10px 20px', borderRadius: '8px',
-                    cursor: 'pointer', fontWeight: '600', boxShadow: '0 0 15px rgba(0, 240, 255, 0.4)'
-                }}>+ Registrar Cliente</button>
+
             </div>
 
             <div className="glass-panel" style={{ padding: '24px' }}>
@@ -147,10 +152,11 @@ export default function Clientes() {
                         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                             <thead>
                                 <tr style={{ borderBottom: '1px solid var(--border-glass)' }}>
+                                    <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500', width: '50px', textAlign: 'center' }}>#</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Nombre del Cliente</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Segmento</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Asignación</th>
-                                    <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Fecha Registro</th>
+                                    <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Presupuesto</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Estado</th>
                                     {(role === 'super_admin' || role === 'asesor') && (
                                         <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500', textAlign: 'center' }}>Acciones</th>
@@ -158,7 +164,7 @@ export default function Clientes() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredClients.map((client) => (
+                                {filteredClients.map((client, index) => (
                                     <tr key={client.id} style={{
                                         borderBottom: '1px solid rgba(80, 200, 255, 0.05)',
                                         transition: 'background 0.2s'
@@ -166,6 +172,7 @@ export default function Clientes() {
                                         onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
                                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                     >
+                                        <td style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{index + 1}</td>
                                         <td style={{ padding: '16px', fontWeight: '500' }}>{client.name}</td>
                                         <td style={{ padding: '16px' }}>{client.segment}</td>
                                         <td style={{ padding: '16px' }}>
@@ -184,7 +191,31 @@ export default function Clientes() {
                                                 <span style={{ color: 'var(--text-muted)' }}>{client.assigned_email?.split('@')[0] || 'Sin asignar'}</span>
                                             )}
                                         </td>
-                                        <td style={{ padding: '16px' }}>{new Date(client.date).toLocaleDateString()}</td>
+                                        <td style={{ padding: '16px' }}>
+                                            {(role === 'super_admin' || role === 'asesor') ? (
+                                                <select
+                                                    value={client.budget_range || ''}
+                                                    onChange={(e) => handleBudgetChange(client.id, e.target.value)}
+                                                    style={{
+                                                        background: 'var(--bg-panel)', color: 'var(--text-main)',
+                                                        border: '1px solid var(--border-glass)',
+                                                        padding: '4px 8px', borderRadius: '4px', outline: 'none'
+                                                    }}>
+                                                    <option value="">Sin definir</option>
+                                                    <option value="menos_1.5">{'< 1.5 mdp'}</option>
+                                                    <option value="1.5_a_2">1.5 – 2 mdp</option>
+                                                    <option value="mas_2">{'>  2 mdp'}</option>
+                                                    <option value="desconocido">Desconocido</option>
+                                                </select>
+                                            ) : (
+                                                <span style={{ color: 'var(--text-muted)' }}>
+                                                    {client.budget_range === 'menos_1.5' ? '< 1.5 mdp' :
+                                                        client.budget_range === '1.5_a_2' ? '1.5 – 2 mdp' :
+                                                            client.budget_range === 'mas_2' ? '> 2 mdp' :
+                                                                client.budget_range === 'desconocido' ? 'Desconocido' : 'Sin definir'}
+                                                </span>
+                                            )}
+                                        </td>
                                         <td style={{ padding: '16px' }}>
                                             {(role === 'super_admin' || role === 'asesor') ? (
                                                 <select

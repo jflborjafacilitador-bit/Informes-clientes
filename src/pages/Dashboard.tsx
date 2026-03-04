@@ -1,40 +1,63 @@
 import { useState, useEffect } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, TrendingUp, Activity, DollarSign, ArrowUpRight, RefreshCw } from 'lucide-react';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { Users, AlertCircle, CalendarCheck, UserX, ArrowUpRight } from 'lucide-react';
 import { fetchClientsFromSheet } from '../services/googleSheets';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 
-const StatCard = ({ title, value, icon: Icon, trend, color }: any) => (
+const STATUS_COLORS: Record<string, string> = {
+    'Nuevo': '#00f0ff',
+    'Citado': '#10b981',
+    'Activo': '#22c55e',
+    'En seguimiento': '#f59e0b',
+    'Reprogramo': '#38bdf8',
+    'En espera': '#f97316',
+    'No responde': '#ef4444',
+    'No esta interesado': '#dc2626',
+    'Repetido': '#991b1b',
+    'Numero sin Whatsapp': '#eab308',
+    'Presupuesto insuficiente': '#8b5cf6',
+};
+
+const StatCard = ({ title, value, icon: Icon, color, subtitle }: any) => (
     <div className="glass-panel" style={{ padding: '24px', position: 'relative', overflow: 'hidden' }}>
         <div style={{
             position: 'absolute', top: '-20px', right: '-20px',
             width: '100px', height: '100px',
             background: `radial-gradient(circle, ${color}33 0%, transparent 70%)`,
             borderRadius: '50%'
-        }}></div>
+        }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '8px' }}>{title}</p>
                 <h3 style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--text-main)', margin: 0 }} className="glow-text">{value}</h3>
+                {subtitle && <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '6px' }}>{subtitle}</p>}
             </div>
             <div style={{
-                background: `${color}22`,
-                color: color,
-                padding: '12px',
-                borderRadius: '12px',
+                background: `${color}22`, color,
+                padding: '12px', borderRadius: '12px',
                 boxShadow: `0 0 15px ${color}44`
             }}>
                 <Icon size={24} />
             </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '16px' }}>
-            <ArrowUpRight size={16} color="var(--success)" />
-            <span style={{ color: 'var(--success)', fontWeight: '500', fontSize: '0.85rem' }}>{trend}%</span>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>vs mes pasado</span>
-        </div>
     </div>
 );
+
+const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+        return (
+            <div style={{
+                background: 'rgba(7,9,14,0.95)', border: '1px solid var(--border-glass)',
+                borderRadius: '8px', padding: '10px 14px', fontSize: '0.85rem'
+            }}>
+                <p style={{ margin: 0, fontWeight: '600', color: payload[0].payload.fill }}>{payload[0].name}</p>
+                <p style={{ margin: '4px 0 0', color: 'var(--text-main)' }}>{payload[0].value} clientes</p>
+            </div>
+        );
+    }
+    return null;
+};
 
 export default function Dashboard() {
     const { session } = useAuth();
@@ -44,10 +67,9 @@ export default function Dashboard() {
     useEffect(() => {
         if (session) {
             loadData();
-            const channel = supabase.channel('realtime_dashboard').on('postgres_changes', { event: '*', schema: 'public', table: 'client_overrides' }, () => {
-                loadData();
-            }).subscribe();
-
+            const channel = supabase.channel('realtime_dashboard')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'client_overrides' }, () => { loadData(); })
+                .subscribe();
             return () => { supabase.removeChannel(channel); };
         }
     }, [session]);
@@ -55,165 +77,190 @@ export default function Dashboard() {
     const loadData = async () => {
         setLoading(true);
         try {
-            let gridData = await fetchClientsFromSheet();
-
-            const { data: overrides, error } = await supabase
+            const sheetData = await fetchClientsFromSheet();
+            const { data: overrides } = await supabase
                 .from('client_overrides')
-                .select('client_id, status');
+                .select('client_id, status, assigned_to, assigned_email, budget_range');
 
-            if (!error && overrides && overrides.length > 0) {
-                const empalmado = gridData.map(client => {
-                    const override = overrides.find(o => o.client_id === client.id);
-                    if (override) {
-                        return { ...client, status: override.status || client.status };
-                    }
-                    return client;
-                });
-                setClients(empalmado);
-            } else {
-                setClients(gridData);
-            }
+            const merged = sheetData.map(client => {
+                const override = overrides?.find(o => o.client_id === client.id);
+                if (override) {
+                    return {
+                        ...client,
+                        status: override.status || client.status,
+                        assigned_to: override.assigned_to || undefined,
+                        assigned_email: override.assigned_email || undefined,
+                    };
+                }
+                return client;
+            });
+            setClients(merged);
         } catch (error) {
             console.error(error);
         }
         setLoading(false);
     };
 
-    // Cálculos dinámicos basados en Sheets
-    const totalClients = clients.length;
+    // --- Métricas ---
+    const total = clients.length;
+    const pendientes = clients.filter(c => c.status === 'Nuevo').length;
+    const citados = clients.filter(c => c.status === 'Citado').length;
+    const sinAsignar = clients.filter(c => !c.assigned_to).length;
 
-    // Contamos cuantos están inactivos para un placeholder de "Interacciones"
-    const activeClients = clients.filter(c => c.status.toLowerCase() === 'activo').length;
-
-    // Tasa de conversión simulada
-    const conversionRate = totalClients > 0 ? ((activeClients / totalClients) * 100).toFixed(1) : '0';
-
-    // Sumar presupuesto (simplificado)
-    const totalBudget = clients.reduce((acc, curr) => {
-        const val = parseInt(curr.budget.replace(/[^0-9.-]+/g, "")) || 0;
-        return acc + val;
-    }, 0);
-    const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumSignificantDigits: 3 });
-    const formattedBudget = formatter.format(totalBudget);
-
-    // Agrupar para el gráfico por Tipo de Segmento
-    const segmentCounts: any = {};
+    // --- Donut: distribución por estado ---
+    const statusCounts: Record<string, number> = {};
     clients.forEach(c => {
-        const seg = c.segment || 'Otros';
-        if (!segmentCounts[seg]) segmentCounts[seg] = { usuarios: 0, interesados: 0 };
+        statusCounts[c.status] = (statusCounts[c.status] || 0) + 1;
+    });
+    const pieData = Object.entries(statusCounts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([name, value]) => ({ name, value, fill: STATUS_COLORS[name] || '#6b7280' }));
 
-        if (c.status.toLowerCase() === 'activo') {
-            segmentCounts[seg].usuarios += 1;
-        } else {
-            segmentCounts[seg].interesados += 1;
+    // --- Panel urgentes: Nuevos sin asignar ---
+    const urgentes = clients
+        .filter(c => c.status === 'Nuevo' && !c.assigned_to)
+        .slice(0, 6);
+
+    // --- Panel asesores: cuántos clientes tiene cada uno ---
+    const asesorMap: Record<string, number> = {};
+    clients.forEach(c => {
+        if (c.assigned_email) {
+            const nombre = c.assigned_email.split('@')[0];
+            asesorMap[nombre] = (asesorMap[nombre] || 0) + 1;
         }
     });
-
-    const chartData = Object.keys(segmentCounts).map(seg => ({
-        name: seg.substring(0, 10), // Truncar largo
-        usuarios: segmentCounts[seg].usuarios * 100, // Multiplicador para escala visual
-        interesados: segmentCounts[seg].interesados * 100
-    }));
+    const topAsesores = Object.entries(asesorMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
     return (
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
                     <h1 style={{ fontSize: '2rem', margin: 0 }}>Dashboard <span className="glow-text" style={{ color: 'var(--primary-accent)' }}>General</span></h1>
-                    <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Métricas en tiempo real de tu cartera de prospectos.</p>
+                    <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Pipeline de ventas en tiempo real.</p>
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                <StatCard title="Total Clientes" value={loading ? "..." : totalClients} icon={Users} trend="12.5" color="var(--primary-accent)" />
-                <StatCard title="Interacciones Activas" value={loading ? "..." : activeClients} icon={Activity} trend="8.2" color="var(--secondary-accent)" />
-                <StatCard title="Tasa de Conversión" value={loading ? "..." : `${conversionRate}%`} icon={TrendingUp} trend="4.1" color="var(--success)" />
-                <StatCard title="Valor Proyectado" value={loading ? "..." : formattedBudget} icon={DollarSign} trend="15.3" color="var(--warning)" />
+            {/* Tarjetas */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+                <StatCard title="Total Prospectos" value={loading ? '...' : total} icon={Users} color="var(--primary-accent)" subtitle="Registros activos en Google Sheets" />
+                <StatCard title="Pendientes de contacto" value={loading ? '...' : pendientes} icon={AlertCircle} color="#f59e0b" subtitle='Status: "Nuevo" sin atender' />
+                <StatCard title="Citados" value={loading ? '...' : citados} icon={CalendarCheck} color="#10b981" subtitle="Con cita agendada" />
+                <StatCard title="Sin asesor asignado" value={loading ? '...' : sinAsignar} icon={UserX} color="#ef4444" subtitle="Requieren asignación" />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '20px' }}>
-                {/* Chart Section */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '20px' }}>
+
+                {/* Donut Chart - Distribución por Estado */}
                 <div className="glass-panel" style={{ padding: '24px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                        <h3 style={{ margin: 0 }}>Rendimiento de Segmentos</h3>
-                        <span style={{ padding: '6px 12px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            {loading ? <RefreshCw size={14} className="animate-spin" /> : "●"} Live Data
-                        </span>
+                        <h3 style={{ margin: 0 }}>Distribución por Estado</h3>
+                        <span style={{
+                            padding: '6px 12px', background: 'rgba(16, 185, 129, 0.1)',
+                            color: 'var(--success)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '600'
+                        }}>● Live</span>
                     </div>
-                    <div style={{ height: '300px', width: '100%' }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={chartData.length > 0 ? chartData : [{ name: 'Cargando...', usuarios: 0, interesados: 0 }]} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorUsuarios" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="var(--primary-accent)" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="var(--primary-accent)" stopOpacity={0} />
-                                    </linearGradient>
-                                    <linearGradient id="colorInteresados" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="var(--secondary-accent)" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="var(--secondary-accent)" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-                                <YAxis stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: 'rgba(7, 9, 14, 0.9)', border: '1px solid var(--border-glass)', borderRadius: '8px', backdropFilter: 'blur(8px)' }}
-                                    itemStyle={{ color: '#fff' }}
-                                />
-                                <Area type="monotone" dataKey="usuarios" stroke="var(--primary-accent)" fillOpacity={1} fill="url(#colorUsuarios)" strokeWidth={3} />
-                                <Area type="monotone" dataKey="interesados" stroke="var(--secondary-accent)" fillOpacity={1} fill="url(#colorInteresados)" strokeWidth={3} />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
+                    {loading ? (
+                        <div style={{ height: '320px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                            Cargando datos...
+                        </div>
+                    ) : (
+                        <div style={{ height: '320px' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={pieData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={70}
+                                        outerRadius={120}
+                                        paddingAngle={3}
+                                        dataKey="value"
+                                    >
+                                        {pieData.map((entry, index) => (
+                                            <Cell key={index} fill={entry.fill} stroke="transparent" />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Legend
+                                        formatter={(value) => <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{value}</span>}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                    )}
                 </div>
 
-                {/* Recent Registrations Table/List */}
-                <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-                    <h3 style={{ margin: '0 0 20px 0' }}>Registros Recientes</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', overflowY: 'auto', flex: 1, paddingRight: '10px' }}>
-                        {loading ? (
-                            <div style={{ textAlign: 'center', color: 'var(--text-muted)', paddingTop: '20px' }}>Cargando desde Google Sheets...</div>
-                        ) : clients.length === 0 ? (
-                            <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No hay registros aún.</div>
-                        ) : (
-                            clients.slice(0, 5).map(client => (
-                                <div key={client.id} style={{
-                                    padding: '16px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-glass)',
-                                    borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                    transition: 'transform 0.2s'
-                                }}
-                                    onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(5px)'}
-                                    onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}
-                                >
-                                    <div>
-                                        <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem' }}>{client.name}</h4>
-                                        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>{client.segment}</p>
+                {/* Panel derecho */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+                    {/* Urgentes - Nuevos sin asignar */}
+                    <div className="glass-panel" style={{ padding: '24px', flex: 1 }}>
+                        <h3 style={{ margin: '0 0 16px 0', fontSize: '1rem' }}>
+                            ⚡ Urgentes — Nuevos sin asignar
+                            <span style={{ marginLeft: '8px', background: 'rgba(239,68,68,0.15)', color: '#ef4444', borderRadius: '12px', padding: '2px 8px', fontSize: '0.75rem' }}>
+                                {sinAsignar}
+                            </span>
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {loading ? (
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cargando...</p>
+                            ) : urgentes.length === 0 ? (
+                                <p style={{ color: 'var(--success)', fontSize: '0.85rem' }}>✓ Todos asignados</p>
+                            ) : (
+                                urgentes.map(c => (
+                                    <div key={c.id} style={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                        padding: '10px 12px', background: 'rgba(239,68,68,0.05)',
+                                        border: '1px solid rgba(239,68,68,0.15)', borderRadius: '8px'
+                                    }}>
+                                        <div>
+                                            <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: '600' }}>{c.name}</p>
+                                            <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>{c.segment}</p>
+                                        </div>
+                                        <ArrowUpRight size={14} color="#ef4444" />
                                     </div>
-                                    <div style={{ textAlign: 'right' }}>
-                                        <span style={{
-                                            display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: '600',
-                                            background: client.status === 'Activo' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                                            color: client.status === 'Activo' ? 'var(--success)' : 'var(--warning)'
-                                        }}>
-                                            {client.status}
-                                        </span>
-                                    </div>
-                                </div>
-                            )))}
+                                ))
+                            )}
+                        </div>
                     </div>
-                    <button style={{
-                        width: '100%', padding: '12px', marginTop: '20px',
-                        background: 'transparent', border: '1px solid var(--border-glass)',
-                        color: 'var(--text-main)', borderRadius: '8px', cursor: 'pointer',
-                        transition: 'background 0.2s'
-                    }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                    >
-                        Ver todos los clientes
-                    </button>
+
+                    {/* Top Asesores */}
+                    <div className="glass-panel" style={{ padding: '24px' }}>
+                        <h3 style={{ margin: '0 0 16px 0', fontSize: '1rem' }}>🏆 Cartera por Asesor</h3>
+                        {loading ? (
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cargando...</p>
+                        ) : topAsesores.length === 0 ? (
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Sin asignaciones aún.</p>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {topAsesores.map(([nombre, count], i) => (
+                                    <div key={nombre} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <span style={{
+                                            width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            background: i === 0 ? 'rgba(234,179,8,0.2)' : 'rgba(255,255,255,0.05)',
+                                            color: i === 0 ? '#eab308' : 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '700'
+                                        }}>{i + 1}</span>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                                <span style={{ fontSize: '0.85rem', fontWeight: '500' }}>{nombre}</span>
+                                                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{count}</span>
+                                            </div>
+                                            <div style={{ height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px' }}>
+                                                <div style={{
+                                                    height: '100%', borderRadius: '2px',
+                                                    width: `${(count / (topAsesores[0]?.[1] || 1)) * 100}%`,
+                                                    background: 'linear-gradient(90deg, var(--primary-accent), var(--secondary-accent))'
+                                                }} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
                 </div>
             </div>
-        </div >
+        </div>
     );
 }

@@ -9,6 +9,7 @@ export interface ClientData {
     status: string;
     assigned_to?: string; // Vendrá de Supabase
     assigned_email?: string; // Vendrá de Supabase
+    budget_range?: string; // Vendrá de Supabase (override de presupuesto)
 }
 
 const csvUrl = 'https://docs.google.com/spreadsheets/d/1yPbtGw1cPbbo7VDldJO_zCphq0LjJREjfriKGuBs3PI/export?format=csv';
