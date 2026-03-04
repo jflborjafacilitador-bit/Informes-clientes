@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Filter, Edit2, Trash2, RefreshCw } from 'lucide-react';
-import { type ClientData } from '../services/googleSheets';
+import { fetchClientsFromSheet, type ClientData } from '../services/googleSheets';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -16,8 +16,8 @@ export default function Clientes() {
             loadData();
             if (role === 'super_admin') loadAsesores();
 
-            // Suscripción al realtime para actualizar la UI si otro asesor cambia algo
-            const channel = supabase.channel('realtime_clients').on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => {
+            // Realtime: actualiza cuando alguien cambia un override (estado/asignación)
+            const channel = supabase.channel('realtime_clients').on('postgres_changes', { event: '*', schema: 'public', table: 'client_overrides' }, () => {
                 loadData();
             }).subscribe();
 
@@ -28,20 +28,31 @@ export default function Clientes() {
     const loadData = async () => {
         setLoading(true);
         try {
-            // RLS ya filtra lo que puede ver el usuario actual en la BD.
-            const { data, error } = await supabase
-                .from('clients')
-                .select(`
-                    *,
-                    profiles:assigned_to (email)
-                `)
-                .order('created_at', { ascending: false });
+            // 1. Google Sheets es la fuente de verdad para los datos base
+            const sheetData = await fetchClientsFromSheet();
 
-            if (!error && data) {
-                setClients(data);
-            }
+            // 2. Supabase guarda solo las modificaciones (estado y asignación)
+            const { data: overrides } = await supabase
+                .from('client_overrides')
+                .select('client_id, status, assigned_to, assigned_email');
+
+            // 3. Mezclamos: el override de Supabase sobreescribe el dato de Sheets
+            const merged = sheetData.map(client => {
+                const override = overrides?.find(o => o.client_id === client.id);
+                if (override) {
+                    return {
+                        ...client,
+                        status: override.status || client.status,
+                        assigned_to: override.assigned_to || undefined,
+                        assigned_email: override.assigned_email || undefined,
+                    };
+                }
+                return client;
+            });
+
+            setClients(merged);
         } catch (error) {
-            console.error(error);
+            console.error('Error cargando clientes:', error);
         }
         setLoading(false);
     };
@@ -52,13 +63,22 @@ export default function Clientes() {
     };
 
     const handleStatusChange = async (id: string, newStatus: string) => {
-        const { error } = await supabase.from('clients').update({ status: newStatus }).eq('id', id);
-        if (!error) loadData();
+        // Guardamos el cambio en client_overrides sin tocar el Google Sheet
+        await supabase.from('client_overrides').upsert(
+            { client_id: id, status: newStatus },
+            { onConflict: 'client_id' }
+        );
+        loadData();
     };
 
     const handleAssign = async (id: string, userId: string) => {
-        const { error } = await supabase.from('clients').update({ assigned_to: userId }).eq('id', id);
-        if (!error) loadData();
+        // Buscamos el email del asesor para guardarlo también
+        const asesor = asesores.find(a => a.id === userId);
+        await supabase.from('client_overrides').upsert(
+            { client_id: id, assigned_to: userId, assigned_email: asesor?.email || '' },
+            { onConflict: 'client_id' }
+        );
+        loadData();
     };
 
     const filteredClients = clients.filter(client =>
