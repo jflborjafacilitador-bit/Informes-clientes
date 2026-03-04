@@ -56,9 +56,13 @@ export default function Clientes() {
                 return client;
             });
 
-            // 4. Asesor solo ve sus clientes asignados
+            // Asesor ve clientes asignados por app (assigned_to) O por el Excel (sheet_assigned)
+            const emailPrefix = session?.user?.email?.split('@')[0]?.toLowerCase() || '';
             const visible = role === 'asesor'
-                ? merged.filter(c => c.assigned_to === session?.user?.id)
+                ? merged.filter(c =>
+                    c.assigned_to === session?.user?.id ||
+                    (c.sheet_assigned && c.sheet_assigned.toLowerCase().includes(emailPrefix))
+                )
                 : merged;
             setClients(visible);
         } catch (error) {

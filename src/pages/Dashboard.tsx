@@ -95,9 +95,13 @@ export default function Dashboard() {
                 return client;
             });
 
-            // Asesor solo ve sus propios clientes
+            // Asesor ve clientes asignados por app O por el Excel (sheet_assigned)
+            const emailPrefix = session?.user?.email?.split('@')[0]?.toLowerCase() || '';
             const visible = role === 'asesor'
-                ? merged.filter(c => c.assigned_to === session?.user?.id)
+                ? merged.filter(c =>
+                    c.assigned_to === session?.user?.id ||
+                    (c.sheet_assigned && c.sheet_assigned.toLowerCase().includes(emailPrefix))
+                )
                 : merged;
             setClients(visible);
         } catch (error) {

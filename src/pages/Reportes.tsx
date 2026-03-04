@@ -201,9 +201,17 @@ function TabCitas({ session, role }: { session: any; role: string }) {
             fetchClientsFromSheet(),
             supabase.from('appointments').select('*').order('created_at', { ascending: false }),
         ]);
-        // Citados: del sheet + los que tienen appointment registrada
+        // Clientes citados: estado Citado en sheet O que ya tienen cita registrada
         const citados = sheetData.filter(c => c.status === 'Citado' || appts?.some(a => a.client_id === c.id));
-        setClients(role === 'asesor' ? citados.filter(c => c.assigned_to === session?.user?.id) : citados);
+        // Asesor ve los suyos por app (assigned_to) O por Excel (sheet_assigned contiene su email prefix)
+        const emailPrefix = session?.user?.email?.split('@')[0]?.toLowerCase() || '';
+        setClients(role === 'asesor'
+            ? citados.filter(c =>
+                c.assigned_to === session?.user?.id ||
+                (c.sheet_assigned && c.sheet_assigned.toLowerCase().includes(emailPrefix))
+            )
+            : citados
+        );
         setAppointments(appts || []);
         setLoading(false);
     };
@@ -309,7 +317,13 @@ function TabNotas({ session, role }: { session: any; role: string }) {
             fetchClientsFromSheet(),
             supabase.from('client_notes').select('*').order('created_at', { ascending: false }),
         ]);
-        const visible = role === 'asesor' ? sheetData.filter(c => c.assigned_to === session?.user?.id) : sheetData;
+        const emailPrefix = session?.user?.email?.split('@')[0]?.toLowerCase() || '';
+        const visible = role === 'asesor'
+            ? sheetData.filter(c =>
+                c.assigned_to === session?.user?.id ||
+                (c.sheet_assigned && c.sheet_assigned.toLowerCase().includes(emailPrefix))
+            )
+            : sheetData;
         setClients(visible);
         setNotes(notesData || []);
         setLoading(false);
