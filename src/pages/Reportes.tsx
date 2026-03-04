@@ -324,29 +324,36 @@ function TabNotas({ session, role }: { session: any; role: string }) {
     const [editingText, setEditingText] = useState('');
 
     useEffect(() => {
+        if (!session || !role) return;
         loadAll();
         const channel = supabase.channel('realtime_notes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'client_notes' }, loadAll)
             .subscribe();
         return () => { supabase.removeChannel(channel); };
-    }, []);
+    }, [role, session?.user?.id]);
 
     const loadAll = async () => {
         setLoading(true);
-        const [sheetData, { data: notesData }] = await Promise.all([
-            fetchClientsFromSheet(),
-            supabase.from('client_notes').select('*').order('created_at', { ascending: false }),
-        ]);
-        const emailPrefix = session?.user?.email?.split('@')[0]?.toLowerCase() || '';
-        const visible = role === 'asesor'
-            ? sheetData.filter(c =>
-                c.assigned_to === session?.user?.id ||
-                (c.sheet_assigned && c.sheet_assigned.toLowerCase().includes(emailPrefix))
-            )
-            : sheetData;
-        setClients(visible);
-        setNotes(notesData || []);
-        setLoading(false);
+        try {
+            const [sheetData, { data: notesData, error: notesError }] = await Promise.all([
+                fetchClientsFromSheet(),
+                supabase.from('client_notes').select('*').order('created_at', { ascending: false }),
+            ]);
+            if (notesError) console.error('Error cargando notas:', notesError);
+            const emailPrefix = session?.user?.email?.split('@')[0]?.toLowerCase() || '';
+            const visible = role === 'asesor'
+                ? sheetData.filter(c =>
+                    c.assigned_to === session?.user?.id ||
+                    (c.sheet_assigned && c.sheet_assigned.toLowerCase().includes(emailPrefix))
+                )
+                : sheetData;
+            setClients(visible);
+            setNotes(notesData || []);
+        } catch (err) {
+            console.error('Error en TabNotas loadAll:', err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const saveNote = async () => {
@@ -388,12 +395,16 @@ function TabNotas({ session, role }: { session: any; role: string }) {
     };
 
     const filtered = clients.filter(c => {
-        const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search);
-        const hasNotes = notes.some(n => n.client_id === c.id);
+        const matchSearch =
+            c.name?.toLowerCase().includes(search.toLowerCase()) ||
+            (c.phone ?? '').includes(search);
+        const hasNotes = notes.some(n => String(n.client_id) === String(c.id));
         return matchSearch && (!filterHasNotes || hasNotes);
     });
 
-    const clientNotes = selectedClient ? notes.filter(n => n.client_id === selectedClient.id) : [];
+    const clientNotes = selectedClient
+        ? notes.filter(n => String(n.client_id) === String(selectedClient.id))
+        : [];
 
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '20px', minHeight: '500px' }}>
