@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Users, AlertCircle, CalendarCheck, UserX } from 'lucide-react';
+import { Users, AlertCircle, CalendarCheck, UserX, CalendarDays } from 'lucide-react';
 import { fetchClientsFromSheet } from '../services/googleSheets';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -63,6 +63,15 @@ export default function Dashboard() {
     const { session, role } = useAuth();
     const [clients, setClients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    // --- Filtros de fecha ---
+    type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
+    const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+    const [customStart, setCustomStart] = useState('');
+    const [customEnd, setCustomEnd] = useState('');
+    const startRef = useRef<HTMLInputElement>(null);
+    const endRef = useRef<HTMLInputElement>(null);
+    // overrideMap: client_id -> created_at
+    const [overrideDate, setOverrideDate] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (session) {
@@ -80,7 +89,7 @@ export default function Dashboard() {
             const sheetData = await fetchClientsFromSheet();
             const { data: overrides } = await supabase
                 .from('client_overrides')
-                .select('client_id, status, assigned_to, assigned_email, budget_range');
+                .select('client_id, status, assigned_to, assigned_email, budget_range, created_at');
 
             const merged = sheetData.map(client => {
                 const override = overrides?.find(o => o.client_id === client.id);
@@ -104,21 +113,45 @@ export default function Dashboard() {
                 )
                 : merged;
             setClients(visible);
+            // Guardar mapa de fechas de overrides
+            const dateMap: Record<string, string> = {};
+            overrides?.forEach(o => { if (o.created_at) dateMap[o.client_id] = o.created_at; });
+            setOverrideDate(dateMap);
         } catch (error) {
             console.error(error);
         }
         setLoading(false);
     };
 
-    // --- Métricas ---
-    const total = clients.length;
-    const pendientes = clients.filter(c => c.status === 'Nuevo').length;
-    const citados = clients.filter(c => c.status === 'Citado').length;
-    const sinAsignar = clients.filter(c => !c.assigned_to).length;
+    // --- Filtro de fecha aplicado ---
+    const getRange = (): [Date | null, Date | null] => {
+        const now = new Date();
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (dateFilter === 'today') return [startOfDay, now];
+        if (dateFilter === 'week') { const s = new Date(startOfDay); s.setDate(s.getDate() - 7); return [s, now]; }
+        if (dateFilter === 'month') { const s = new Date(startOfDay); s.setDate(s.getDate() - 30); return [s, now]; }
+        if (dateFilter === 'custom' && customStart && customEnd) return [new Date(customStart), new Date(customEnd + 'T23:59:59')];
+        return [null, null];
+    };
+    const [rangeStart, rangeEnd] = getRange();
+    const filteredClients = (rangeStart && rangeEnd)
+        ? clients.filter(c => {
+            const oDate = overrideDate[c.id];
+            if (!oDate) return false;
+            const d = new Date(oDate);
+            return d >= rangeStart && d <= rangeEnd;
+        })
+        : clients;
+
+    // --- Métricas (sobre filteredClients) ---
+    const total = filteredClients.length;
+    const pendientes = filteredClients.filter(c => c.status === 'Nuevo').length;
+    const citados = filteredClients.filter(c => c.status === 'Citado').length;
+    const sinAsignar = filteredClients.filter(c => !c.assigned_to).length;
 
     // --- Donut: distribución por estado ---
     const statusCounts: Record<string, number> = {};
-    clients.forEach(c => {
+    filteredClients.forEach(c => {
         statusCounts[c.status] = (statusCounts[c.status] || 0) + 1;
     });
     const pieData = Object.entries(statusCounts)
@@ -126,15 +159,13 @@ export default function Dashboard() {
         .map(([name, value]) => ({ name, value, fill: STATUS_COLORS[name] || '#6b7280' }));
 
     // --- Panel recientes: últimos registros por índice de fila (último CSV = más reciente) ---
-    const recientes = [...clients]
+    const recientes = [...filteredClients]
         .sort((a, b) => b.rowIndex - a.rowIndex)
         .slice(0, 6);
 
-
-
     // --- Panel asesores: cuántos clientes tiene cada uno ---
     const asesorMap: Record<string, number> = {};
-    clients.forEach(c => {
+    filteredClients.forEach(c => {
         if (c.assigned_email) {
             const nombre = c.assigned_email.split('@')[0];
             asesorMap[nombre] = (asesorMap[nombre] || 0) + 1;
@@ -144,11 +175,50 @@ export default function Dashboard() {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
                     <h1 style={{ fontSize: '2rem', margin: 0 }}>Dashboard <span className="glow-text" style={{ color: 'var(--primary-accent)' }}>General</span></h1>
                     <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Pipeline de ventas en tiempo real.</p>
                 </div>
+            </div>
+
+            {/* Barra de filtros de fecha */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <CalendarDays size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                {(['all', 'today', 'week', 'month', 'custom'] as const).map(f => {
+                    const labels: Record<string, string> = { all: 'Todos', today: 'Hoy', week: 'Últimos 7 días', month: 'Últimos 30 días', custom: 'Personalizado' };
+                    return (
+                        <button key={f} onClick={() => setDateFilter(f)}
+                            style={{ padding: '6px 14px', borderRadius: '20px', border: `1px solid ${dateFilter === f ? 'var(--primary-accent)' : 'var(--border-glass)'}`, background: dateFilter === f ? 'rgba(0,240,255,0.1)' : 'transparent', color: dateFilter === f ? 'var(--primary-accent)' : 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.82rem', fontWeight: dateFilter === f ? '700' : '400', transition: 'all 0.2s' }}>
+                            {labels[f]}
+                        </button>
+                    );
+                })}
+                {/* Inputs de rango personalizado */}
+                {dateFilter === 'custom' && (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                            <input ref={startRef} type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
+                                style={{ padding: '6px 10px', borderRadius: '8px', background: 'var(--bg-panel)', border: '1px solid var(--border-glass)', color: 'var(--text-main)', fontFamily: 'inherit', outline: 'none', fontSize: '0.82rem' }} />
+                            <button onClick={() => startRef.current?.showPicker()} style={{ padding: '6px 8px', borderRadius: '8px', background: 'rgba(0,240,255,0.08)', border: '1px solid var(--primary-accent)', color: 'var(--primary-accent)', cursor: 'pointer' }}>
+                                <CalendarDays size={14} />
+                            </button>
+                        </div>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>→</span>
+                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                            <input ref={endRef} type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
+                                style={{ padding: '6px 10px', borderRadius: '8px', background: 'var(--bg-panel)', border: '1px solid var(--border-glass)', color: 'var(--text-main)', fontFamily: 'inherit', outline: 'none', fontSize: '0.82rem' }} />
+                            <button onClick={() => endRef.current?.showPicker()} style={{ padding: '6px 8px', borderRadius: '8px', background: 'rgba(0,240,255,0.08)', border: '1px solid var(--primary-accent)', color: 'var(--primary-accent)', cursor: 'pointer' }}>
+                                <CalendarDays size={14} />
+                            </button>
+                        </div>
+                    </div>
+                )}
+                {dateFilter !== 'all' && (
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginLeft: '4px' }}>
+                        {filteredClients.length === 0 ? '⚠️ Sin datos con override en este rango' : `Mostrando ${filteredClients.length} de ${clients.length} clientes`}
+                    </span>
+                )}
             </div>
 
             {/* Tarjetas */}
