@@ -29,7 +29,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     const userEmail = session.user.email ?? '';
 
     const updateLastSeen = () =>
-      supabase.from('profiles').update({ last_seen: new Date().toISOString() }).eq('id', userId);
+      supabase.from('profiles')
+        .update({ last_seen: new Date().toISOString() })
+        .eq('id', userId)
+        .then(() => { });
 
     updateLastSeen();
     const interval = setInterval(updateLastSeen, 2 * 60 * 1000);
