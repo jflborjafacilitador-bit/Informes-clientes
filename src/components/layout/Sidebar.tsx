@@ -19,7 +19,7 @@ export default function Sidebar() {
           width: '50px', height: '50px',
           display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>
-          <img src="/logo.png" alt="Logo Los Quetzales" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          <img src="/Logo 1.1 sin fondo.png" alt="Logo Los Quetzales" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         </div>
         <div>
           <h2 style={{ fontSize: '1.1rem', fontWeight: '600', margin: 0 }} className="glow-text">Los Quetzales</h2>
