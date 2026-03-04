@@ -15,17 +15,14 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div style={{ padding: '2rem 1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <div style={{ 
-          width: '40px', height: '40px', 
-          borderRadius: '10px', 
-          background: 'linear-gradient(135deg, var(--primary-accent), var(--secondary-accent))',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 0 20px rgba(0, 240, 255, 0.4)'
+        <div style={{
+          width: '50px', height: '50px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>
-          <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '1.2rem' }}>Q</span>
+          <img src="/logo.png" alt="Logo Los Quetzales" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         </div>
         <div>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: '600', m: 0 }} className="glow-text">Los Quetzales</h2>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: '600', margin: 0 }} className="glow-text">Los Quetzales</h2>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Panel Administrativo</span>
         </div>
       </div>
@@ -34,10 +31,10 @@ export default function Sidebar() {
         {links.map((link) => {
           const Icon = link.icon;
           const isActive = location.pathname === link.to;
-          
+
           return (
-            <Link 
-              key={link.to} 
+            <Link
+              key={link.to}
               to={link.to}
               style={{
                 display: 'flex', alignItems: 'center', gap: '12px',
@@ -45,7 +42,7 @@ export default function Sidebar() {
                 borderRadius: '12px',
                 textDecoration: 'none',
                 color: isActive ? '#fff' : 'var(--text-muted)',
-                background: isActive ? 'rgba(0, 240, 255, 0.1)' : 'transparent',
+                background: isActive ? 'rgba(34, 197, 94, 0.1)' : 'transparent',
                 border: isActive ? '1px solid var(--border-glass)' : '1px solid transparent',
                 transition: 'all 0.3s ease'
               }}
@@ -69,8 +66,8 @@ export default function Sidebar() {
           borderRadius: '8px',
           transition: 'color 0.2s'
         }}
-        onMouseEnter={(e) => e.currentTarget.style.color = 'var(--danger)'}
-        onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--danger)'}
+          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
         >
           <LogOut size={20} />
           <span>Cerrar Sesión</span>

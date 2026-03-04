@@ -28,9 +28,9 @@ export default function Header() {
                             transition: 'all 0.3s'
                         }}
                         onFocus={(e) => {
-                            e.currentTarget.style.background = 'rgba(0, 240, 255, 0.05)';
-                            e.currentTarget.style.borderColor = 'rgba(0, 240, 255, 0.4)';
-                            e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 240, 255, 0.1)';
+                            e.currentTarget.style.background = 'rgba(34, 197, 94, 0.05)';
+                            e.currentTarget.style.borderColor = 'rgba(34, 197, 94, 0.4)';
+                            e.currentTarget.style.boxShadow = '0 0 15px rgba(34, 197, 94, 0.1)';
                         }}
                         onBlur={(e) => {
                             e.currentTarget.style.background = 'rgba(255,255,255,0.03)';

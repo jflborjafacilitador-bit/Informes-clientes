@@ -53,7 +53,7 @@ export default function Dashboard() {
                     <button style={{
                         background: 'linear-gradient(135deg, var(--primary-accent), var(--secondary-accent))',
                         border: 'none', color: '#fff', padding: '10px 20px', borderRadius: '8px',
-                        cursor: 'pointer', fontWeight: '600', boxShadow: '0 0 15px rgba(0, 240, 255, 0.4)'
+                        cursor: 'pointer', fontWeight: '600', boxShadow: '0 0 15px rgba(34, 197, 94, 0.4)'
                     }}>+ Nuevo Registro</button>
                 </div>
             </div>
