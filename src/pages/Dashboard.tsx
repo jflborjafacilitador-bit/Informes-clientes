@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { Users, AlertCircle, CalendarCheck, UserX, CalendarDays } from 'lucide-react';
 import { fetchClientsFromSheet } from '../services/googleSheets';
 import { supabase } from '../services/supabaseClient';
@@ -229,11 +229,10 @@ export default function Dashboard() {
                 <StatCard title="Sin asesor asignado" value={loading ? '...' : sinAsignar} icon={UserX} color="#ef4444" subtitle="Requieren asignación" />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: '20px' }}>
 
-                {/* Donut Chart - Distribución por Estado */}
-                <div className="glass-panel" style={{ padding: '24px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div className="glass-panel" style={{ padding: '24px', minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                         <h3 style={{ margin: 0 }}>Distribución por Estado</h3>
                         <span style={{
                             padding: '6px 12px', background: 'rgba(16, 185, 129, 0.1)',
@@ -241,38 +240,47 @@ export default function Dashboard() {
                         }}>● Live</span>
                     </div>
                     {loading ? (
-                        <div style={{ height: '320px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                        <div style={{ height: '260px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                             Cargando datos...
                         </div>
                     ) : (
-                        <div style={{ height: '320px', width: '100%', minHeight: '320px' }}>
-                            <ResponsiveContainer width="100%" height={320}>
-                                <PieChart>
-                                    <Pie
-                                        data={pieData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={70}
-                                        outerRadius={120}
-                                        paddingAngle={3}
-                                        dataKey="value"
-                                    >
-                                        {pieData.map((entry, index) => (
-                                            <Cell key={index} fill={entry.fill} stroke="transparent" />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip content={<CustomTooltip />} />
-                                    <Legend
-                                        formatter={(value) => <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{value}</span>}
-                                    />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
+                        <>
+                            {/* Dona sin leyenda */}
+                            <div style={{ width: '100%', height: '220px' }}>
+                                <ResponsiveContainer width="100%" height={220}>
+                                    <PieChart>
+                                        <Pie
+                                            data={pieData}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={60}
+                                            outerRadius={90}
+                                            paddingAngle={3}
+                                            dataKey="value"
+                                        >
+                                            {pieData.map((entry, index) => (
+                                                <Cell key={index} fill={entry.fill} stroke="transparent" />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip content={<CustomTooltip />} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                            {/* Leyenda manual debajo — no comprime la dona */}
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', marginTop: '12px' }}>
+                                {pieData.map(d => (
+                                    <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                        <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: d.fill, flexShrink: 0 }} />
+                                        {d.name} <strong style={{ color: 'var(--text-main)' }}>({d.value})</strong>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
                     )}
                 </div>
 
                 {/* Panel derecho */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
 
                     {/* Recientes - Últimos registros */}
                     <div className="glass-panel" style={{ padding: '24px', flex: 1 }}>
