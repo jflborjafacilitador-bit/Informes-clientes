@@ -85,11 +85,15 @@ export default function Clientes() {
     };
 
     const handleStatusChange = async (id: string, newStatus: string) => {
-        // Guardamos el cambio en client_overrides sin tocar el Google Sheet
-        await supabase.from('client_overrides').upsert(
+        const { error } = await supabase.from('client_overrides').upsert(
             { client_id: id, status: newStatus },
             { onConflict: 'client_id' }
         );
+        if (error) {
+            console.error('Error al cambiar estado:', error);
+            alert(`No se pudo guardar el cambio de estado: ${error.message}`);
+            return;
+        }
         loadData();
     };
 
