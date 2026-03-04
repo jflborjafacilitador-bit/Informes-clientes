@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, Save, Plus, Trash2, RefreshCw } from 'lucide-react';
+import { User, Save, Plus, Trash2, RefreshCw, Download, Smartphone } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -252,6 +252,22 @@ function TabEstados() {
 export default function Configuracion() {
     const { session, role } = useAuth();
     const [tab, setTab] = useState<'perfil' | 'fuente' | 'estados'>('perfil');
+    const [installPrompt, setInstallPrompt] = useState<any>(null);
+    const [installed, setInstalled] = useState(false);
+
+    useEffect(() => {
+        const handler = (e: any) => { e.preventDefault(); setInstallPrompt(e); };
+        window.addEventListener('beforeinstallprompt', handler);
+        if (window.matchMedia('(display-mode: standalone)').matches) setInstalled(true);
+        return () => window.removeEventListener('beforeinstallprompt', handler);
+    }, []);
+
+    const handleInstall = async () => {
+        if (!installPrompt) return;
+        installPrompt.prompt();
+        const { outcome } = await installPrompt.userChoice;
+        if (outcome === 'accepted') { setInstalled(true); setInstallPrompt(null); }
+    };
 
     const tabs = [
         { key: 'perfil' as const, label: '👤 Mi Perfil' },
@@ -269,6 +285,36 @@ export default function Configuracion() {
                 </h1>
                 <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Personaliza tu perfil y ajustes del sistema.</p>
             </div>
+
+            {/* Tarjeta instalar app — siempre visible */}
+            {!installed && (
+                <div className="glass-panel" style={{ padding: '20px 24px', marginBottom: '24px', display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', borderColor: 'rgba(0,240,255,0.15)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '200px' }}>
+                        <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(0,240,255,0.08)', border: '1px solid var(--primary-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <Smartphone size={22} color="var(--primary-accent)" />
+                        </div>
+                        <div>
+                            <p style={{ margin: 0, fontWeight: '700', fontSize: '0.95rem' }}>Instalar como App</p>
+                            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>Acceso directo desde tu celular o escritorio</p>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        {/* Botón automático si el navegador lo soporta */}
+                        {installPrompt ? (
+                            <button onClick={handleInstall}
+                                style={{ padding: '10px 20px', borderRadius: '8px', background: 'var(--primary-accent)', border: 'none', color: '#000', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Download size={16} /> Instalar app
+                            </button>
+                        ) : (
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <p style={{ margin: 0 }}>📱 <strong>Android (Chrome):</strong> Menú ⋮ → <em>Instalar app</em> o <em>Añadir a pantalla de inicio</em></p>
+                                <p style={{ margin: 0 }}>🍎 <strong>iPhone (Safari):</strong> Botón compartir ⬆ → <em>Añadir a pantalla de inicio</em></p>
+                                <p style={{ margin: 0 }}>🖥️ <strong>PC (Chrome/Edge):</strong> Ícono ⊕ en la barra de dirección</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Tabs */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '28px', borderBottom: '1px solid var(--border-glass)' }}>
