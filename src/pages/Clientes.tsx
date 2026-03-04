@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Search, Filter, Edit2, Trash2, RefreshCw } from 'lucide-react';
+import { fetchClientsFromSheet, type ClientData } from '../services/googleSheets';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Clientes() {
     const { role, session } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
-    const [clients, setClients] = useState<any[]>([]);
+    const [clients, setClients] = useState<ClientData[]>([]);
     const [asesores, setAsesores] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -160,7 +161,7 @@ export default function Clientes() {
                                                     {asesores.map(a => <option key={a.id} value={a.id}>{a.email.split('@')[0]}</option>)}
                                                 </select>
                                             ) : (
-                                                <span style={{ color: 'var(--text-muted)' }}>{client.profiles?.email?.split('@')[0] || 'Sin asignar'}</span>
+                                                <span style={{ color: 'var(--text-muted)' }}>{client.assigned_email?.split('@')[0] || 'Sin asignar'}</span>
                                             )}
                                         </td>
                                         <td style={{ padding: '16px' }}>{new Date(client.date).toLocaleDateString()}</td>

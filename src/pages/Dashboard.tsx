@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Users, TrendingUp, Activity, DollarSign, ArrowUpRight, RefreshCw } from 'lucide-react';
+import { fetchClientsFromSheet } from '../services/googleSheets';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -43,8 +44,7 @@ export default function Dashboard() {
     useEffect(() => {
         if (session) {
             loadData();
-
-            const channel = supabase.channel('realtime_dashboard').on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => {
+            const channel = supabase.channel('realtime_dashboard').on('postgres_changes', { event: '*', schema: 'public', table: 'client_overrides' }, () => {
                 loadData();
             }).subscribe();
 
@@ -55,13 +55,23 @@ export default function Dashboard() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .from('clients')
-                .select('*')
-                .order('created_at', { ascending: false });
+            let gridData = await fetchClientsFromSheet();
 
-            if (!error && data) {
-                setClients(data);
+            const { data: overrides, error } = await supabase
+                .from('client_overrides')
+                .select('client_id, status');
+
+            if (!error && overrides && overrides.length > 0) {
+                const empalmado = gridData.map(client => {
+                    const override = overrides.find(o => o.client_id === client.id);
+                    if (override) {
+                        return { ...client, status: override.status || client.status };
+                    }
+                    return client;
+                });
+                setClients(empalmado);
+            } else {
+                setClients(gridData);
             }
         } catch (error) {
             console.error(error);
