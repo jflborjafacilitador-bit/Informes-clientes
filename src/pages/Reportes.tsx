@@ -324,7 +324,7 @@ function TabNotas({ session, role }: { session: any; role: string }) {
     const [editingText, setEditingText] = useState('');
 
     useEffect(() => {
-        if (!session?.user?.id || !role) return;
+        if (!session || !role) return;
         loadAll();
         const channel = supabase.channel('realtime_notes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'client_notes' }, loadAll)
