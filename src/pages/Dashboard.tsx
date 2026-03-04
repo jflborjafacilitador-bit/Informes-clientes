@@ -74,14 +74,14 @@ export default function Dashboard() {
     const [overrideDate, setOverrideDate] = useState<Record<string, string>>({});
 
     useEffect(() => {
-        if (session) {
+        if (session && role) {
             loadData();
             const channel = supabase.channel('realtime_dashboard')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'client_overrides' }, () => { loadData(); })
                 .subscribe();
             return () => { supabase.removeChannel(channel); };
         }
-    }, [session]);
+    }, [session, role]);
 
     const loadData = async () => {
         setLoading(true);
