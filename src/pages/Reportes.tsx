@@ -335,17 +335,14 @@ function TabNotas({ session, role }: { session: any; role: string }) {
     const loadAll = async () => {
         setLoading(true);
         try {
-            const [sheetData, { data: notesData, error: notesError }, { data: overrides, error: ovError }] = await Promise.all([
+            const [sheetData, { data: notesData, error: notesError }, { data: overrides }] = await Promise.all([
                 fetchClientsFromSheet(),
                 supabase.from('client_notes').select('*').order('created_at', { ascending: false }),
                 supabase.from('client_overrides').select('client_id, assigned_to, assigned_email, status'),
             ]);
             if (notesError) console.error('Error notas:', notesError);
-            if (ovError) console.error('Error overrides:', ovError);
 
             const emailPrefix = session?.user?.email?.split('@')[0]?.toLowerCase() || '';
-            console.log('[DEBUG Notas] role:', role, '| emailPrefix:', emailPrefix, '| session.id:', session?.user?.id);
-            console.log('[DEBUG Notas] sheetData:', sheetData.length, '| overrides:', overrides?.length ?? 'null');
 
             // Mezclar assigned_to de Supabase sobre datos del Sheet
             const merged = sheetData.map(client => {
@@ -359,7 +356,6 @@ function TabNotas({ session, role }: { session: any; role: string }) {
                     (c.sheet_assigned && c.sheet_assigned.toLowerCase().includes(emailPrefix))
                 )
                 : merged;
-            console.log('[DEBUG Notas] visible:', visible.length);
             setClients(visible);
             setNotes(notesData || []);
         } catch (err) {
