@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
@@ -18,6 +18,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (!session) {
     return <>{children}</>;
@@ -25,9 +26,23 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-container">
-      <Sidebar />
+      {/* Overlay para móvil */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            zIndex: 99,
+            backdropFilter: 'blur(2px)',
+          }}
+        />
+      )}
+
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
       <main className="main-content">
-        <Header />
+        <Header onMenuClick={() => setSidebarOpen(o => !o)} />
         <div className="content-wrapper animate-fade-in">
           {children}
         </div>

@@ -1,8 +1,13 @@
-import { Home, Users, BarChart2, Settings, LogOut, UserCog } from 'lucide-react';
+import { Home, Users, BarChart2, Settings, LogOut, UserCog, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation();
   const { signOut, role } = useAuth();
 
@@ -15,18 +20,30 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="sidebar">
-      <div style={{ padding: '2rem 1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <div style={{
-          width: '50px', height: '50px',
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <img src="/Logo 1.1 sin fondo.png" alt="Logo Los Quetzales" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+    <aside className={`sidebar${isOpen ? ' sidebar--open' : ''}`}>
+      {/* Header del sidebar */}
+      <div style={{ padding: '2rem 1.5rem', display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img src="/Logo 1.1 sin fondo.png" alt="Logo Los Quetzales" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          </div>
+          <div>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: '600', margin: 0 }} className="glow-text">Los Quetzales</h2>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Panel Administrativo</span>
+          </div>
         </div>
-        <div>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: '600', margin: 0 }} className="glow-text">Los Quetzales</h2>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Panel Administrativo</span>
-        </div>
+        {/* Botón cerrar — solo visible en móvil */}
+        <button
+          onClick={onClose}
+          className="sidebar-close-btn"
+          style={{
+            background: 'transparent', border: 'none',
+            color: 'var(--text-muted)', cursor: 'pointer',
+            padding: '4px',
+          }}
+        >
+          <X size={20} />
+        </button>
       </div>
 
       <nav style={{ flex: 1, padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -38,6 +55,7 @@ export default function Sidebar() {
             <Link
               key={link.to}
               to={link.to}
+              onClick={onClose}  /* cierra el drawer en móvil al navegar */
               style={{
                 display: 'flex', alignItems: 'center', gap: '12px',
                 padding: '12px 16px',

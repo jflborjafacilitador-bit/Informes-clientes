@@ -137,3 +137,70 @@ body {
   margin: 0 auto;
   width: 100%;
 }
+
+/* ─── Responsive: Sidebar como Drawer en Móvil ────────────────── */
+
+/* En desktop: sidebar normal, hamburger oculto, botón X oculto */
+.hamburger-btn {
+  display: none;
+}
+
+.sidebar-close-btn {
+  display: none;
+}
+
+@media (max-width: 768px) {
+
+  /* Sidebar: drawer que entra desde la izquierda */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    width: 280px;
+  }
+
+  /* Clase que se añade cuando sidebarOpen=true */
+  .sidebar.sidebar--open {
+    transform: translateX(0);
+    box-shadow: 4px 0 30px rgba(0, 0, 0, 0.6);
+  }
+
+  /* El contenido principal ocupa todo el ancho */
+  .main-content {
+    width: 100%;
+  }
+
+  /* Mostrar hamburger y X en móvil */
+  .hamburger-btn {
+    display: flex;
+  }
+
+  .sidebar-close-btn {
+    display: flex;
+  }
+
+  /* Header más compacto */
+  .top-header {
+    padding: 0 1rem;
+  }
+
+  /* Ocultar nombre en header en pantallas muy pequeñas */
+  .header-user-info {
+    display: none;
+  }
+
+  /* Content-wrapper con menos padding */
+  .content-wrapper {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .content-wrapper {
+    padding: 0.75rem;
+  }
+}
