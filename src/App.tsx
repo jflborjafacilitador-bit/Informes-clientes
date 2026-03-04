@@ -26,18 +26,11 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={`app-container${sidebarOpen ? ' sidebar-visible' : ''}`}>
-      {/* Overlay para móvil */}
-      {sidebarOpen && (
-        <div
-          onClick={() => setSidebarOpen(false)}
-          style={{
-            position: 'fixed', inset: 0,
-            background: 'rgba(0,0,0,0.6)',
-            zIndex: 99,
-            backdropFilter: 'blur(2px)',
-          }}
-        />
-      )}
+      {/* Overlay: solo en móvil (CSS lo oculta en desktop) */}
+      <div
+        onClick={() => setSidebarOpen(false)}
+        className={`sidebar-overlay${sidebarOpen ? ' sidebar-overlay--visible' : ''}`}
+      />
 
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 

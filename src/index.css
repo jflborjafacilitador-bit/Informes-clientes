@@ -99,24 +99,22 @@ body {
 }
 
 .sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 100vh;
-  width: 280px;
+  /* Desktop: en el flujo flex, NO fixed */
+  flex-shrink: 0;
+  width: 260px;
   border-right: 1px solid var(--border-glass);
   background: rgba(10, 15, 13, 0.97);
   backdrop-filter: blur(16px);
   display: flex;
   flex-direction: column;
-  z-index: 100;
-  transform: translateX(-100%);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  z-index: 10;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.sidebar.sidebar--open {
-  transform: translateX(0);
-  box-shadow: 4px 0 40px rgba(0, 0, 0, 0.5);
+/* Desktop cerrado: colapsa a 0 (sin overlay) */
+.app-container:not(.sidebar-visible)>.sidebar {
+  width: 0;
 }
 
 .main-content {
@@ -125,7 +123,6 @@ body {
   flex-direction: column;
   overflow-y: auto;
   position: relative;
-  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .top-header {
@@ -149,6 +146,29 @@ body {
   width: 100%;
 }
 
+/* Overlay del sidebar: solo en móvil */
+.sidebar-overlay {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: transparent;
+    z-index: 99;
+    pointer-events: none;
+  }
+
+  .sidebar-overlay.sidebar-overlay--visible {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+    pointer-events: auto;
+  }
+}
+
+/* Hamburger y X: siempre visibles */
 /* Hamburger y X: siempre visibles */
 .hamburger-btn {
   display: flex;
@@ -158,14 +178,29 @@ body {
   display: flex;
 }
 
-/* Desktop: cuando sidebar abierto, el main-content cede espacio */
-@media (min-width: 769px) {
-  .sidebar-visible .main-content {
-    margin-left: 280px;
-  }
-}
-
+/* Móvil: sidebar como drawer fixed (overlay) */
 @media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 260px !important;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar.sidebar--open {
+    transform: translateX(0);
+    box-shadow: 4px 0 30px rgba(0, 0, 0, 0.6);
+  }
+
+  /* En móvil el ancho del sidebar no colapsa (usa transform) */
+  .app-container:not(.sidebar-visible)>.sidebar {
+    width: 260px !important;
+  }
+
   .header-user-info {
     display: none;
   }
@@ -176,11 +211,6 @@ body {
 
   .content-wrapper {
     padding: 1rem;
-  }
-
-  /* En móvil el sidebar es overlay (no desplaza contenido) */
-  .sidebar-visible .main-content {
-    margin-left: 0 !important;
   }
 }
 
