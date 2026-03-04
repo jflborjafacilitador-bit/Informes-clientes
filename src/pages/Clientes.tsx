@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Filter, Edit2, Trash2, RefreshCw } from 'lucide-react';
-import { fetchClientsFromSheet, type ClientData } from '../services/googleSheets';
+import { type ClientData } from '../services/googleSheets';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 

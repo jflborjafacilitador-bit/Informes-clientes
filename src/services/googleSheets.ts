@@ -21,8 +21,12 @@ export const fetchClientsFromSheet = (): Promise<ClientData[]> => {
             skipEmptyLines: true,
             complete: (results) => {
                 const rows = results.data as any[];
+                console.log("Filas crudas devueltas por el CSV:", rows.slice(0, 3));
 
-                const mappedData: ClientData[] = rows.filter(r => r['Nombre y Apellido']).map((row) => {
+                const mappedData: ClientData[] = rows.filter(r => r['Nombre y Apellido'] || r['Nombre']).map((row) => {
+                    const rawName = row['Nombre y Apellido'] || row['Nombre'] || 'Sin Nombre';
+                    const phone = row['WhatsApp_Limpio'] || row['Teléfono'] || '';
+
                     let dateStr = row['Marca temporal'] || row['Timestamp'] || '';
                     let isoDate = new Date().toISOString();
                     if (dateStr) {
@@ -32,12 +36,14 @@ export const fetchClientsFromSheet = (): Promise<ClientData[]> => {
                         } catch (e) { }
                     }
 
-                    const rawName = row['Nombre y Apellido'] || 'Sin Nombre';
-
                     // Creamos un ID predecible para que Supabase lo reconozca aunque reiniciemos
-                    const generatedId = `${rawName}_${isoDate.substring(0, 10)}`.replace(/[^a-zA-Z0-9_]/g, '');
+                    const idBase = phone ? phone : isoDate.substring(0, 10);
+                    const generatedId = `${rawName}_${idBase}`.replace(/[^a-zA-Z0-9_]/g, '');
 
-                    let estadoOriginal = row['Estado'] || 'Nuevo';
+                    // Estado a u otras variantes
+                    const statusKey = Object.keys(row).find(k => k.toLowerCase().includes('estado')) || 'Estado';
+                    let estadoOriginal = row[statusKey] || 'Nuevo';
+
                     const estadosValidos = ['Nuevo', 'No responde', 'Numero sin Whatsapp', 'Reprogramo', 'Citado', 'En seguimiento', 'No esta interesado', 'Repetido', 'Presupuesto insuficiente', 'Activo', 'En espera'];
                     if (!estadosValidos.includes(estadoOriginal)) estadoOriginal = 'Nuevo';
 

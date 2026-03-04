@@ -1,7 +1,9 @@
-import React from 'react';
 import { Bell, Search, User } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function Header() {
+    const { session, role } = useAuth();
+
     return (
         <header className="top-header">
             <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
@@ -68,8 +70,12 @@ export default function Header() {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
                     <div style={{ textAlign: 'right' }}>
-                        <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: '500' }}>Admin Principal</p>
-                        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--primary-accent)' }}>Master View</p>
+                        <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: '500' }}>
+                            {session?.user.email?.split('@')[0] || 'Tú'}
+                        </p>
+                        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--primary-accent)', textTransform: 'capitalize' }}>
+                            {role === 'super_admin' ? 'Master View' : role}
+                        </p>
                     </div>
                     <div style={{
                         width: '40px', height: '40px',
