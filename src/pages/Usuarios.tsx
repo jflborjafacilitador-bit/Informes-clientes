@@ -50,10 +50,12 @@ export default function Usuarios() {
         setSaving(true);
         setMsg(null);
 
-        // 1. Crear usuario en Supabase Auth
+        // 1. Crear usuario en Supabase Auth — pasamos el rol en metadata
+        //    El trigger `on_auth_user_created` lo escribe en profiles automáticamente
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email: form.email,
             password: form.password,
+            options: { data: { role: form.role } },
         });
 
         if (authError || !authData.user) {
@@ -62,21 +64,16 @@ export default function Usuarios() {
             return;
         }
 
-        // 2. Insertar en profiles con el rol elegido
-        const { error: profileError } = await supabase.from('profiles').upsert({
-            id: authData.user.id,
-            email: form.email,
-            role: form.role,
-        });
+        // 2. Si el trigger aún no corrió en tiempo real, hacemos upsert de respaldo
+        await supabase.from('profiles').upsert(
+            { id: authData.user.id, email: form.email, role: form.role },
+            { onConflict: 'id', ignoreDuplicates: false }
+        );
 
-        if (profileError) {
-            setMsg({ text: 'Usuario creado pero error al asignar rol: ' + profileError.message, ok: false });
-        } else {
-            setMsg({ text: `Usuario ${form.email} creado con rol "${ROLE_LABELS[form.role]}". Debe confirmar su email.`, ok: true });
-            setForm({ email: '', password: '', role: 'asesor' });
-            setShowForm(false);
-            loadUsers();
-        }
+        setMsg({ text: `✓ Usuario ${form.email} creado como "${ROLE_LABELS[form.role]}".`, ok: true });
+        setForm({ email: '', password: '', role: 'asesor' });
+        setShowForm(false);
+        loadUsers();
         setSaving(false);
     };
 

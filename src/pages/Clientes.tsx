@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, Edit2, Trash2, RefreshCw } from 'lucide-react';
+import { Search, Edit2, Trash2, RefreshCw } from 'lucide-react';
 import { fetchClientsFromSheet, type ClientData } from '../services/googleSheets';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,6 +7,9 @@ import { useAuth } from '../contexts/AuthContext';
 export default function Clientes() {
     const { role, session } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [page, setPage] = useState(0);
+    const [pageSize, setPageSize] = useState(25);
     const [clients, setClients] = useState<ClientData[]>([]);
     const [asesores, setAsesores] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -94,10 +97,20 @@ export default function Clientes() {
         loadData();
     };
 
-    const filteredClients = clients.filter(client =>
-        client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.segment.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredClients = clients.filter(client => {
+        const matchSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            client.segment.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchStatus = statusFilter === '' || client.status === statusFilter;
+        return matchSearch && matchStatus;
+    });
+
+    const totalPages = Math.ceil(filteredClients.length / pageSize);
+    const paginatedClients = filteredClients.slice(page * pageSize, (page + 1) * pageSize);
+
+    const handleSearchChange = (v: string) => { setSearchTerm(v); setPage(0); };
+    const handleStatusFilter = (v: string) => { setStatusFilter(v); setPage(0); };
+
+    const STATUSES = ['Nuevo', 'No responde', 'Numero sin Whatsapp', 'Reprogramo', 'Citado', 'En seguimiento', 'No esta interesado', 'Repetido', 'Presupuesto insuficiente', 'Activo', 'En espera'];
 
     return (
         <div style={{ paddingBottom: '40px' }}>
@@ -113,37 +126,62 @@ export default function Clientes() {
             </div>
 
             <div className="glass-panel" style={{ padding: '24px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <div style={{ position: 'relative', width: '300px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                    {/* Búsqueda */}
+                    <div style={{ position: 'relative', width: '260px' }}>
                         <Search size={18} style={{ position: 'absolute', left: '16px', top: '12px', color: 'var(--text-muted)' }} />
                         <input
                             type="text"
                             placeholder="Buscar por nombre o segmento..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => handleSearchChange(e.target.value)}
                             style={{
-                                width: '100%',
-                                padding: '10px 16px 10px 44px',
-                                borderRadius: '8px',
-                                background: 'rgba(255,255,255,0.03)',
-                                border: '1px solid var(--border-glass)',
-                                color: 'var(--text-main)',
-                                fontFamily: 'inherit',
-                                outline: 'none'
+                                width: '100%', padding: '10px 16px 10px 44px', borderRadius: '8px',
+                                background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-glass)',
+                                color: 'var(--text-main)', fontFamily: 'inherit', outline: 'none'
                             }}
                             onFocus={(e) => e.currentTarget.style.borderColor = 'var(--primary-accent)'}
                             onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border-glass)'}
                         />
                     </div>
-                    <button style={{
-                        display: 'flex', alignItems: 'center', gap: '8px',
-                        background: 'var(--bg-panel)', border: '1px solid var(--border-glass)',
-                        color: 'var(--text-main)', padding: '10px 16px', borderRadius: '8px',
-                        cursor: 'pointer', transition: 'all 0.2s', fontWeight: '500'
-                    }}>
-                        <Filter size={18} />
-                        Filtros Avanzados
-                    </button>
+
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        {/* Filtro Estado */}
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => handleStatusFilter(e.target.value)}
+                            style={{
+                                padding: '10px 14px', borderRadius: '8px',
+                                background: 'var(--bg-panel)', border: statusFilter ? '1px solid var(--primary-accent)' : '1px solid var(--border-glass)',
+                                color: statusFilter ? 'var(--primary-accent)' : 'var(--text-muted)',
+                                outline: 'none', cursor: 'pointer', fontFamily: 'inherit'
+                            }}>
+                            <option value="">Todos los estados</option>
+                            {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+
+                        {/* Selector de tamaño de página */}
+                        <select
+                            value={pageSize}
+                            onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
+                            style={{
+                                padding: '10px 12px', borderRadius: '8px',
+                                background: 'var(--bg-panel)', border: '1px solid var(--border-glass)',
+                                color: 'var(--text-muted)', outline: 'none', cursor: 'pointer'
+                            }}>
+                            <option value={10}>10 / pág</option>
+                            <option value={25}>25 / pág</option>
+                            <option value={50}>50 / pág</option>
+                        </select>
+
+                        {statusFilter && (
+                            <button onClick={() => handleStatusFilter('')} style={{
+                                background: 'rgba(239,68,68,0.1)', border: '1px solid var(--danger)',
+                                color: 'var(--danger)', padding: '8px 12px', borderRadius: '8px',
+                                cursor: 'pointer', fontSize: '0.8rem'
+                            }}>✕ Limpiar filtro</button>
+                        )}
+                    </div>
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>
@@ -168,7 +206,7 @@ export default function Clientes() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredClients.map((client, index) => (
+                                {paginatedClients.map((client, index) => (
                                     <tr key={client.id} style={{
                                         borderBottom: '1px solid rgba(80, 200, 255, 0.05)',
                                         transition: 'background 0.2s'
@@ -292,6 +330,39 @@ export default function Clientes() {
                     {!loading && filteredClients.length === 0 && (
                         <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
                             No se encontraron clientes que coincidan con la búsqueda.
+                        </div>
+                    )}
+
+                    {/* Controles de paginación */}
+                    {!loading && filteredClients.length > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border-glass)' }}>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                                Mostrando {page * pageSize + 1}–{Math.min((page + 1) * pageSize, filteredClients.length)} de {filteredClients.length}
+                                {statusFilter && ` (filtrado por: ${statusFilter})`}
+                            </span>
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <button
+                                    onClick={() => setPage(p => Math.max(0, p - 1))}
+                                    disabled={page === 0}
+                                    style={{ padding: '6px 14px', borderRadius: '6px', background: page === 0 ? 'rgba(255,255,255,0.03)' : 'var(--bg-panel)', border: '1px solid var(--border-glass)', color: page === 0 ? 'var(--text-muted)' : 'var(--text-main)', cursor: page === 0 ? 'not-allowed' : 'pointer' }}>
+                                    ← Ant
+                                </button>
+                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                    const pageNum = Math.max(0, Math.min(page - 2, totalPages - 5)) + i;
+                                    return (
+                                        <button key={pageNum} onClick={() => setPage(pageNum)}
+                                            style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-glass)', cursor: 'pointer', background: pageNum === page ? 'var(--primary-accent)' : 'var(--bg-panel)', color: pageNum === page ? '#000' : 'var(--text-muted)', fontWeight: pageNum === page ? '700' : '400' }}>
+                                            {pageNum + 1}
+                                        </button>
+                                    );
+                                })}
+                                <button
+                                    onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                                    disabled={page >= totalPages - 1}
+                                    style={{ padding: '6px 14px', borderRadius: '6px', background: page >= totalPages - 1 ? 'rgba(255,255,255,0.03)' : 'var(--bg-panel)', border: '1px solid var(--border-glass)', color: page >= totalPages - 1 ? 'var(--text-muted)' : 'var(--text-main)', cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer' }}>
+                                    Sig →
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
