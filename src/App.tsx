@@ -18,14 +18,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
 
   if (!session) {
     return <>{children}</>;
   }
 
   return (
-    <div className="app-container">
+    <div className={`app-container${sidebarOpen ? ' sidebar-visible' : ''}`}>
       {/* Overlay para móvil */}
       {sidebarOpen && (
         <div
