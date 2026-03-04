@@ -169,8 +169,8 @@ export default function Dashboard() {
                             Cargando datos...
                         </div>
                     ) : (
-                        <div style={{ height: '320px' }}>
-                            <ResponsiveContainer width="100%" height="100%">
+                        <div style={{ height: '320px', width: '100%', minHeight: '320px' }}>
+                            <ResponsiveContainer width="100%" height={320}>
                                 <PieChart>
                                     <Pie
                                         data={pieData}

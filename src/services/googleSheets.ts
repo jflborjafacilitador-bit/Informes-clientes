@@ -23,7 +23,7 @@ export const fetchClientsFromSheet = (): Promise<ClientData[]> => {
             skipEmptyLines: true,
             complete: (results) => {
                 const rows = results.data as any[];
-                console.log("Filas crudas devueltas por el CSV:", rows.slice(0, 3));
+                console.log(`CSV cargado: ${rows.length} filas encontradas.`);
 
                 const mappedData: ClientData[] = rows.filter(r => r['Nombre y Apellido'] || r['Nombre']).map((row) => {
                     const rawName = row['Nombre y Apellido'] || row['Nombre'] || 'Sin Nombre';
