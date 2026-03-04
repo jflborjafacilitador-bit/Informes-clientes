@@ -115,7 +115,7 @@ export default function Clientes() {
 
     const filteredClients = clients.filter(client => {
         const matchSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            client.segment.toLowerCase().includes(searchTerm.toLowerCase());
+            client.phone.toLowerCase().includes(searchTerm.toLowerCase());
         const matchStatus = statusFilter === '' || client.status === statusFilter;
         const matchAssign = assignFilter === ''
             ? true
@@ -132,11 +132,11 @@ export default function Clientes() {
 
     const totalPages = Math.ceil(filteredClients.length / pageSize);
 
-    // Ordenar por fecha antes de paginar
+    // Ordenar por índice de fila del CSV: mayor índice = más reciente
     const sortedClients = [...filteredClients].sort((a, b) => {
-        const da = new Date(a.date).getTime();
-        const db = new Date(b.date).getTime();
-        return sortOrder === 'desc' ? db - da : da - db;
+        return sortOrder === 'desc'
+            ? b.rowIndex - a.rowIndex   // desc = más reciente primero (último del CSV)
+            : a.rowIndex - b.rowIndex;  // asc  = más antiguo primero (primero del CSV)
     });
 
     const paginatedClients = sortedClients.slice(page * pageSize, (page + 1) * pageSize);
@@ -168,7 +168,7 @@ export default function Clientes() {
                         <Search size={18} style={{ position: 'absolute', left: '16px', top: '12px', color: 'var(--text-muted)' }} />
                         <input
                             type="text"
-                            placeholder="Buscar por nombre o segmento..."
+                            placeholder="Buscar por nombre o teléfono..."
                             value={searchTerm}
                             onChange={(e) => handleSearchChange(e.target.value)}
                             style={{
@@ -263,7 +263,7 @@ export default function Clientes() {
                                 <tr style={{ borderBottom: '1px solid var(--border-glass)' }}>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500', width: '50px', textAlign: 'center' }}>#</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Nombre del Cliente</th>
-                                    <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Segmento</th>
+                                    <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Teléfono</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Asignación</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Presupuesto</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Estado</th>
@@ -283,7 +283,28 @@ export default function Clientes() {
                                     >
                                         <td style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{index + 1}</td>
                                         <td style={{ padding: '16px', fontWeight: '500' }}>{client.name}</td>
-                                        <td style={{ padding: '16px' }}>{client.segment}</td>
+                                        <td style={{ padding: '16px' }}>
+                                            {client.phone ? (
+                                                <a
+                                                    href={`https://wa.me/${client.phone}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    style={{
+                                                        color: '#25d366',
+                                                        fontWeight: '500',
+                                                        fontSize: '0.9rem',
+                                                        textDecoration: 'none',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px'
+                                                    }}
+                                                >
+                                                    📱 {client.phone}
+                                                </a>
+                                            ) : (
+                                                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>—</span>
+                                            )}
+                                        </td>
                                         <td style={{ padding: '16px' }}>
                                             {(role === 'super_admin' || role === 'gerente') ? (
                                                 <select

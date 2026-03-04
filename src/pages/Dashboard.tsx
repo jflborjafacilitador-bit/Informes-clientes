@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Users, AlertCircle, CalendarCheck, UserX, ArrowUpRight } from 'lucide-react';
+import { Users, AlertCircle, CalendarCheck, UserX } from 'lucide-react';
 import { fetchClientsFromSheet } from '../services/googleSheets';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -121,10 +121,12 @@ export default function Dashboard() {
         .sort((a, b) => b[1] - a[1])
         .map(([name, value]) => ({ name, value, fill: STATUS_COLORS[name] || '#6b7280' }));
 
-    // --- Panel urgentes: Nuevos sin asignar ---
-    const urgentes = clients
-        .filter(c => c.status === 'Nuevo' && !c.assigned_to)
+    // --- Panel recientes: últimos registros por índice de fila (último CSV = más reciente) ---
+    const recientes = [...clients]
+        .sort((a, b) => b.rowIndex - a.rowIndex)
         .slice(0, 6);
+
+
 
     // --- Panel asesores: cuántos clientes tiene cada uno ---
     const asesorMap: Record<string, number> = {};
@@ -198,31 +200,53 @@ export default function Dashboard() {
                 {/* Panel derecho */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-                    {/* Urgentes - Nuevos sin asignar */}
+                    {/* Recientes - Últimos registros */}
                     <div className="glass-panel" style={{ padding: '24px', flex: 1 }}>
-                        <h3 style={{ margin: '0 0 16px 0', fontSize: '1rem' }}>
-                            ⚡ Urgentes — Nuevos sin asignar
-                            <span style={{ marginLeft: '8px', background: 'rgba(239,68,68,0.15)', color: '#ef4444', borderRadius: '12px', padding: '2px 8px', fontSize: '0.75rem' }}>
-                                {sinAsignar}
-                            </span>
+                        <h3 style={{ margin: '0 0 4px 0', fontSize: '1rem' }}>
+                            🕐 Registros más recientes
                         </h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <p style={{ margin: '0 0 14px 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            ⚡ Sin asignar: <span style={{ color: '#ef4444', fontWeight: '700' }}>{sinAsignar}</span>
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {loading ? (
                                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cargando...</p>
-                            ) : urgentes.length === 0 ? (
-                                <p style={{ color: 'var(--success)', fontSize: '0.85rem' }}>✓ Todos asignados</p>
+                            ) : recientes.length === 0 ? (
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Sin registros aún.</p>
                             ) : (
-                                urgentes.map(c => (
+                                recientes.map(c => (
                                     <div key={c.id} style={{
                                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                        padding: '10px 12px', background: 'rgba(239,68,68,0.05)',
-                                        border: '1px solid rgba(239,68,68,0.15)', borderRadius: '8px'
+                                        padding: '10px 12px',
+                                        background: !c.assigned_to && c.assigned_email !== 'pendiente'
+                                            ? 'rgba(239,68,68,0.05)'
+                                            : 'rgba(255,255,255,0.02)',
+                                        border: !c.assigned_to && c.assigned_email !== 'pendiente'
+                                            ? '1px solid rgba(239,68,68,0.2)'
+                                            : '1px solid rgba(80,200,255,0.08)',
+                                        borderRadius: '8px'
                                     }}>
-                                        <div>
-                                            <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: '600' }}>{c.name}</p>
-                                            <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>{c.segment}</p>
+                                        <div style={{ minWidth: 0, flex: 1 }}>
+                                            <p style={{ margin: 0, fontSize: '0.83rem', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</p>
+                                            <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                                {c.date !== '1970-01-01' ? c.date : 'Sin fecha'}
+                                                {c.segment ? ` · ${c.segment}` : ''}
+                                            </p>
                                         </div>
-                                        <ArrowUpRight size={14} color="#ef4444" />
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', flexShrink: 0, marginLeft: '8px' }}>
+                                            <span style={{
+                                                fontSize: '0.65rem', fontWeight: '600', padding: '2px 7px', borderRadius: '20px',
+                                                background: c.status === 'Activo' || c.status === 'Citado' ? 'rgba(16,185,129,0.15)'
+                                                    : c.status === 'Nuevo' ? 'rgba(0,240,255,0.1)'
+                                                        : 'rgba(255,255,255,0.05)',
+                                                color: c.status === 'Activo' || c.status === 'Citado' ? 'var(--success)'
+                                                    : c.status === 'Nuevo' ? 'var(--primary-accent)'
+                                                        : 'var(--text-muted)'
+                                            }}>{c.status}</span>
+                                            {!c.assigned_to && c.assigned_email !== 'pendiente' && (
+                                                <span style={{ fontSize: '0.6rem', color: '#ef4444' }}>Sin asignar</span>
+                                            )}
+                                        </div>
                                     </div>
                                 ))
                             )}

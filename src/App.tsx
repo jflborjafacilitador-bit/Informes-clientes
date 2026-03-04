@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Clientes from './pages/Clientes';
 import Login from './pages/Login';
 import Usuarios from './pages/Usuarios';
+import Reportes from './pages/Reportes';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 
@@ -121,7 +122,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
-            <Route path="/reportes" element={<ProtectedRoute><div className="glass-panel" style={{ padding: '2rem' }}><h2>Reportes</h2></div></ProtectedRoute>} />
+            <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
             <Route path="/configuracion" element={<ProtectedRoute><div className="glass-panel" style={{ padding: '2rem' }}><h2>Configuración</h2></div></ProtectedRoute>} />
             <Route path="/usuarios" element={<ProtectedRoute><Usuarios /></ProtectedRoute>} />
           </Routes>
