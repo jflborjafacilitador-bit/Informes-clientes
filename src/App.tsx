@@ -11,7 +11,6 @@ import Configuracion from './pages/Configuracion';
 import Inventario from './pages/Inventario';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { supabase } from './services/supabaseClient';
-import { PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session } = useAuth();
@@ -113,34 +112,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </main>
-
-      {/* Botón flotante toggle — siempre visible */}
-      <button
-        onClick={() => setSidebarOpen(o => !o)}
-        title={sidebarOpen ? 'Cerrar menú' : 'Abrir menú'}
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          zIndex: 300,
-          width: '48px',
-          height: '48px',
-          borderRadius: '50%',
-          background: 'var(--primary-accent)',
-          border: 'none',
-          color: '#000',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 4px 20px rgba(34,197,94,0.5)',
-          transition: 'background 0.2s, transform 0.2s',
-        }}
-        onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.1)')}
-        onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
-      >
-        {sidebarOpen ? <PanelLeftClose size={22} /> : <PanelLeftOpen size={22} />}
-      </button>
 
     </div>
   );
