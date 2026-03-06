@@ -30,7 +30,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
           <div>
             <h2 style={{ fontSize: '1.1rem', fontWeight: '600', margin: 0 }} className="glow-text">Los Quetzales</h2>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Panel Administrativo</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Panel Administrativo</span>
+              <span style={{
+                fontSize: '0.62rem', fontWeight: '700',
+                color: 'var(--primary-accent)',
+                background: 'rgba(34,197,94,0.1)',
+                border: '1px solid rgba(34,197,94,0.25)',
+                borderRadius: '4px',
+                padding: '0px 5px',
+              }}>v{__APP_VERSION__}</span>
+            </div>
           </div>
         </div>
         {/* Botón cerrar — solo visible en móvil */}
@@ -95,26 +105,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           <LogOut size={20} />
           <span>Cerrar Sesión</span>
         </button>
-
-        {/* Badge de versión */}
-        <div style={{
-          marginTop: '10px',
-          padding: '6px 10px',
-          borderRadius: '8px',
-          background: 'rgba(34,197,94,0.06)',
-          border: '1px solid rgba(34,197,94,0.15)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '6px',
-        }}>
-          <span style={{ fontSize: '0.7rem', color: 'var(--primary-accent)', fontWeight: '600', letterSpacing: '0.02em' }}>
-            v{__APP_VERSION__}
-          </span>
-          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-            {__BUILD_DATE__}
-          </span>
-        </div>
       </div>
     </aside>
   );

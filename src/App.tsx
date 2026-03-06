@@ -121,7 +121,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         style={{
           position: 'fixed',
           bottom: '24px',
-          left: '24px',
+          right: '24px',
           zIndex: 300,
           width: '48px',
           height: '48px',
