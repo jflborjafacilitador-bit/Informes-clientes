@@ -95,6 +95,25 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           <LogOut size={20} />
           <span>Cerrar Sesión</span>
         </button>
+
+        {/* Badge de versión */}
+        <div style={{
+          marginTop: '12px',
+          padding: '6px 10px',
+          borderRadius: '8px',
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.06)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.03em' }}>
+            v{__APP_VERSION__}
+          </span>
+          <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.18)' }}>
+            {__BUILD_DATE__}
+          </span>
+        </div>
       </div>
     </aside>
   );
