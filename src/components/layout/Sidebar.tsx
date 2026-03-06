@@ -1,4 +1,4 @@
-import { Home, Users, BarChart2, Settings, LogOut, UserCog, X } from 'lucide-react';
+import { Home, Users, BarChart2, Settings, LogOut, UserCog, X, Building2 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -14,6 +14,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const links = [
     { to: '/', icon: Home, label: 'Dashboard' },
     { to: '/clientes', icon: Users, label: 'Clientes' },
+    { to: '/inventario', icon: Building2, label: 'Inventario' },
     { to: '/reportes', icon: BarChart2, label: 'Reportes' },
     { to: '/configuracion', icon: Settings, label: 'Configuración' },
     ...(role === 'super_admin' ? [{ to: '/usuarios', icon: UserCog, label: 'Usuarios' }] : []),

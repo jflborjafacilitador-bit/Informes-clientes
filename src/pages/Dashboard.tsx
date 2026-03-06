@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, AlertCircle, CalendarCheck, UserX, CalendarDays } from 'lucide-react';
+import { Users, AlertCircle, CalendarCheck, UserX, CalendarDays, Building2 } from 'lucide-react';
 import { fetchClientsFromSheet } from '../services/googleSheets';
+import { fetchInventario } from '../services/inventarioService';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const STATUS_COLORS: Record<string, string> = {
     'Nuevo': '#00f0ff',
@@ -61,8 +63,12 @@ const CustomTooltip = ({ active, payload }: any) => {
 
 export default function Dashboard() {
     const { session, role } = useAuth();
+    const navigate = useNavigate();
     const [clients, setClients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    // Inventario
+    const [invDisponibles, setInvDisponibles] = useState(0);
+    const [invTotal, setInvTotal] = useState(0);
     // --- Filtros de fecha ---
     type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
     const [dateFilter, setDateFilter] = useState<DateFilter>('all');
@@ -76,6 +82,12 @@ export default function Dashboard() {
     useEffect(() => {
         if (session && role) {
             loadData();
+            // Cargar inventario
+            fetchInventario().then(items => {
+                const disp = items.filter(i => i.estatus === 'DISPONIBLE' || i.estatus === 'DUSPONIBLE').length;
+                setInvDisponibles(disp);
+                setInvTotal(items.length);
+            }).catch(() => { });
             const channel = supabase.channel('realtime_dashboard')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'client_overrides' }, () => { loadData(); })
                 .subscribe();
@@ -227,6 +239,42 @@ export default function Dashboard() {
                 <StatCard title="Pendientes de contacto" value={loading ? '...' : pendientes} icon={AlertCircle} color="#f59e0b" subtitle='Status: "Nuevo" sin atender' />
                 <StatCard title="Citados" value={loading ? '...' : citados} icon={CalendarCheck} color="#10b981" subtitle="Con cita agendada" />
                 <StatCard title="Sin asesor asignado" value={loading ? '...' : sinAsignar} icon={UserX} color="#ef4444" subtitle="Requieren asignación" />
+            </div>
+
+            {/* Widget de disponibilidad de inventario */}
+            <div className="glass-panel" style={{ padding: '20px 24px', marginBottom: '30px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Building2 size={18} style={{ color: 'var(--primary-accent)' }} />
+                        <h3 style={{ margin: 0, fontSize: '1rem' }}>Disponibilidad de Casas</h3>
+                    </div>
+                    <button
+                        onClick={() => navigate('/inventario')}
+                        style={{
+                            padding: '5px 14px', borderRadius: '20px', fontSize: '0.78rem',
+                            background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.3)',
+                            color: 'var(--primary-accent)', cursor: 'pointer', fontFamily: 'inherit',
+                        }}
+                    >
+                        Ver inventario completo →
+                    </button>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.82rem' }}>
+                    <span style={{ color: '#22c55e', fontWeight: '600' }}>🟢 {invDisponibles} Disponibles</span>
+                    <span style={{ color: 'var(--text-muted)' }}>
+                        {invTotal > 0 ? `${Math.round((invDisponibles / invTotal) * 100)}% del inventario` : '...'}
+                    </span>
+                    <span style={{ color: '#ef4444', fontWeight: '600' }}>🔴 {invTotal - invDisponibles} No disponibles</span>
+                </div>
+                <div style={{ height: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', overflow: 'hidden' }}>
+                    <div style={{
+                        height: '100%',
+                        width: invTotal > 0 ? `${(invDisponibles / invTotal) * 100}%` : '0%',
+                        background: 'linear-gradient(90deg, #22c55e, #10b981)',
+                        borderRadius: '6px',
+                        transition: 'width 0.8s ease',
+                    }} />
+                </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: '20px' }}>

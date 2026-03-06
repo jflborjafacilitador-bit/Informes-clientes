@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import Usuarios from './pages/Usuarios';
 import Reportes from './pages/Reportes';
 import Configuracion from './pages/Configuracion';
+import Inventario from './pages/Inventario';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { supabase } from './services/supabaseClient';
 import { PanelLeftOpen, PanelLeftClose } from 'lucide-react';
@@ -156,6 +157,7 @@ function App() {
             <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
             <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
             <Route path="/configuracion" element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />
+            <Route path="/inventario" element={<ProtectedRoute><Inventario /></ProtectedRoute>} />
             <Route path="/usuarios" element={<ProtectedRoute><Usuarios /></ProtectedRoute>} />
           </Routes>
         </AppLayout>
