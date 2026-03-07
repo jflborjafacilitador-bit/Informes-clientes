@@ -20,6 +20,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const RoleRedirect = ({ children, recepcionPath }: { children: React.ReactNode; recepcionPath: string }) => {
+  const { role } = useAuth();
+  if (role === 'recepcion') return <Navigate to={recepcionPath} replace />;
+  return <>{children}</>;
+};
+
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -126,7 +132,13 @@ function App() {
         <AppLayout>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/" element={
+              <ProtectedRoute>
+                <RoleRedirect recepcionPath="/catering">
+                  <Dashboard />
+                </RoleRedirect>
+              </ProtectedRoute>
+            } />
             <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
             <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
             <Route path="/configuracion" element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />

@@ -14,7 +14,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const isRecepcion = role === 'recepcion';
 
   const links = [
-    { to: '/', icon: Home, label: 'Dashboard' },
+    ...(!isRecepcion ? [{ to: '/', icon: Home, label: 'Dashboard' }] : []),
     ...(!isRecepcion ? [
       { to: '/clientes', icon: Users, label: 'Clientes' },
       { to: '/inventario', icon: Building2, label: 'Inventario' },
