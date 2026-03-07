@@ -9,6 +9,8 @@ import Usuarios from './pages/Usuarios';
 import Reportes from './pages/Reportes';
 import Configuracion from './pages/Configuracion';
 import Inventario from './pages/Inventario';
+import Catering from './pages/Catering';
+import Calendario from './pages/Calendario';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { supabase } from './services/supabaseClient';
 
@@ -129,6 +131,8 @@ function App() {
             <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
             <Route path="/configuracion" element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />
             <Route path="/inventario" element={<ProtectedRoute><Inventario /></ProtectedRoute>} />
+            <Route path="/catering" element={<ProtectedRoute><Catering /></ProtectedRoute>} />
+            <Route path="/calendario" element={<ProtectedRoute><Calendario /></ProtectedRoute>} />
             <Route path="/usuarios" element={<ProtectedRoute><Usuarios /></ProtectedRoute>} />
           </Routes>
         </AppLayout>

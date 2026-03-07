@@ -3,12 +3,13 @@ import { UserPlus, Shield, Trash2 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 
-const ROLES = ['super_admin', 'gerente', 'asesor', 'readonly'];
+const ROLES = ['super_admin', 'gerente', 'asesor', 'recepcion', 'readonly'];
 
 const ROLE_LABELS: Record<string, string> = {
     super_admin: 'Director',
     gerente: 'Gerente',
     asesor: 'Asesor',
+    recepcion: 'Recepción',
     readonly: 'Solo lectura',
 };
 
@@ -16,6 +17,7 @@ const ROLE_COLORS: Record<string, string> = {
     super_admin: '#00f0ff',
     gerente: '#f59e0b',
     asesor: '#10b981',
+    recepcion: '#a855f7',
     readonly: '#6b7280',
 };
 
