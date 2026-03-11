@@ -102,6 +102,7 @@ body {
   /* Desktop: en el flujo flex, NO fixed */
   flex-shrink: 0;
   width: 260px;
+  height: 100%;
   border-right: 1px solid var(--border-glass);
   background: rgba(10, 15, 13, 0.97);
   backdrop-filter: blur(16px);
