@@ -51,7 +51,7 @@ jobs:
             set net:timeout 60
             set net:max-retries 5
             set net:reconnect-interval-base 5
-            mirror --reverse --delete --verbose --exclude-glob *.map \
+            mirror --reverse --delete --overwrite --verbose --exclude-glob *.map \
               ./dist/ /public_html/
             bye
           LFTP_SCRIPT
