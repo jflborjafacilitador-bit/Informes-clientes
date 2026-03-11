@@ -33,17 +33,28 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-      # 5. Subir dist/ al servidor via FTP usando Action especializada
+      # 5. Instalar lftp
+      - name: Instalar lftp
+        run: sudo apt-get install -y lftp
+
+      # 6. Subir dist/ al servidor via FTP usando lftp optimizado
       - name: Desplegar via FTP a Hostinger
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-        with:
-          server: 217.196.54.114
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./dist/
-          server-dir: /domains/registro.residenciallosquetzales.com/public_html/
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/*.map
+        env:
+          FTP_SERVER: 217.196.54.114
+          FTP_USER: ${{ secrets.FTP_USERNAME }}
+          FTP_PASS: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          lftp -u "$FTP_USER","$FTP_PASS" ftp://$FTP_SERVER << 'LFTP_SCRIPT'
+            set ftp:passive-mode yes
+            set ftp:sync-mode off
+            set ftp:ssl-allow no
+            set ssl:verify-certificate no
+            set net:timeout 120
+            set net:max-retries 3
+            set net:reconnect-interval-base 10
+            set xfer:use-temp-file yes
+            set xfer:temp-file-name *.tmp
+            mirror --reverse --ignore-time --overwrite --verbose --exclude-glob *.map \
+              ./dist/ /domains/registro.residenciallosquetzales.com/public_html/
+            bye
+          LFTP_SCRIPT
