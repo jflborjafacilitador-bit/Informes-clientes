@@ -52,6 +52,6 @@ jobs:
             set xfer:use-temp-file yes
             set xfer:temp-file-name *.tmp
             mirror --reverse --ignore-time --overwrite --verbose --exclude-glob *.map \
-              ./dist/ /domains/registro.residenciallosquetzales.com/public_html/
+              ./dist/ ./domains/registro.residenciallosquetzales.com/public_html/
             bye
           SFTP_SCRIPT
