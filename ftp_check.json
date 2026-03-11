@@ -1,0 +1,152 @@
+[
+  {
+    "name": "registerSW.js",
+    "type": 1,
+    "size": 134,
+    "rawModifiedAt": "2026-03-11T01:12:08.000Z",
+    "modifiedAt": "2026-03-11T01:12:08.000Z",
+    "permissions": {
+      "user": 6,
+      "group": 4,
+      "world": 4
+    },
+    "group": "o1008651702",
+    "user": "u998920878",
+    "uniqueID": "804U671103"
+  },
+  {
+    "name": "pwa-icon.png",
+    "type": 1,
+    "size": 383263,
+    "rawModifiedAt": "2026-03-11T01:12:08.000Z",
+    "modifiedAt": "2026-03-11T01:12:08.000Z",
+    "permissions": {
+      "user": 6,
+      "group": 4,
+      "world": 4
+    },
+    "group": "o1008651702",
+    "user": "u998920878",
+    "uniqueID": "804U671100"
+  },
+  {
+    "name": "Logo 1.1 sin fondo.png",
+    "type": 1,
+    "size": 395381,
+    "rawModifiedAt": "2026-03-11T01:12:08.000Z",
+    "modifiedAt": "2026-03-11T01:12:08.000Z",
+    "permissions": {
+      "user": 6,
+      "group": 4,
+      "world": 4
+    },
+    "group": "o1008651702",
+    "user": "u998920878",
+    "uniqueID": "804U6710FF"
+  },
+  {
+    "name": ".htaccess",
+    "type": 1,
+    "size": 256,
+    "rawModifiedAt": "2026-03-11T01:12:08.000Z",
+    "modifiedAt": "2026-03-11T01:12:08.000Z",
+    "permissions": {
+      "user": 6,
+      "group": 4,
+      "world": 4
+    },
+    "group": "o1008651702",
+    "user": "u998920878",
+    "uniqueID": "804U67110B"
+  },
+  {
+    "name": "index.html",
+    "type": 1,
+    "size": 1474,
+    "rawModifiedAt": "2026-03-11T01:12:08.000Z",
+    "modifiedAt": "2026-03-11T01:12:08.000Z",
+    "permissions": {
+      "user": 6,
+      "group": 4,
+      "world": 4
+    },
+    "group": "o1008651702",
+    "user": "u998920878",
+    "uniqueID": "804U6710F9"
+  },
+  {
+    "name": "vite.svg",
+    "type": 1,
+    "size": 1497,
+    "rawModifiedAt": "2026-03-11T01:12:08.000Z",
+    "modifiedAt": "2026-03-11T01:12:08.000Z",
+    "permissions": {
+      "user": 6,
+      "group": 4,
+      "world": 4
+    },
+    "group": "o1008651702",
+    "user": "u998920878",
+    "uniqueID": "804U671107"
+  },
+  {
+    "name": "assets",
+    "type": 2,
+    "size": 0,
+    "rawModifiedAt": "2026-03-11T01:12:17.000Z",
+    "modifiedAt": "2026-03-11T01:12:17.000Z",
+    "permissions": {
+      "user": 7,
+      "group": 5,
+      "world": 5
+    },
+    "group": "o1008651702",
+    "user": "u998920878",
+    "uniqueID": "804U7303B4"
+  },
+  {
+    "name": "workbox-6bfcbdaa.js",
+    "type": 1,
+    "size": 16009,
+    "rawModifiedAt": "2026-03-11T01:12:10.000Z",
+    "modifiedAt": "2026-03-11T01:12:10.000Z",
+    "permissions": {
+      "user": 6,
+      "group": 4,
+      "world": 4
+    },
+    "group": "o1008651702",
+    "user": "u998920878",
+    "uniqueID": "804U6710FA"
+  },
+  {
+    "name": "sw.js",
+    "type": 1,
+    "size": 1648,
+    "rawModifiedAt": "2026-03-11T01:12:10.000Z",
+    "modifiedAt": "2026-03-11T01:12:10.000Z",
+    "permissions": {
+      "user": 6,
+      "group": 4,
+      "world": 4
+    },
+    "group": "o1008651702",
+    "user": "u998920878",
+    "uniqueID": "804U671104"
+  },
+  {
+    "name": "manifest.webmanifest",
+    "type": 1,
+    "size": 479,
+    "rawModifiedAt": "2026-03-11T01:12:08.000Z",
+    "modifiedAt": "2026-03-11T01:12:08.000Z",
+    "permissions": {
+      "user": 6,
+      "group": 4,
+      "world": 4
+    },
+    "group": "o1008651702",
+    "user": "u998920878",
+    "uniqueID": "804U6710F6"
+  }
+]
