@@ -1,35 +1,35 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Calculator, ChevronDown } from 'lucide-react';
 
 // ─── Datos de precios ────────────────────────────────────────────
-const PRECIOS: Record<string, { modelo: string; version: string; precio: number }[]> = {
+const PRECIOS: Record<string, { modelo: string; version: string; precio: number; avaluo?: number }[]> = {
     'Manzana 2': [
-        { modelo: 'QUETZAL', version: 'EQUIPADA', precio: 1587000 },
-        { modelo: 'QUETZAL', version: 'EQUIPADA ELITE', precio: 1676000 },
-        { modelo: 'QUETZAL', version: 'AUSTERA', precio: 1456000 },
-        { modelo: 'QUETZAL', version: 'AUSTERA ELITE', precio: 1545000 },
-        { modelo: 'QUETZAL PLUS', version: 'EQUIPADA', precio: 1943000 },
-        { modelo: 'QUETZAL PLUS', version: 'EQUIPADA ELITE', precio: 2032000 },
-        { modelo: 'QUETZAL PLUS', version: 'AUSTERA', precio: 1768000 },
-        { modelo: 'QUETZAL PLUS', version: 'AUSTERA ELITE', precio: 1857000 },
+        { modelo: 'QUETZAL', version: 'EQUIPADA', precio: 1587000, avaluo: 1660000 },
+        { modelo: 'QUETZAL', version: 'EQUIPADA ELITE', precio: 1676000, avaluo: 1660000 },
+        { modelo: 'QUETZAL', version: 'AUSTERA', precio: 1456000, avaluo: 1660000 },
+        { modelo: 'QUETZAL', version: 'AUSTERA ELITE', precio: 1545000, avaluo: 1660000 },
+        { modelo: 'QUETZAL PLUS', version: 'EQUIPADA', precio: 1943000, avaluo: 2018000 },
+        { modelo: 'QUETZAL PLUS', version: 'EQUIPADA ELITE', precio: 2032000, avaluo: 2018000 },
+        { modelo: 'QUETZAL PLUS', version: 'AUSTERA', precio: 1768000, avaluo: 2018000 },
+        { modelo: 'QUETZAL PLUS', version: 'AUSTERA ELITE', precio: 1857000, avaluo: 2018000 },
     ],
     'Manzana 3': [
-        { modelo: 'QUETZAL C/ROOF GARDEN', version: 'EQUIPADA', precio: 1752000 },
-        { modelo: 'QUETZAL C/ROOF GARDEN', version: 'EQUIPADA ELITE', precio: 1839000 },
-        { modelo: 'QUETZAL C/ROOF GARDEN', version: 'AUSTERA', precio: 1687000 },
-        { modelo: 'QUETZAL C/ROOF GARDEN', version: 'AUSTERA ELITE', precio: 1774000 },
-        { modelo: 'QUETZAL', version: 'EQUIPADA', precio: 1620000 },
-        { modelo: 'QUETZAL', version: 'EQUIPADA ELITE', precio: 1689000 },
-        { modelo: 'QUETZAL', version: 'AUSTERA', precio: 1503000 },
-        { modelo: 'QUETZAL', version: 'AUSTERA ELITE', precio: 1590000 },
-        { modelo: 'QUETZAL PLUS', version: 'EQUIPADA', precio: 1966000 },
-        { modelo: 'QUETZAL PLUS', version: 'EQUIPADA ELITE', precio: 2053000 },
-        { modelo: 'QUETZAL PLUS', version: 'AUSTERA', precio: 1807000 },
-        { modelo: 'QUETZAL PLUS', version: 'AUSTERA ELITE', precio: 1895000 },
-        { modelo: 'QUETZAL PLUS F.A.', version: 'EQUIPADA', precio: 1976000 },
-        { modelo: 'QUETZAL PLUS F.A.', version: 'EQUIPADA ELITE', precio: 2083000 },
-        { modelo: 'QUETZAL PLUS F.A.', version: 'AUSTERA', precio: 1837000 },
-        { modelo: 'QUETZAL PLUS F.A.', version: 'AUSTERA ELITE', precio: 1925000 },
+        { modelo: 'QUETZAL C/ROOF GARDEN', version: 'EQUIPADA', precio: 1752000, avaluo: 1870000 },
+        { modelo: 'QUETZAL C/ROOF GARDEN', version: 'EQUIPADA ELITE', precio: 1839000, avaluo: 1870000 },
+        { modelo: 'QUETZAL C/ROOF GARDEN', version: 'AUSTERA', precio: 1687000, avaluo: 1870000 },
+        { modelo: 'QUETZAL C/ROOF GARDEN', version: 'AUSTERA ELITE', precio: 1774000, avaluo: 1870000 },
+        { modelo: 'QUETZAL', version: 'EQUIPADA', precio: 1620000, avaluo: 1770000 },
+        { modelo: 'QUETZAL', version: 'EQUIPADA ELITE', precio: 1689000, avaluo: 1770000 },
+        { modelo: 'QUETZAL', version: 'AUSTERA', precio: 1503000, avaluo: 1770000 },
+        { modelo: 'QUETZAL', version: 'AUSTERA ELITE', precio: 1590000, avaluo: 1770000 },
+        { modelo: 'QUETZAL PLUS', version: 'EQUIPADA', precio: 1966000, avaluo: 2120000 },
+        { modelo: 'QUETZAL PLUS', version: 'EQUIPADA ELITE', precio: 2053000, avaluo: 2120000 },
+        { modelo: 'QUETZAL PLUS', version: 'AUSTERA', precio: 1807000, avaluo: 2120000 },
+        { modelo: 'QUETZAL PLUS', version: 'AUSTERA ELITE', precio: 1895000, avaluo: 2120000 },
+        { modelo: 'QUETZAL PLUS F.A.', version: 'EQUIPADA', precio: 1976000, avaluo: 2150000 },
+        { modelo: 'QUETZAL PLUS F.A.', version: 'EQUIPADA ELITE', precio: 2083000, avaluo: 2150000 },
+        { modelo: 'QUETZAL PLUS F.A.', version: 'AUSTERA', precio: 1837000, avaluo: 2150000 },
+        { modelo: 'QUETZAL PLUS F.A.', version: 'AUSTERA ELITE', precio: 1925000, avaluo: 2150000 },
     ],
 };
 
@@ -231,6 +231,23 @@ export default function Calculadora() {
         return { diferencia, desglose, total };
     }, [tipo, precioBase, descuento, gastosNot, credito, subcuenta, creditoBanco, creditoFoviss, apartado]);
 
+    // Efecto para calcular Gastos Notariales en base al Avalúo
+    useEffect(() => {
+        if (!tipo || !precioBase) return;
+
+        const currentItem = PRECIOS[manzana]?.find(r => r.modelo === modelo && r.version === version);
+        if (!currentItem || !currentItem.avaluo) return;
+
+        let pct = 0;
+        if (tipo === 'INFONAVIT') pct = 0.05;
+        else if (tipo === 'FOVISSSTE' || tipo === 'CFE' || tipo === 'FOVISSSTE_INFONAVIT') pct = 0.07;
+        else if (tipo === 'BANCARIO' || tipo === 'COFINAVIT') pct = 0.06;
+
+        if (pct > 0) {
+            setGastosNot(String(currentItem.avaluo * pct));
+        }
+    }, [tipo, manzana, modelo, version, precioBase]);
+
     // Reset al cambiar manzana
     const handleManzana = (v: string) => {
         setManzana(v); setModelo(''); setVersion('');
@@ -298,7 +315,7 @@ export default function Calculadora() {
                     <Select label="Versión" value={version} options={versiones} onChange={handleVersion} />
                 </div>
 
-                {/* Precio base */}
+                {/* Precio base y avalúo */}
                 {precioBase > 0 && (
                     <div style={{
                         marginTop: '1rem', padding: '1rem', borderRadius: 12,
@@ -306,10 +323,18 @@ export default function Calculadora() {
                         border: '1px solid rgba(34,197,94,0.2)',
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8,
                     }}>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Precio de Lista 2026</span>
-                        <span style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--primary-accent)' }} className="glow-text">
-                            {fmt(precioBase)}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Precio de Lista 2026</span>
+                            <span style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--primary-accent)' }} className="glow-text">
+                                {fmt(precioBase)}
+                            </span>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'right' }}>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Valor de Avalúo</span>
+                            <span style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                                {fmt(PRECIOS[manzana].find(r => r.modelo === modelo && r.version === version)?.avaluo || 0)}
+                            </span>
+                        </div>
                     </div>
                 )}
             </div>
