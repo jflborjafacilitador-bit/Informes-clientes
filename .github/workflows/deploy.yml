@@ -37,8 +37,8 @@ jobs:
       - name: Instalar lftp
         run: sudo apt-get install -y lftp
 
-      # 6. Subir dist/ al servidor via FTPS (modo pasivo, pasa firewalls)
-      - name: Desplegar via FTPS a Hostinger
+      # 6. Subir dist/ al servidor via FTP (modo pasivo, sin TLS)
+      - name: Desplegar via FTP a Hostinger
         env:
           FTP_SERVER: 217.196.54.114
           FTP_USER: ${{ secrets.FTP_USERNAME }}
@@ -46,10 +46,10 @@ jobs:
         run: |
           lftp -u "$FTP_USER","$FTP_PASS" ftp://$FTP_SERVER << 'LFTP_SCRIPT'
             set ftp:passive-mode yes
-            set ftp:ssl-allow yes
-            set ftp:ssl-force no
-            set net:timeout 30
-            set net:max-retries 3
+            set ftp:ssl-allow no
+            set ssl:verify-certificate no
+            set net:timeout 60
+            set net:max-retries 5
             set net:reconnect-interval-base 5
             mirror --reverse --delete --verbose --exclude-glob *.map \
               ./dist/ /public_html/
