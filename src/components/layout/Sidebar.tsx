@@ -1,4 +1,4 @@
-import { Home, Users, BarChart2, Settings, LogOut, UserCog, X, Building2, UtensilsCrossed, CalendarDays } from 'lucide-react';
+import { Home, Users, BarChart2, Settings, LogOut, UserCog, X, Building2, UtensilsCrossed, CalendarDays, Calculator } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -22,6 +22,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     ] : []),
     { to: '/catering', icon: UtensilsCrossed, label: 'Catering' },
     { to: '/calendario', icon: CalendarDays, label: 'Calendario' },
+    ...(!isRecepcion ? [{ to: '/calculadora', icon: Calculator, label: 'Calculadora' }] : []),
     { to: '/configuracion', icon: Settings, label: 'Configuración' },
     ...(role === 'super_admin' ? [{ to: '/usuarios', icon: UserCog, label: 'Usuarios' }] : []),
   ];
@@ -63,7 +64,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </button>
       </div>
 
-      <nav style={{ flex: 1, padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      <nav style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {links.map((link) => {
           const Icon = link.icon;
           const isActive = location.pathname === link.to;
