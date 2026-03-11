@@ -3,7 +3,7 @@ name: Build & Deploy to Hostinger
 on:
   push:
     branches:
-      - main  # Se ejecuta cada vez que haces push a la rama 'main'
+      - main
 
 jobs:
   build-and-deploy:
@@ -11,7 +11,7 @@ jobs:
     name: Build y despliegue automático
 
     steps:
-      # 1. Descargar el código del repositorio
+      # 1. Descargar el código
       - name: Checkout del repositorio
         uses: actions/checkout@v4
 
@@ -26,25 +26,32 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      # 4. Compilar la aplicación (usando variables de entorno desde GitHub Secrets)
+      # 4. Compilar la aplicación
       - name: Compilar (build)
         run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-      # 5. Subir la carpeta dist/ al servidor via FTP
-      - name: Desplegar via FTP a Hostinger
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: 217.196.54.114
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          local-dir: ./dist/
-          server-dir: /public_html/
-          dangerous-clean-slate: false  # No borra archivos no relacionados del servidor
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
+      # 5. Instalar lftp
+      - name: Instalar lftp
+        run: sudo apt-get install -y lftp
+
+      # 6. Subir dist/ al servidor via FTPS (modo pasivo, pasa firewalls)
+      - name: Desplegar via FTPS a Hostinger
+        env:
+          FTP_SERVER: 217.196.54.114
+          FTP_USER: ${{ secrets.FTP_USERNAME }}
+          FTP_PASS: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          lftp -u "$FTP_USER","$FTP_PASS" ftp://$FTP_SERVER << 'LFTP_SCRIPT'
+            set ftp:passive-mode yes
+            set ftp:ssl-allow yes
+            set ftp:ssl-force no
+            set net:timeout 30
+            set net:max-retries 3
+            set net:reconnect-interval-base 5
+            mirror --reverse --delete --verbose --exclude-glob *.map \
+              ./dist/ /public_html/
+            bye
+          LFTP_SCRIPT
