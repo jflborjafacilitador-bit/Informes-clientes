@@ -33,14 +33,25 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-      # 5. Desplegar dist/ al servidor via SCP seguro (SSH)
-      - name: Desplegar via SCP a Hostinger
-        uses: appleboy/scp-action@v0.1.4
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          source: "./dist/*"
-          target: "/domains/registro.residenciallosquetzales.com/public_html"
-          strip_components: 1
+      # 5. Instalar lftp
+      - name: Instalar lftp
+        run: sudo apt-get install -y lftp
+
+      # 6. Desplegar dist/ al servidor via protocolo nativo SFTP protegido
+      - name: Desplegar via SFTP a Hostinger
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          lftp -u "$SSH_USER","$SSH_PASS" sftp://$SSH_HOST:$SSH_PORT << 'SFTP_SCRIPT'
+            set sftp:auto-confirm yes
+            set net:timeout 120
+            set net:max-retries 3
+            set xfer:use-temp-file yes
+            set xfer:temp-file-name *.tmp
+            mirror --reverse --ignore-time --overwrite --verbose --exclude-glob *.map \
+              ./dist/ /domains/registro.residenciallosquetzales.com/public_html/
+            bye
+          SFTP_SCRIPT
