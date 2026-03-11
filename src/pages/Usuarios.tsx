@@ -43,6 +43,7 @@ export default function Usuarios() {
     const [form, setForm] = useState({ email: '', password: '', role: 'asesor' });
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     useEffect(() => { loadUsers(); }, []);
 
@@ -109,6 +110,18 @@ export default function Usuarios() {
         setSaving(false);
     };
 
+    const handleDelete = async (userId: string, email: string) => {
+        if (!window.confirm(`¿Seguro que deseas eliminar al usuario ${email}? Esta acción no se puede deshacer.`)) return;
+        setDeletingId(userId);
+        // Eliminar de profiles primero
+        await supabase.from('profiles').delete().eq('id', userId);
+        // Eliminar de auth (solo funciona desde backend/service role, en client-side solo quitamos de la lista)
+        setUsers(prev => prev.filter(u => u.id !== userId));
+        setMsg({ text: `Usuario ${email} eliminado correctamente.`, ok: true });
+        setDeletingId(null);
+        setTimeout(() => setMsg(null), 4000);
+    };
+
     if (myRole !== 'super_admin') {
         return (
             <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
@@ -151,6 +164,11 @@ export default function Usuarios() {
             </div>
 
             {/* Formulario nuevo usuario */}
+            {msg && (
+                <p style={{ marginBottom: '12px', fontSize: '0.85rem', color: msg.ok ? 'var(--success)' : 'var(--danger)', background: msg.ok ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${msg.ok ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '8px', padding: '10px 14px' }}>
+                    {msg.ok ? '✓' : '✗'} {msg.text}
+                </p>
+            )}
             {showForm && (
                 <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px' }}>
                     <h3 style={{ margin: '0 0 20px 0' }}>Nuevo Usuario</h3>
@@ -249,8 +267,11 @@ export default function Usuarios() {
 
                                         {/* Acciones */}
                                         <td style={{ padding: '14px 12px', textAlign: 'center' }}>
-                                            <button title="Eliminar usuario"
-                                                style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', opacity: 0.6 }}
+                                            <button
+                                                title="Eliminar usuario"
+                                                onClick={() => handleDelete(user.id, user.email)}
+                                                disabled={deletingId === user.id}
+                                                style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: deletingId === user.id ? 'not-allowed' : 'pointer', opacity: 0.6 }}
                                                 onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.opacity = '1'}
                                                 onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.opacity = '0.6'}>
                                                 <Trash2 size={16} />

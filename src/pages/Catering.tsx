@@ -51,6 +51,12 @@ export default function Catering() {
             updated_by: session?.user?.email || null,
         }).eq('id', item.id);
         setItems(prev => prev.map(i => i.id === item.id ? { ...i, cantidad: newQty } : i));
+        // Registrar última acción del usuario
+        if (session?.user?.id) {
+            supabase.from('profiles').update({
+                last_action: `Ajustó ${item.nombre}: ${item.cantidad} → ${newQty} pzas`,
+            }).eq('id', session.user.id).then(() => { });
+        }
     };
 
     const handleAdd = async () => {

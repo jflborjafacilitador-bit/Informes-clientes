@@ -12,6 +12,7 @@ import Inventario from './pages/Inventario';
 import Catering from './pages/Catering';
 import Calendario from './pages/Calendario';
 import Calculadora from './pages/Calculadora';
+import InicioRecepcion from './pages/InicioRecepcion';
 import UpdateBanner from './components/UpdateBanner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { supabase } from './services/supabaseClient';
@@ -138,11 +139,12 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/" element={
               <ProtectedRoute>
-                <RoleRedirect recepcionPath="/catering">
+                <RoleRedirect recepcionPath="/inicio-recepcion">
                   <Dashboard />
                 </RoleRedirect>
               </ProtectedRoute>
             } />
+            <Route path="/inicio-recepcion" element={<ProtectedRoute><InicioRecepcion /></ProtectedRoute>} />
             <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
             <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
             <Route path="/configuracion" element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />
