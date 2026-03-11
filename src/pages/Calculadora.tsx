@@ -190,7 +190,6 @@ export default function Calculadora() {
     const [descuento, setDescuento] = useState('');
 
     // Extras
-    const [extraAmpliacion, setExtraAmpliacion] = useState(false);
     const [extraPersianas, setExtraPersianas] = useState(false);
     const [extraCancel, setExtraCancel] = useState(false);
     const [extraProtecciones, setExtraProtecciones] = useState(false);
@@ -210,12 +209,11 @@ export default function Calculadora() {
 
     const extrasTotal = useMemo(() => {
         let t = 0;
-        if (extraAmpliacion) t += 95000;
         if (extraPersianas) t += 8000;
         if (extraCancel) t += 10000;
         if (extraProtecciones) t += num(costoProtecciones);
         return t;
-    }, [extraAmpliacion, extraPersianas, extraCancel, extraProtecciones, costoProtecciones]);
+    }, [extraPersianas, extraCancel, extraProtecciones, costoProtecciones]);
 
     // Calcular resultado
     const resultado = useMemo(() => {
@@ -331,7 +329,7 @@ export default function Calculadora() {
     const resetCampos = () => {
         setGastosNot(''); setCredito(''); setSubcuenta('');
         setCreditoBanco(''); setCreditoFoviss(''); setApartado(''); setDescuento('');
-        setExtraAmpliacion(false); setExtraPersianas(false); setExtraCancel(false); setExtraProtecciones(false);
+        setExtraPersianas(false); setExtraCancel(false); setExtraProtecciones(false);
     };
 
     // Funciones de conveniencia para botón "Apartado"
@@ -357,10 +355,23 @@ export default function Calculadora() {
             });
             const imgData = canvas.toDataURL('image/jpeg', 0.95);
             const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
 
-            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+            const margin = 10;
+            const maxPdfWidth = pageWidth - margin * 2;
+            const maxPdfHeight = pageHeight - margin * 2;
+
+            let imgWidth = maxPdfWidth;
+            let imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            if (imgHeight > maxPdfHeight) {
+                imgHeight = maxPdfHeight;
+                imgWidth = (canvas.width * imgHeight) / canvas.height;
+            }
+
+            const xOffset = (pageWidth - imgWidth) / 2;
+            pdf.addImage(imgData, 'JPEG', xOffset, margin, imgWidth, imgHeight);
             pdf.save(`Cotizacion_${modelo}_${tipo}.pdf`);
         } catch (error) {
             console.error('Error generating PDF:', error);
@@ -476,7 +487,6 @@ export default function Calculadora() {
                             Equipamiento Extra / Adicionales (Opcional)
                         </h2>
                         <div style={gridStyle}>
-                            <CheckboxOption label="Ampliación P.B. (Baño y Recámara)" price={95000} checked={extraAmpliacion} onChange={setExtraAmpliacion} />
                             <CheckboxOption label="Persianas Cocina y Escalera" price={8000} checked={extraPersianas} onChange={setExtraPersianas} />
                             <CheckboxOption label="Cancel Extra" price={10000} checked={extraCancel} onChange={setExtraCancel} />
                             <CheckboxOption label="Paquete de Protecciones" checked={extraProtecciones} onChange={setExtraProtecciones} isCustom customValue={costoProtecciones} onCustomValueChange={setCostoProtecciones} />
@@ -559,7 +569,7 @@ export default function Calculadora() {
 
                 {/* Resultado */}
                 {resultado && (
-                    <div style={{ ...panelStyle, border: resultado.diferencia >= 0 ? '1px solid rgba(34,197,94,0.4)' : '1px solid rgba(239,68,68,0.4)' }}>
+                    <div style={{ ...panelStyle, border: resultado.diferencia <= 0 ? '1px solid rgba(34,197,94,0.4)' : '1px solid rgba(239,68,68,0.4)' }}>
                         <h2 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                             4 · Resultado
                         </h2>
@@ -589,21 +599,21 @@ export default function Calculadora() {
                         <div style={{
                             padding: '1.25rem',
                             borderRadius: 12,
-                            background: resultado.diferencia >= 0 ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
-                            border: `1px solid ${resultado.diferencia >= 0 ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                            background: resultado.diferencia <= 0 ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                            border: `1px solid ${resultado.diferencia <= 0 ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
                             display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8,
                         }}>
                             <div>
                                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 2 }}>DIFERENCIA FINAL</div>
-                                <div style={{ fontSize: '0.8rem', color: resultado.diferencia >= 0 ? 'var(--primary-accent)' : 'var(--danger)' }}>
-                                    {resultado.diferencia >= 0 ? '✓ Saldo a favor del cliente' : '⚠ Monto adicional requerido'}
+                                <div style={{ fontSize: '0.8rem', color: resultado.diferencia <= 0 ? 'var(--primary-accent)' : 'var(--danger)' }}>
+                                    {resultado.diferencia <= 0 ? '✓ Saldo a favor del cliente' : '⚠ A cubrir con recursos propios'}
                                 </div>
                             </div>
                             <div style={{
                                 fontSize: '2rem', fontWeight: 800,
-                                color: resultado.diferencia >= 0 ? 'var(--primary-accent)' : 'var(--danger)',
+                                color: resultado.diferencia <= 0 ? 'var(--primary-accent)' : 'var(--danger)',
                             }} className="glow-text">
-                                {resultado.diferencia >= 0 ? '+' : ''}{fmt(resultado.diferencia)}
+                                {resultado.diferencia <= 0 ? '+' : '-'}{fmt(Math.abs(resultado.diferencia))}
                             </div>
                         </div>
                     </div>

@@ -42,7 +42,6 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
           server-dir: /domains/registro.residenciallosquetzales.com/public_html/
-          danger-clean-dir: true
           exclude: |
             **/.git*
             **/.git*/**
