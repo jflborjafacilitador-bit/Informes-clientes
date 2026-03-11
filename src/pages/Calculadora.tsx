@@ -1,5 +1,7 @@
-import { useState, useMemo, useEffect } from 'react';
-import { Calculator, ChevronDown } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { Calculator, ChevronDown, Download, CheckSquare, Square } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 // ─── Datos de precios ────────────────────────────────────────────
 const PRECIOS: Record<string, { modelo: string; version: string; precio: number; avaluo?: number }[]> = {
@@ -54,38 +56,50 @@ const TIPOS_CREDITO: { value: TipoCredito; label: string }[] = [
 const fmt = (n: number) =>
     n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 });
 
-const num = (v: string) => parseFloat(v.replace(/,/g, '')) || 0;
+// Remove symbols so formatting like "$83,000" correctly parses into `83000`.
+const num = (v: string | number) => typeof v === 'number' ? v : (parseFloat((v || '').replace(/[^0-9.-]+/g, '')) || 0);
 
 const Field = ({
-    label, value, onChange, readOnly = false,
+    label, value, onChange, readOnly = false, helperText, prefix,
 }: {
-    label: string; value: string; onChange?: (v: string) => void; readOnly?: boolean;
+    label: string; value: string; onChange?: (v: string) => void; readOnly?: boolean; helperText?: React.ReactNode; prefix?: string;
 }) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             {label}
         </label>
-        <input
-            type="text"
-            readOnly={readOnly}
-            value={value}
-            onChange={e => onChange?.(e.target.value)}
-            style={{
-                background: readOnly ? 'rgba(34,197,94,0.05)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${readOnly ? 'rgba(34,197,94,0.2)' : 'var(--border-glass)'}`,
-                borderRadius: 8,
-                padding: '10px 14px',
-                color: readOnly ? 'var(--primary-accent)' : 'var(--text-main)',
-                fontSize: '0.95rem',
-                fontFamily: 'inherit',
-                width: '100%',
-                outline: 'none',
-                cursor: readOnly ? 'default' : 'text',
-                transition: 'border-color 0.2s',
-            }}
-            onFocus={e => { if (!readOnly) e.target.style.borderColor = 'rgba(34,197,94,0.5)'; }}
-            onBlur={e => { if (!readOnly) e.target.style.borderColor = 'var(--border-glass)'; }}
-        />
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            {prefix && <span style={{ position: 'absolute', left: 12, color: readOnly ? 'var(--primary-accent)' : 'var(--text-muted)', fontSize: '0.95rem' }}>{prefix}</span>}
+            <input
+                type="text"
+                readOnly={readOnly}
+                value={value}
+                onChange={e => onChange?.(e.target.value)}
+                style={{
+                    background: readOnly ? 'rgba(34,197,94,0.05)' : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${readOnly ? 'rgba(34,197,94,0.2)' : 'var(--border-glass)'}`,
+                    borderRadius: 8,
+                    padding: `10px 14px 10px ${prefix ? '24px' : '14px'}`,
+                    color: readOnly ? 'var(--primary-accent)' : 'var(--text-main)',
+                    fontSize: '0.95rem',
+                    fontFamily: 'inherit',
+                    width: '100%',
+                    outline: 'none',
+                    cursor: readOnly ? 'default' : 'text',
+                    transition: 'border-color 0.2s',
+                    boxSizing: 'border-box'
+                }}
+                onFocus={e => { if (!readOnly) e.target.style.borderColor = 'rgba(34,197,94,0.5)'; }}
+                onBlur={e => {
+                    if (!readOnly) {
+                        e.target.style.borderColor = 'var(--border-glass)';
+                        // Autoguardado con formato al salir
+                        if (value && onChange) onChange(fmt(num(value)));
+                    }
+                }}
+            />
+        </div>
+        {helperText && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>{helperText}</div>}
     </div>
 );
 
@@ -122,8 +136,45 @@ const Select = ({ label, value, options, onChange }: {
     </div>
 );
 
+const CheckboxOption = ({ label, price, checked, onChange, isCustom = false, customValue, onCustomValueChange }: any) => (
+    <div
+        onClick={() => onChange(!checked)}
+        style={{
+            display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+            borderRadius: 8, background: checked ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.02)',
+            border: `1px solid ${checked ? 'rgba(34,197,94,0.3)' : 'var(--border-glass)'}`,
+            cursor: 'pointer', transition: 'all 0.2s', flexWrap: 'wrap'
+        }}
+    >
+        {checked ? <CheckSquare size={18} color="var(--primary-accent)" /> : <Square size={18} color="var(--text-muted)" />}
+        <span style={{ fontSize: '0.85rem', color: checked ? 'var(--text-main)' : 'var(--text-muted)', flex: 1 }}>{label}</span>
+        {isCustom ? (
+            <input
+                type="text"
+                placeholder="$ Costo"
+                value={customValue}
+                onChange={e => onCustomValueChange?.(e.target.value)}
+                onBlur={e => { if (e.target.value && onCustomValueChange) onCustomValueChange(fmt(num(e.target.value))); }}
+                onClick={e => e.stopPropagation()}
+                style={{
+                    background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-glass)',
+                    borderRadius: 4, padding: '4px 8px', color: 'var(--text-main)',
+                    width: '90px', fontSize: '0.8rem', outline: 'none'
+                }}
+            />
+        ) : (
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: checked ? 'var(--primary-accent)' : 'var(--text-muted)' }}>
+                +{fmt(price)}
+            </span>
+        )}
+    </div>
+);
+
 // ─── Componente principal ─────────────────────────────────────────
 export default function Calculadora() {
+    const pdfRef = useRef<HTMLDivElement>(null);
+    const [isGenerating, setIsGenerating] = useState(false);
+
     const [manzana, setManzana] = useState('');
     const [modelo, setModelo] = useState('');
     const [version, setVersion] = useState('');
@@ -138,6 +189,13 @@ export default function Calculadora() {
     const [apartado, setApartado] = useState('');
     const [descuento, setDescuento] = useState('');
 
+    // Extras
+    const [extraAmpliacion, setExtraAmpliacion] = useState(false);
+    const [extraPersianas, setExtraPersianas] = useState(false);
+    const [extraCancel, setExtraCancel] = useState(false);
+    const [extraProtecciones, setExtraProtecciones] = useState(false);
+    const [costoProtecciones, setCostoProtecciones] = useState('');
+
     // Listas derivadas
     const modelos = useMemo(() =>
         manzana ? [...new Set(PRECIOS[manzana].map(r => r.modelo))] : [], [manzana]);
@@ -150,10 +208,20 @@ export default function Calculadora() {
         return PRECIOS[manzana].find(r => r.modelo === modelo && r.version === version)?.precio ?? 0;
     }, [manzana, modelo, version]);
 
+    const extrasTotal = useMemo(() => {
+        let t = 0;
+        if (extraAmpliacion) t += 95000;
+        if (extraPersianas) t += 8000;
+        if (extraCancel) t += 10000;
+        if (extraProtecciones) t += num(costoProtecciones);
+        return t;
+    }, [extraAmpliacion, extraPersianas, extraCancel, extraProtecciones, costoProtecciones]);
+
     // Calcular resultado
     const resultado = useMemo(() => {
         if (!tipo || !precioBase) return null;
-        const pv = precioBase - num(descuento);
+        const subtotal = precioBase - num(descuento);
+        const pv = subtotal + extrasTotal; // Precio de Venta (con extras)
         const gn = num(gastosNot);
         const total = pv + gn;
         const apt = num(apartado);
@@ -228,8 +296,8 @@ export default function Calculadora() {
             ];
         }
 
-        return { diferencia, desglose, total };
-    }, [tipo, precioBase, descuento, gastosNot, credito, subcuenta, creditoBanco, creditoFoviss, apartado]);
+        return { diferencia, desglose, total, extrasTotal };
+    }, [tipo, precioBase, descuento, gastosNot, credito, subcuenta, creditoBanco, creditoFoviss, apartado, extrasTotal]);
 
     // Efecto para calcular Gastos Notariales en base al Avalúo
     useEffect(() => {
@@ -244,7 +312,9 @@ export default function Calculadora() {
         else if (tipo === 'BANCARIO' || tipo === 'COFINAVIT') pct = 0.06;
 
         if (pct > 0) {
-            setGastosNot(String(currentItem.avaluo * pct));
+            setGastosNot(fmt(currentItem.avaluo * pct));
+        } else {
+            setGastosNot('');
         }
     }, [tipo, manzana, modelo, version, precioBase]);
 
@@ -255,10 +325,49 @@ export default function Calculadora() {
     };
     const handleModelo = (v: string) => { setModelo(v); setVersion(''); resetCampos(); };
     const handleVersion = (v: string) => { setVersion(v); resetCampos(); };
+
     const handleTipo = (v: string) => { setTipo(v as TipoCredito); resetCampos(); };
+
     const resetCampos = () => {
         setGastosNot(''); setCredito(''); setSubcuenta('');
         setCreditoBanco(''); setCreditoFoviss(''); setApartado(''); setDescuento('');
+        setExtraAmpliacion(false); setExtraPersianas(false); setExtraCancel(false); setExtraProtecciones(false);
+    };
+
+    // Funciones de conveniencia para botón "Apartado"
+    const applyApartado = (pct: number | 'FIXED') => {
+        if (!precioBase) return;
+        if (pct === 'FIXED') {
+            setApartado(fmt(20000));
+        } else {
+            setApartado(fmt(precioBase * pct));
+        }
+    };
+
+    const handleDownloadPDF = async () => {
+        if (!pdfRef.current) return;
+        setIsGenerating(true);
+        try {
+            // Un pequeño retraso para permitir renders (en caso de overlays)
+            await new Promise(r => setTimeout(r, 100));
+            const canvas = await html2canvas(pdfRef.current, {
+                scale: 1.5,
+                backgroundColor: '#0a0f0d', // Fundo oscuro del sistema
+                windowWidth: 1000 // Aseguramos que tome un acho respetable de PC
+            });
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`Cotizacion_${modelo}_${tipo}.pdf`);
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            alert('Hubo un error al generar el PDF.');
+        } finally {
+            setIsGenerating(false);
+        }
     };
 
     // Campos visibles según tipo
@@ -283,169 +392,223 @@ export default function Calculadora() {
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {/* Encabezado */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{
-                    width: 42, height: 42, borderRadius: 10,
-                    background: 'rgba(34,197,94,0.1)',
-                    border: '1px solid var(--border-glass)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                    <Calculator size={20} color="var(--primary-accent)" />
-                </div>
-                <div>
-                    <h1 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0 }} className="glow-text">
-                        Calculadora de Vivienda
-                    </h1>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
-                        Residencial Los Quetzales — Calcula la diferencia final por tipo de crédito
-                    </p>
-                </div>
-            </div>
+        <div style={{ position: 'relative' }}>
+            {/* Wrapper invisible para el PDF que captura todo el contenido  */}
+            <div ref={pdfRef} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '10px' }}>
 
-            {/* Paso 1: Selección de vivienda */}
-            <div style={panelStyle}>
-                <h2 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                    1 · Seleccionar Vivienda
-                </h2>
-                <div style={gridStyle}>
-                    <Select label="Manzana" value={manzana} options={Object.keys(PRECIOS)} onChange={handleManzana} />
-                    <Select label="Modelo" value={modelo} options={modelos} onChange={handleModelo} />
-                    <Select label="Versión" value={version} options={versiones} onChange={handleVersion} />
-                </div>
-
-                {/* Precio base y avalúo */}
-                {precioBase > 0 && (
-                    <div style={{
-                        marginTop: '1rem', padding: '1rem', borderRadius: 12,
-                        background: 'rgba(34,197,94,0.07)',
-                        border: '1px solid rgba(34,197,94,0.2)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8,
-                    }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Precio de Lista 2026</span>
-                            <span style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--primary-accent)' }} className="glow-text">
-                                {fmt(precioBase)}
-                            </span>
+                {/* Encabezado */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{
+                            width: 42, height: 42, borderRadius: 10,
+                            background: 'rgba(34,197,94,0.1)',
+                            border: '1px solid var(--border-glass)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                            <Calculator size={20} color="var(--primary-accent)" />
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'right' }}>
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Valor de Avalúo</span>
-                            <span style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-main)' }}>
-                                {fmt(PRECIOS[manzana].find(r => r.modelo === modelo && r.version === version)?.avaluo || 0)}
-                            </span>
+                        <div>
+                            <h1 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0 }} className="glow-text">
+                                Calculadora de Vivienda
+                            </h1>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+                                Residencial Los Quetzales — Cotización Comercial
+                            </p>
+                        </div>
+                    </div>
+                    {tipo && resultado && (
+                        <button
+                            onClick={handleDownloadPDF}
+                            disabled={isGenerating}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                background: 'rgba(34,197,94,0.15)', color: 'var(--primary-accent)',
+                                border: '1px solid rgba(34,197,94,0.3)', borderRadius: 8,
+                                padding: '8px 16px', fontSize: '0.85rem', fontWeight: 600,
+                                cursor: isGenerating ? 'wait' : 'pointer', transition: 'all 0.2s',
+                            }}
+                        >
+                            <Download size={16} />
+                            {isGenerating ? 'Generando PDF...' : 'Descargar Cotización (PDF)'}
+                        </button>
+                    )}
+                </div>
+
+                {/* Paso 1: Selección de vivienda */}
+                <div style={panelStyle}>
+                    <h2 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                        1 · Seleccionar Vivienda
+                    </h2>
+                    <div style={gridStyle}>
+                        <Select label="Manzana" value={manzana} options={Object.keys(PRECIOS)} onChange={handleManzana} />
+                        <Select label="Modelo" value={modelo} options={modelos} onChange={handleModelo} />
+                        <Select label="Versión" value={version} options={versiones} onChange={handleVersion} />
+                    </div>
+
+                    {/* Precio base y avalúo */}
+                    {precioBase > 0 && (
+                        <div style={{
+                            marginTop: '1rem', padding: '1rem', borderRadius: 12,
+                            background: 'rgba(34,197,94,0.07)',
+                            border: '1px solid rgba(34,197,94,0.2)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8,
+                        }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Precio Base 2026</span>
+                                <span style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--primary-accent)' }} className="glow-text">
+                                    {fmt(precioBase)}
+                                </span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'right' }}>
+                                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Valor de Avalúo</span>
+                                <span style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                                    {fmt(PRECIOS[manzana]?.find(r => r.modelo === modelo && r.version === version)?.avaluo || 0)}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Opcional: Equipamiento Extra */}
+                {precioBase > 0 && (
+                    <div style={panelStyle}>
+                        <h2 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                            Equipamiento Extra / Adicionales (Opcional)
+                        </h2>
+                        <div style={gridStyle}>
+                            <CheckboxOption label="Ampliación P.B. (Baño y Recámara)" price={95000} checked={extraAmpliacion} onChange={setExtraAmpliacion} />
+                            <CheckboxOption label="Persianas Cocina y Escalera" price={8000} checked={extraPersianas} onChange={setExtraPersianas} />
+                            <CheckboxOption label="Cancel Extra" price={10000} checked={extraCancel} onChange={setExtraCancel} />
+                            <CheckboxOption label="Paquete de Protecciones" checked={extraProtecciones} onChange={setExtraProtecciones} isCustom customValue={costoProtecciones} onCustomValueChange={setCostoProtecciones} />
+                        </div>
+                    </div>
+                )}
+
+                {/* Paso 2: Tipo de crédito */}
+                {precioBase > 0 && (
+                    <div style={panelStyle}>
+                        <h2 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                            2 · Tipo de Crédito
+                        </h2>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                            {TIPOS_CREDITO.map(t => (
+                                <button
+                                    key={t.value}
+                                    onClick={() => handleTipo(tipo === t.value ? '' : t.value)}
+                                    style={{
+                                        padding: '0.75rem 1rem',
+                                        borderRadius: 10,
+                                        border: `1px solid ${tipo === t.value ? 'rgba(34,197,94,0.5)' : 'var(--border-glass)'}`,
+                                        background: tipo === t.value ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.02)',
+                                        color: tipo === t.value ? 'var(--primary-accent)' : 'var(--text-muted)',
+                                        cursor: 'pointer',
+                                        fontFamily: 'inherit',
+                                        fontWeight: tipo === t.value ? 600 : 400,
+                                        fontSize: '0.85rem',
+                                        transition: 'all 0.2s',
+                                        textAlign: 'center',
+                                    }}
+                                >
+                                    {t.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Paso 3: Campos del crédito */}
+                {tipo && precioBase > 0 && (
+                    <div style={panelStyle}>
+                        <h2 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                            3 · Datos del Crédito
+                        </h2>
+                        <div style={gridStyle}>
+                            <Field label="Costo Total de Vivienda" value={fmt(precioBase + (resultado?.extrasTotal || 0))} readOnly helperText="Precio Base + Extras" />
+                            <Field label="Descuento (opcional)" value={descuento} onChange={setDescuento} />
+
+                            {showGN && (
+                                <Field
+                                    label="Gastos Notariales"
+                                    value={gastosNot}
+                                    onChange={setGastosNot}
+                                    helperText="Calculado automático según avalúo (Ignorar si no aplica)"
+                                />
+                            )}
+
+                            {showCredito && (
+                                <Field
+                                    label={tipo === 'FOVISSSTE' ? 'Crédito FOVISSSTE' : tipo === 'COFINAVIT' || tipo === 'FOVISSSTE_INFONAVIT' ? 'Crédito INFONAVIT' : 'Crédito'}
+                                    value={credito} onChange={setCredito}
+                                />
+                            )}
+                            {showSubcuenta && <Field label="Subcuenta Vivienda" value={subcuenta} onChange={setSubcuenta} />}
+                            {showBanco && <Field label="Crédito Bancario" value={creditoBanco} onChange={setCreditoBanco} />}
+                            {showFoviss && <Field label="Crédito FOVISSSTE" value={creditoFoviss} onChange={setCreditoFoviss} />}
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <Field label="Apartado" value={apartado} onChange={setApartado} />
+                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                                    <button onClick={() => applyApartado(0.01)} style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', border: '1px solid var(--border-glass)', cursor: 'pointer' }}>1%</button>
+                                    <button onClick={() => applyApartado(0.10)} style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', border: '1px solid var(--border-glass)', cursor: 'pointer' }}>10%</button>
+                                    <button onClick={() => applyApartado('FIXED')} style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', border: '1px solid var(--border-glass)', cursor: 'pointer' }}>$20,000</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Resultado */}
+                {resultado && (
+                    <div style={{ ...panelStyle, border: resultado.diferencia >= 0 ? '1px solid rgba(34,197,94,0.4)' : '1px solid rgba(239,68,68,0.4)' }}>
+                        <h2 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                            4 · Resultado
+                        </h2>
+
+                        {/* Desglose */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: '1.25rem' }}>
+                            {resultado.desglose.map((d, i) => (
+                                <div key={i} style={{
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    padding: '8px 12px', borderRadius: 8,
+                                    background: 'rgba(255,255,255,0.02)',
+                                    borderBottom: i < resultado.desglose.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                                }}>
+                                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{d.label}</span>
+                                    <span style={{
+                                        fontWeight: 600, fontSize: '0.9rem',
+                                        color: d.monto < 0 ? '#f97316' : d.label === 'Valor Total' ? 'var(--text-main)' : 'var(--text-main)',
+                                    }}>
+                                        {fmt(Math.abs(d.monto))}
+                                        {d.monto < 0 && <span style={{ fontSize: '0.75rem', marginLeft: 4, color: '#f97316' }}>↓</span>}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Diferencia final */}
+                        <div style={{
+                            padding: '1.25rem',
+                            borderRadius: 12,
+                            background: resultado.diferencia >= 0 ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                            border: `1px solid ${resultado.diferencia >= 0 ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8,
+                        }}>
+                            <div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 2 }}>DIFERENCIA FINAL</div>
+                                <div style={{ fontSize: '0.8rem', color: resultado.diferencia >= 0 ? 'var(--primary-accent)' : 'var(--danger)' }}>
+                                    {resultado.diferencia >= 0 ? '✓ Saldo a favor del cliente' : '⚠ Monto adicional requerido'}
+                                </div>
+                            </div>
+                            <div style={{
+                                fontSize: '2rem', fontWeight: 800,
+                                color: resultado.diferencia >= 0 ? 'var(--primary-accent)' : 'var(--danger)',
+                            }} className="glow-text">
+                                {resultado.diferencia >= 0 ? '+' : ''}{fmt(resultado.diferencia)}
+                            </div>
                         </div>
                     </div>
                 )}
             </div>
-
-            {/* Paso 2: Tipo de crédito */}
-            {precioBase > 0 && (
-                <div style={panelStyle}>
-                    <h2 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                        2 · Tipo de Crédito
-                    </h2>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem' }}>
-                        {TIPOS_CREDITO.map(t => (
-                            <button
-                                key={t.value}
-                                onClick={() => handleTipo(tipo === t.value ? '' : t.value)}
-                                style={{
-                                    padding: '0.75rem 1rem',
-                                    borderRadius: 10,
-                                    border: `1px solid ${tipo === t.value ? 'rgba(34,197,94,0.5)' : 'var(--border-glass)'}`,
-                                    background: tipo === t.value ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.02)',
-                                    color: tipo === t.value ? 'var(--primary-accent)' : 'var(--text-muted)',
-                                    cursor: 'pointer',
-                                    fontFamily: 'inherit',
-                                    fontWeight: tipo === t.value ? 600 : 400,
-                                    fontSize: '0.85rem',
-                                    transition: 'all 0.2s',
-                                    textAlign: 'center',
-                                }}
-                            >
-                                {t.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Paso 3: Campos del crédito */}
-            {tipo && precioBase > 0 && (
-                <div style={panelStyle}>
-                    <h2 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                        3 · Datos del Crédito
-                    </h2>
-                    <div style={gridStyle}>
-                        <Field label="Precio de Venta" value={fmt(precioBase)} readOnly />
-                        <Field label="Descuento (opcional)" value={descuento} onChange={setDescuento} />
-                        {showGN && <Field label="Gastos Notariales" value={gastosNot} onChange={setGastosNot} />}
-                        {showCredito && (
-                            <Field
-                                label={tipo === 'FOVISSSTE' ? 'Crédito FOVISSSTE' : tipo === 'COFINAVIT' || tipo === 'FOVISSSTE_INFONAVIT' ? 'Crédito INFONAVIT' : 'Crédito'}
-                                value={credito} onChange={setCredito}
-                            />
-                        )}
-                        {showSubcuenta && <Field label="Subcuenta Vivienda" value={subcuenta} onChange={setSubcuenta} />}
-                        {showBanco && <Field label="Crédito Bancario" value={creditoBanco} onChange={setCreditoBanco} />}
-                        {showFoviss && <Field label="Crédito FOVISSSTE" value={creditoFoviss} onChange={setCreditoFoviss} />}
-                        <Field label="Apartado" value={apartado} onChange={setApartado} />
-                    </div>
-                </div>
-            )}
-
-            {/* Resultado */}
-            {resultado && (
-                <div style={{ ...panelStyle, border: resultado.diferencia >= 0 ? '1px solid rgba(34,197,94,0.4)' : '1px solid rgba(239,68,68,0.4)' }}>
-                    <h2 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                        4 · Resultado
-                    </h2>
-
-                    {/* Desglose */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: '1.25rem' }}>
-                        {resultado.desglose.map((d, i) => (
-                            <div key={i} style={{
-                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                padding: '8px 12px', borderRadius: 8,
-                                background: 'rgba(255,255,255,0.02)',
-                                borderBottom: i < resultado.desglose.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
-                            }}>
-                                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{d.label}</span>
-                                <span style={{
-                                    fontWeight: 600, fontSize: '0.9rem',
-                                    color: d.monto < 0 ? '#f97316' : d.label === 'Valor Total' ? 'var(--text-main)' : 'var(--text-main)',
-                                }}>
-                                    {fmt(Math.abs(d.monto))}
-                                    {d.monto < 0 && <span style={{ fontSize: '0.75rem', marginLeft: 4, color: '#f97316' }}>↓</span>}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Diferencia final */}
-                    <div style={{
-                        padding: '1.25rem',
-                        borderRadius: 12,
-                        background: resultado.diferencia >= 0 ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
-                        border: `1px solid ${resultado.diferencia >= 0 ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8,
-                    }}>
-                        <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 2 }}>DIFERENCIA FINAL</div>
-                            <div style={{ fontSize: '0.8rem', color: resultado.diferencia >= 0 ? 'var(--primary-accent)' : 'var(--danger)' }}>
-                                {resultado.diferencia >= 0 ? '✓ Saldo a favor del cliente' : '⚠ Monto adicional requerido'}
-                            </div>
-                        </div>
-                        <div style={{
-                            fontSize: '2rem', fontWeight: 800,
-                            color: resultado.diferencia >= 0 ? 'var(--primary-accent)' : 'var(--danger)',
-                        }} className="glow-text">
-                            {resultado.diferencia >= 0 ? '+' : ''}{fmt(resultado.diferencia)}
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
