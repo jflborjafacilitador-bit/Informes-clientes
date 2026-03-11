@@ -1,0 +1,50 @@
+name: Build & Deploy to Hostinger
+
+on:
+  push:
+    branches:
+      - main  # Se ejecuta cada vez que haces push a la rama 'main'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    name: Build y despliegue automático
+
+    steps:
+      # 1. Descargar el código del repositorio
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      # 2. Configurar Node.js
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 3. Instalar dependencias
+      - name: Instalar dependencias
+        run: npm ci
+
+      # 4. Compilar la aplicación (usando variables de entorno desde GitHub Secrets)
+      - name: Compilar (build)
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      # 5. Subir la carpeta dist/ al servidor via FTP
+      - name: Desplegar via FTP a Hostinger
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: 217.196.54.114
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          local-dir: ./dist/
+          server-dir: /public_html/
+          dangerous-clean-slate: false  # No borra archivos no relacionados del servidor
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
