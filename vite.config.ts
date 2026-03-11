@@ -15,7 +15,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['pwa-icon.png'],
       manifest: {
         name: 'Los Quetzales — Panel Administrativo',
