@@ -12,6 +12,7 @@ import Inventario from './pages/Inventario';
 import Catering from './pages/Catering';
 import Calendario from './pages/Calendario';
 import Calculadora from './pages/Calculadora';
+import UpdateBanner from './components/UpdateBanner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { supabase } from './services/supabaseClient';
 
@@ -123,6 +124,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </main>
 
+      <UpdateBanner />
     </div>
   );
 }
