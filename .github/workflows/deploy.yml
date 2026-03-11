@@ -33,6 +33,24 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
+      # 4.5 Debug de Estructura de Carpetas SSH
+      - name: Debug Directorios SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script: |
+            echo "--- PWD ---"
+            pwd
+            echo "--- ROOT LISTING ---"
+            ls -la
+            echo "--- DOMAINS LISTING ---"
+            ls -la ./domains || echo "No domains dir"
+            echo "--- SEARCHING PARA INDEX.HTML ---"
+            find . -name "index.html"
+
       # 5. Instalar lftp
       - name: Instalar lftp
         run: sudo apt-get install -y lftp
