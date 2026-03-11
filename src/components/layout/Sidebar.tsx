@@ -46,7 +46,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 border: '1px solid rgba(34,197,94,0.25)',
                 borderRadius: '4px',
                 padding: '0px 5px',
-              }}>v{__APP_VERSION__}</span>
+              }}>v1.3.2</span>
             </div>
           </div>
         </div>
