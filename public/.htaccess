@@ -21,3 +21,9 @@
     Header set Expires 0
   </FilesMatch>
 </IfModule>
+
+<IfModule LiteSpeed>
+  RewriteEngine On
+  RewriteRule \.(html|htm)$ - [E=Cache-Control:no-cache]
+  RewriteRule sw\.js$ - [E=Cache-Control:no-cache]
+</IfModule>
