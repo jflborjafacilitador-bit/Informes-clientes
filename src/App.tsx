@@ -79,6 +79,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     : {
       width: sidebarOpen ? '260px' : '0px',
       minWidth: sidebarOpen ? '260px' : '0px',
+      height: '100vh',
       overflow: 'hidden',
       transition: 'width 0.3s ease, min-width 0.3s ease',
       flexShrink: 0,
