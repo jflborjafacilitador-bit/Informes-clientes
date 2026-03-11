@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, AlertCircle, CalendarCheck, UserX, CalendarDays, Building2 } from 'lucide-react';
+import { Users, AlertCircle, CalendarCheck, UserX, CalendarDays, Building2, Activity } from 'lucide-react';
 import { fetchClientsFromSheet } from '../services/googleSheets';
 import { fetchInventario } from '../services/inventarioService';
 import { supabase } from '../services/supabaseClient';
@@ -69,6 +69,8 @@ export default function Dashboard() {
     // Inventario
     const [invDisponibles, setInvDisponibles] = useState(0);
     const [invTotal, setInvTotal] = useState(0);
+    // Actividad reciente
+    const [activity, setActivity] = useState<{ email: string; last_action: string; last_seen: string }[]>([]);
     // --- Filtros de fecha ---
     type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
     const [dateFilter, setDateFilter] = useState<DateFilter>('all');
@@ -91,7 +93,27 @@ export default function Dashboard() {
             const channel = supabase.channel('realtime_dashboard')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'client_overrides' }, () => { loadData(); })
                 .subscribe();
-            return () => { supabase.removeChannel(channel); };
+
+            // Cargar actividad reciente
+            const loadActivity = async () => {
+                const { data } = await supabase
+                    .from('profiles')
+                    .select('email, last_action, last_seen')
+                    .not('last_action', 'is', null)
+                    .order('last_seen', { ascending: false })
+                    .limit(10);
+                if (data) setActivity(data as any);
+            };
+            loadActivity();
+
+            const activityChannel = supabase.channel('activity_feed')
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, loadActivity)
+                .subscribe();
+
+            return () => {
+                supabase.removeChannel(channel);
+                supabase.removeChannel(activityChannel);
+            };
         }
     }, [session, role]);
 
@@ -419,6 +441,49 @@ export default function Dashboard() {
                     </div>
 
                 </div>
+            </div>
+
+            {/* Registro de Actividad Reciente */}
+            <div className="glass-panel" style={{ padding: '24px', marginTop: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                    <Activity size={18} style={{ color: 'var(--primary-accent)' }} />
+                    <h3 style={{ margin: 0, fontSize: '1rem' }}>Registro de Actividad</h3>
+                    <span style={{ marginLeft: 'auto', fontSize: '0.72rem', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '20px', padding: '2px 10px', color: '#10b981' }}>● Live</span>
+                </div>
+                {activity.length === 0 ? (
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Sin actividad reciente registrada aún.</p>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {activity.map((a, i) => {
+                            const nombre = a.email?.split('@')[0] ?? 'Usuario';
+                            const diff = a.last_seen ? Date.now() - new Date(a.last_seen).getTime() : null;
+                            const hace = diff == null ? '' : diff < 60000 ? 'Ahora mismo' : diff < 3600000 ? `Hace ${Math.floor(diff / 60000)} min` : diff < 86400000 ? `Hace ${Math.floor(diff / 3600000)}h` : `Hace ${Math.floor(diff / 86400000)}d`;
+                            return (
+                                <div key={i} style={{
+                                    display: 'flex', alignItems: 'center', gap: '12px',
+                                    padding: '10px 14px', borderRadius: '8px',
+                                    background: 'rgba(255,255,255,0.02)',
+                                    border: '1px solid rgba(80,200,255,0.07)',
+                                }}>
+                                    {/* Avatar */}
+                                    <div style={{
+                                        width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
+                                        background: 'linear-gradient(135deg, var(--primary-accent), var(--secondary-accent))',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: '0.75rem', fontWeight: '700', color: '#000',
+                                    }}>
+                                        {nombre.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <span style={{ fontWeight: '600', fontSize: '0.82rem' }}>{nombre}</span>
+                                        <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}> — {a.last_action}</span>
+                                    </div>
+                                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0 }}>{hace}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </div>
     );
