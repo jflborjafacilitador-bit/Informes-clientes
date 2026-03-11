@@ -51,7 +51,7 @@ jobs:
             set net:timeout 60
             set net:max-retries 5
             set net:reconnect-interval-base 5
-            mirror --reverse --delete --overwrite --verbose --exclude-glob *.map \
+            mirror --reverse --ignore-time --delete --overwrite --verbose --exclude-glob *.map \
               ./dist/ /domains/registro.residenciallosquetzales.com/public_html/
             bye
           LFTP_SCRIPT
