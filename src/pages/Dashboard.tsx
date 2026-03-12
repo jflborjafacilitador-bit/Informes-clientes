@@ -71,6 +71,8 @@ export default function Dashboard() {
     const [invTotal, setInvTotal] = useState(0);
     // Actividad reciente
     const [activity, setActivity] = useState<{ email: string; last_action: string; last_seen: string }[]>([]);
+    // Todos los asesores registrados
+    const [allAsesores, setAllAsesores] = useState<string[]>([]);
     // --- Filtros de fecha ---
     type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
     const [dateFilter, setDateFilter] = useState<DateFilter>('all');
@@ -93,6 +95,11 @@ export default function Dashboard() {
             const channel = supabase.channel('realtime_dashboard')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'client_overrides' }, () => { loadData(); })
                 .subscribe();
+
+            // Cargar todos los asesores de profiles
+            supabase.from('profiles').select('email').eq('role', 'asesor').then(({ data }) => {
+                if (data) setAllAsesores(data.map((p: any) => p.email.split('@')[0]));
+            });
 
             // Cargar actividad reciente
             const loadActivity = async () => {
@@ -205,7 +212,11 @@ export default function Dashboard() {
             asesorMap[nombre] = (asesorMap[nombre] || 0) + 1;
         }
     });
-    const topAsesores = Object.entries(asesorMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    // Incluir todos los asesores registrados, incluso los que tienen 0 clientes
+    allAsesores.forEach(nombre => {
+        if (!(nombre in asesorMap)) asesorMap[nombre] = 0;
+    });
+    const topAsesores = Object.entries(asesorMap).sort((a, b) => b[1] - a[1]);
 
     return (
         <div>
