@@ -23,9 +23,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const RoleRedirect = ({ children, recepcionPath }: { children: React.ReactNode; recepcionPath: string }) => {
+const RoleRedirect = ({ children, recepcionPath, escrituracionPath }: { children: React.ReactNode; recepcionPath: string; escrituracionPath: string }) => {
   const { role } = useAuth();
   if (role === 'recepcion') return <Navigate to={recepcionPath} replace />;
+  if (role === 'escrituracion') return <Navigate to={escrituracionPath} replace />;
   return <>{children}</>;
 };
 
@@ -139,7 +140,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/" element={
               <ProtectedRoute>
-                <RoleRedirect recepcionPath="/inicio-recepcion">
+                <RoleRedirect recepcionPath="/inicio-recepcion" escrituracionPath="/inventario">
                   <Dashboard />
                 </RoleRedirect>
               </ProtectedRoute>

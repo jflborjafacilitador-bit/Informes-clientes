@@ -1,6 +1,45 @@
-import { useState, useEffect } from 'react';
-import { Building2, RefreshCw, Home, CheckCircle, XCircle, Zap } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Building2, RefreshCw, Home, CheckCircle, Clock, XCircle, Zap, Save } from 'lucide-react';
 import { fetchInventario, type InventarioItem } from '../services/inventarioService';
+import {
+    fetchEstatusOverrides,
+    upsertEstatus,
+    casaKey,
+    type EstatusManual,
+} from '../services/inventarioEstatusService';
+import { useAuth } from '../contexts/AuthContext';
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const ESTATUS_CONFIG: Record<EstatusManual, { label: string; color: string; bg: string; border: string; dot: string }> = {
+    DISPONIBLE: {
+        label: '● DISPONIBLE',
+        color: '#22c55e',
+        bg: 'rgba(34,197,94,0.12)',
+        border: 'rgba(34,197,94,0.3)',
+        dot: '🟢',
+    },
+    EN_PROCESO: {
+        label: '● EN PROCESO',
+        color: '#f59e0b',
+        bg: 'rgba(245,158,11,0.12)',
+        border: 'rgba(245,158,11,0.3)',
+        dot: '🟡',
+    },
+    VENDIDA: {
+        label: '● VENDIDA',
+        color: '#ef4444',
+        bg: 'rgba(239,68,68,0.10)',
+        border: 'rgba(239,68,68,0.25)',
+        dot: '🔴',
+    },
+};
+
+/** Normaliza el estatus que viene del CSV a uno de los 3 valores canónicos */
+function csvToManual(estatus: string): EstatusManual {
+    const s = estatus.toUpperCase();
+    if (s === 'DISPONIBLE' || s === 'DUSPONIBLE') return 'DISPONIBLE';
+    return 'DISPONIBLE'; // default
+}
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 const StatCard = ({ title, value, icon: Icon, color, subtitle }: any) => (
@@ -30,27 +69,90 @@ const StatCard = ({ title, value, icon: Icon, color, subtitle }: any) => (
 );
 
 // ─── Badge de estatus ─────────────────────────────────────────────────────────
-function EstatusBadge({ estatus }: { estatus: string }) {
-    const isDisponible = estatus === 'DISPONIBLE' || estatus === 'DUSPONIBLE'; // typo in sheet
+function EstatusBadge({ estatus }: { estatus: EstatusManual }) {
+    const cfg = ESTATUS_CONFIG[estatus] ?? ESTATUS_CONFIG.DISPONIBLE;
     return (
         <span style={{
             padding: '3px 10px',
             borderRadius: '20px',
             fontSize: '0.72rem',
             fontWeight: '700',
-            background: isDisponible ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.10)',
-            color: isDisponible ? '#22c55e' : '#ef4444',
-            border: `1px solid ${isDisponible ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.25)'}`,
+            background: cfg.bg,
+            color: cfg.color,
+            border: `1px solid ${cfg.border}`,
             whiteSpace: 'nowrap',
         }}>
-            {isDisponible ? '● DISPONIBLE' : '● NO DISPONIBLE'}
+            {cfg.label}
         </span>
     );
 }
 
+// ─── Selector de estatus ──────────────────────────────────────────────────────
+function EstatusSelector({
+    mza, casa, condominio, current, userId, onChanged,
+}: {
+    mza: string; casa: string; condominio: string;
+    current: EstatusManual; userId: string;
+    onChanged: (key: string, newEstatus: EstatusManual) => void;
+}) {
+    const [saving, setSaving] = useState(false);
+    const [local, setLocal] = useState<EstatusManual>(current);
+
+    // sincronizar si el prop cambia (ej. recarga)
+    useEffect(() => { setLocal(current); }, [current]);
+
+    const handleChange = async (val: EstatusManual) => {
+        setLocal(val);
+        setSaving(true);
+        try {
+            await upsertEstatus(mza, casa, condominio, val, userId);
+            onChanged(casaKey(mza, casa), val);
+        } catch {
+            setLocal(current); // revertir en error
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const cfg = ESTATUS_CONFIG[local];
+
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <select
+                value={local}
+                onChange={e => handleChange(e.target.value as EstatusManual)}
+                disabled={saving}
+                style={{
+                    padding: '4px 8px',
+                    borderRadius: '20px',
+                    fontSize: '0.72rem',
+                    fontWeight: '700',
+                    background: cfg.bg,
+                    color: cfg.color,
+                    border: `1px solid ${cfg.border}`,
+                    outline: 'none',
+                    cursor: saving ? 'not-allowed' : 'pointer',
+                    opacity: saving ? 0.6 : 1,
+                    transition: 'all 0.2s',
+                    fontFamily: 'inherit',
+                }}
+            >
+                <option value="DISPONIBLE">🟢 Disponible</option>
+                <option value="EN_PROCESO">🟡 En Proceso</option>
+                <option value="VENDIDA">🔴 Vendida</option>
+            </select>
+            {saving && <Save size={12} style={{ color: 'var(--text-muted)', animation: 'spin 1s linear infinite' }} />}
+        </div>
+    );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
+const ALL_STATUSES: EstatusManual[] = ['DISPONIBLE', 'EN_PROCESO', 'VENDIDA'];
+
 export default function Inventario() {
+    const { user } = useAuth();
     const [items, setItems] = useState<InventarioItem[]>([]);
+    const [overrides, setOverrides] = useState<Map<string, EstatusManual>>(new Map());
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -58,20 +160,37 @@ export default function Inventario() {
     const [filtroCondominio, setFiltroCondominio] = useState('Todos');
     const [filtroEstatus, setFiltroEstatus] = useState('Todos');
 
-    const load = async () => {
+    const load = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const data = await fetchInventario();
+            const [data, ovr] = await Promise.all([fetchInventario(), fetchEstatusOverrides()]);
             setItems(data);
-        } catch (e) {
+            setOverrides(ovr);
+        } catch {
             setError('No se pudo cargar el inventario. Verifica tu conexión.');
         } finally {
             setLoading(false);
         }
+    }, []);
+
+    useEffect(() => { load(); }, [load]);
+
+    /** Resuelve el estatus efectivo de una casa (override > CSV) */
+    const resolveEstatus = (item: InventarioItem): EstatusManual => {
+        const key = casaKey(item.mza, item.casa);
+        if (overrides.has(key)) return overrides.get(key)!;
+        return csvToManual(item.estatus);
     };
 
-    useEffect(() => { load(); }, []);
+    /** Callback cuando el usuario cambia el estatus de una casa */
+    const handleEstatusChanged = (key: string, newEstatus: EstatusManual) => {
+        setOverrides(prev => {
+            const next = new Map(prev);
+            next.set(key, newEstatus);
+            return next;
+        });
+    };
 
     // ── Valores únicos para filtros ──
     const condominios = ['Todos', ...Array.from(new Set(items.map(i => i.condominio).filter(Boolean)))];
@@ -79,30 +198,28 @@ export default function Inventario() {
     // ── Filtrado ──
     const filtered = items.filter(item => {
         const condOk = filtroCondominio === 'Todos' || item.condominio === filtroCondominio;
-        const isDisponible = item.estatus === 'DISPONIBLE' || item.estatus === 'DUSPONIBLE';
-        const estatusOk =
-            filtroEstatus === 'Todos' ||
-            (filtroEstatus === 'DISPONIBLE' && isDisponible) ||
-            (filtroEstatus === 'NO DISPONIBLE' && !isDisponible);
+        const est = resolveEstatus(item);
+        const estatusOk = filtroEstatus === 'Todos' || est === filtroEstatus;
         return condOk && estatusOk;
     });
 
     // ── Métricas ──
     const total = items.length;
-    const disponibles = items.filter(i => i.estatus === 'DISPONIBLE' || i.estatus === 'DUSPONIBLE').length;
-    const noDisponibles = total - disponibles;
+    const disponibles = items.filter(i => resolveEstatus(i) === 'DISPONIBLE').length;
+    const enProceso = items.filter(i => resolveEstatus(i) === 'EN_PROCESO').length;
+    const vendidas = items.filter(i => resolveEstatus(i) === 'VENDIDA').length;
     const inmediatas = items.filter(
-        i => (i.estatus === 'DISPONIBLE' || i.estatus === 'DUSPONIBLE') &&
+        i => resolveEstatus(i) === 'DISPONIBLE' &&
             i.fechaEscrituracion.toUpperCase() === 'INMEDIATA'
     ).length;
 
     // ── Filtro button style ──
-    const btnStyle = (active: boolean): React.CSSProperties => ({
+    const btnStyle = (active: boolean, activeColor = 'var(--primary-accent)'): React.CSSProperties => ({
         padding: '6px 14px',
         borderRadius: '20px',
-        border: `1px solid ${active ? 'var(--primary-accent)' : 'var(--border-glass)'}`,
-        background: active ? 'rgba(34,197,94,0.1)' : 'transparent',
-        color: active ? 'var(--primary-accent)' : 'var(--text-muted)',
+        border: `1px solid ${active ? activeColor : 'var(--border-glass)'}`,
+        background: active ? `${activeColor}1a` : 'transparent',
+        color: active ? activeColor : 'var(--text-muted)',
         cursor: 'pointer',
         fontFamily: 'inherit',
         fontSize: '0.82rem',
@@ -118,7 +235,7 @@ export default function Inventario() {
                     <h1 style={{ fontSize: '2rem', margin: 0 }}>
                         Inventario <span className="glow-text" style={{ color: 'var(--primary-accent)' }}>de Casas</span>
                     </h1>
-                    <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Disponibilidad en tiempo real desde Google Sheets.</p>
+                    <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Disponibilidad en tiempo real desde Google Sheets. Los cambios de estatus se guardan en la nube.</p>
                 </div>
                 <button
                     onClick={load}
@@ -141,29 +258,26 @@ export default function Inventario() {
             </div>
 
             {/* Stat Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '18px', marginBottom: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '18px', marginBottom: '24px' }}>
                 <StatCard title="Total Casas" value={loading ? '...' : total} icon={Home} color="#00f0ff" subtitle="En el inventario" />
                 <StatCard title="Disponibles" value={loading ? '...' : disponibles} icon={CheckCircle} color="#22c55e" subtitle="Listas para venta" />
-                <StatCard title="No Disponibles" value={loading ? '...' : noDisponibles} icon={XCircle} color="#ef4444" subtitle="En proceso / vendidas" />
-                <StatCard title="Entrega Inmediata" value={loading ? '...' : inmediatas} icon={Zap} color="#f59e0b" subtitle="Escrituración inmediata" />
+                <StatCard title="En Proceso" value={loading ? '...' : enProceso} icon={Clock} color="#f59e0b" subtitle="En trámite de compra" />
+                <StatCard title="Vendidas" value={loading ? '...' : vendidas} icon={XCircle} color="#ef4444" subtitle="Concluidas" />
+                <StatCard title="Entrega Inmediata" value={loading ? '...' : inmediatas} icon={Zap} color="#a855f7" subtitle="Escrituración inmediata" />
             </div>
 
             {/* Barra de progreso visual */}
             {!loading && total > 0 && (
                 <div className="glass-panel" style={{ padding: '16px 20px', marginBottom: '24px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.82rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.82rem', flexWrap: 'wrap', gap: '6px' }}>
                         <span style={{ color: '#22c55e', fontWeight: '600' }}>🟢 {disponibles} Disponibles</span>
-                        <span style={{ color: 'var(--text-muted)' }}>{Math.round((disponibles / total) * 100)}% disponible</span>
-                        <span style={{ color: '#ef4444', fontWeight: '600' }}>🔴 {noDisponibles} No disponibles</span>
+                        <span style={{ color: '#f59e0b', fontWeight: '600' }}>🟡 {enProceso} En Proceso</span>
+                        <span style={{ color: '#ef4444', fontWeight: '600' }}>🔴 {vendidas} Vendidas</span>
                     </div>
-                    <div style={{ height: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', overflow: 'hidden' }}>
-                        <div style={{
-                            height: '100%',
-                            width: `${(disponibles / total) * 100}%`,
-                            background: 'linear-gradient(90deg, #22c55e, #10b981)',
-                            borderRadius: '6px',
-                            transition: 'width 0.8s ease',
-                        }} />
+                    <div style={{ height: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', overflow: 'hidden', display: 'flex' }}>
+                        <div style={{ height: '100%', width: `${(disponibles / total) * 100}%`, background: 'linear-gradient(90deg, #22c55e, #10b981)', transition: 'width 0.8s ease' }} />
+                        <div style={{ height: '100%', width: `${(enProceso / total) * 100}%`, background: 'linear-gradient(90deg, #f59e0b, #d97706)', transition: 'width 0.8s ease' }} />
+                        <div style={{ height: '100%', width: `${(vendidas / total) * 100}%`, background: 'linear-gradient(90deg, #ef4444, #dc2626)', transition: 'width 0.8s ease' }} />
                     </div>
                 </div>
             )}
@@ -175,27 +289,25 @@ export default function Inventario() {
                         <Building2 size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem', flexShrink: 0 }}>Condominio:</span>
                         {condominios.map(c => (
-                            <button
-                                key={c}
-                                onClick={() => setFiltroCondominio(c)}
-                                style={btnStyle(filtroCondominio === c)}
-                            >{c}</button>
+                            <button key={c} onClick={() => setFiltroCondominio(c)} style={btnStyle(filtroCondominio === c)}>{c}</button>
                         ))}
                     </div>
                     <div style={{ width: '1px', height: '20px', background: 'var(--border-glass)' }} />
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem', flexShrink: 0 }}>Estatus:</span>
-                        {['Todos', 'DISPONIBLE', 'NO DISPONIBLE'].map(s => (
-                            <button
-                                key={s}
-                                onClick={() => setFiltroEstatus(s)}
-                                style={{
-                                    ...btnStyle(filtroEstatus === s),
-                                    ...(s === 'DISPONIBLE' && filtroEstatus === s ? { color: '#22c55e', borderColor: '#22c55e', background: 'rgba(34,197,94,0.1)' } : {}),
-                                    ...(s === 'NO DISPONIBLE' && filtroEstatus === s ? { color: '#ef4444', borderColor: '#ef4444', background: 'rgba(239,68,68,0.1)' } : {}),
-                                }}
-                            >{s}</button>
-                        ))}
+                        <button onClick={() => setFiltroEstatus('Todos')} style={btnStyle(filtroEstatus === 'Todos')}>Todos</button>
+                        {ALL_STATUSES.map(s => {
+                            const cfg = ESTATUS_CONFIG[s];
+                            return (
+                                <button
+                                    key={s}
+                                    onClick={() => setFiltroEstatus(s)}
+                                    style={btnStyle(filtroEstatus === s, cfg.color)}
+                                >
+                                    {cfg.dot} {s === 'EN_PROCESO' ? 'En Proceso' : s === 'VENDIDA' ? 'Vendida' : 'Disponible'}
+                                </button>
+                            );
+                        })}
                     </div>
                     <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                         {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
@@ -211,9 +323,7 @@ export default function Inventario() {
                         Cargando inventario...
                     </div>
                 ) : error ? (
-                    <div style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>
-                        ⚠️ {error}
-                    </div>
+                    <div style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>⚠️ {error}</div>
                 ) : filtered.length === 0 ? (
                     <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
                         Sin resultados con los filtros actuales.
@@ -223,7 +333,7 @@ export default function Inventario() {
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
                             <thead>
                                 <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--border-glass)' }}>
-                                    {['Mza', 'Casa', 'Condominio', 'Prototipo', 'DTU', 'M2 Constr.', 'M2 Terreno', 'Esquema de Venta', 'Estatus', 'Escrituración'].map(h => (
+                                    {['Mza', 'Casa', 'Condominio', 'Prototipo', 'DTU', 'M2 Constr.', 'M2 Terreno', 'Esquema de Venta', 'Estatus', 'Escrituración', 'Marcar Estatus'].map(h => (
                                         <th key={h} style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: '600', whiteSpace: 'nowrap' }}>
                                             {h}
                                         </th>
@@ -231,49 +341,69 @@ export default function Inventario() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.map((item, idx) => (
-                                    <tr key={`${item.mza}-${item.casa}-${idx}`}
-                                        style={{
-                                            borderBottom: '1px solid rgba(255,255,255,0.04)',
-                                            background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
-                                            transition: 'background 0.15s',
-                                        }}
-                                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(34,197,94,0.04)')}
-                                        onMouseLeave={e => (e.currentTarget.style.background = idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)')}
-                                    >
-                                        <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{item.mza}</td>
-                                        <td style={{ padding: '12px 16px', fontWeight: '600' }}>{item.casa}</td>
-                                        <td style={{ padding: '12px 16px' }}>{item.condominio}</td>
-                                        <td style={{ padding: '12px 16px' }}>
-                                            <span style={{
-                                                padding: '2px 8px', borderRadius: '6px', fontSize: '0.75rem',
-                                                background: 'rgba(0,240,255,0.07)', color: 'var(--primary-accent)',
-                                            }}>{item.prototipo}</span>
-                                        </td>
-                                        <td style={{ padding: '12px 16px', color: item.dtu === 'Si' ? '#22c55e' : 'var(--text-muted)' }}>
-                                            {item.dtu === 'Si' ? '✓ Listo' : item.fechaDtu}
-                                        </td>
-                                        <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{item.m2Construccion}</td>
-                                        <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{item.m2Terreno}</td>
-                                        <td style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.75rem', maxWidth: '180px' }}>
-                                            {item.esquemaVenta}
-                                        </td>
-                                        <td style={{ padding: '12px 16px' }}>
-                                            <EstatusBadge estatus={item.estatus} />
-                                        </td>
-                                        <td style={{ padding: '12px 16px', color: item.fechaEscrituracion.toUpperCase() === 'INMEDIATA' ? '#f59e0b' : 'var(--text-muted)', fontWeight: item.fechaEscrituracion.toUpperCase() === 'INMEDIATA' ? '600' : '400' }}>
-                                            {item.fechaEscrituracion}
-                                        </td>
-                                    </tr>
-                                ))}
+                                {filtered.map((item, idx) => {
+                                    const effectiveEstatus = resolveEstatus(item);
+                                    return (
+                                        <tr key={`${item.mza}-${item.casa}-${idx}`}
+                                            style={{
+                                                borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                                background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
+                                                transition: 'background 0.15s',
+                                            }}
+                                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(34,197,94,0.04)')}
+                                            onMouseLeave={e => (e.currentTarget.style.background = idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)')}
+                                        >
+                                            <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{item.mza}</td>
+                                            <td style={{ padding: '12px 16px', fontWeight: '600' }}>{item.casa}</td>
+                                            <td style={{ padding: '12px 16px' }}>{item.condominio}</td>
+                                            <td style={{ padding: '12px 16px' }}>
+                                                <span style={{ padding: '2px 8px', borderRadius: '6px', fontSize: '0.75rem', background: 'rgba(0,240,255,0.07)', color: 'var(--primary-accent)' }}>
+                                                    {item.prototipo}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '12px 16px', color: item.dtu === 'Si' ? '#22c55e' : 'var(--text-muted)' }}>
+                                                {item.dtu === 'Si' ? '✓ Listo' : item.fechaDtu}
+                                            </td>
+                                            <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{item.m2Construccion}</td>
+                                            <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{item.m2Terreno}</td>
+                                            <td style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.75rem', maxWidth: '180px' }}>
+                                                {item.esquemaVenta}
+                                            </td>
+                                            <td style={{ padding: '12px 16px' }}>
+                                                <EstatusBadge estatus={effectiveEstatus} />
+                                            </td>
+                                            <td style={{
+                                                padding: '12px 16px',
+                                                color: item.fechaEscrituracion.toUpperCase() === 'INMEDIATA' ? '#f59e0b' : 'var(--text-muted)',
+                                                fontWeight: item.fechaEscrituracion.toUpperCase() === 'INMEDIATA' ? '600' : '400',
+                                            }}>
+                                                {item.fechaEscrituracion}
+                                            </td>
+                                            <td style={{ padding: '12px 16px' }}>
+                                                {user && (
+                                                    <EstatusSelector
+                                                        mza={item.mza}
+                                                        casa={item.casa}
+                                                        condominio={item.condominio}
+                                                        current={effectiveEstatus}
+                                                        userId={user.id}
+                                                        onChanged={handleEstatusChanged}
+                                                    />
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
                 )}
             </div>
 
-            {/* Spinner keyframe */}
-            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+            {/* Keyframes */}
+            <style>{`
+                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            `}</style>
         </div>
     );
 }
