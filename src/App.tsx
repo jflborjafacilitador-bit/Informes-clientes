@@ -24,7 +24,13 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const RoleRedirect = ({ children, recepcionPath, escrituracionPath }: { children: React.ReactNode; recepcionPath: string; escrituracionPath: string }) => {
-  const { role } = useAuth();
+  const { role, session } = useAuth();
+  // Si hay sesión pero aún no se cargó el rol, no renderizar nada (evita mostrar Dashboard a roles especiales)
+  if (session && role === null) return (
+    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-dark)' }}>
+      <span style={{ color: 'var(--primary-accent)', fontSize: '1rem' }}>Cargando perfil...</span>
+    </div>
+  );
   if (role === 'recepcion') return <Navigate to={recepcionPath} replace />;
   if (role === 'escrituracion') return <Navigate to={escrituracionPath} replace />;
   return <>{children}</>;
