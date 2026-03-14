@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X, Clock, Tag, AlignLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Clock, Tag, AlignLeft, CalendarDays } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -23,8 +23,13 @@ const TIPO_CONFIG: Record<string, { color: string; bg: string; label: string }> 
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const DIAS_SEMANA = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const DIAS_LARGO = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-type ModalState = { mode: 'new'; fecha: string } | { mode: 'view'; evento: Evento } | null;
+type ModalState =
+    | { mode: 'new'; fecha: string }
+    | { mode: 'view'; evento: Evento }
+    | { mode: 'day'; fecha: string; eventos: Evento[] }
+    | null;
 
 export default function Calendario() {
     const { session } = useAuth();
@@ -70,6 +75,18 @@ export default function Calendario() {
     const isToday = (day: number) =>
         day === hoy.getDate() && viewMonth === hoy.getMonth() && viewYear === hoy.getFullYear();
 
+    // ── Abrir vista de día ──
+    const openDayModal = (day: number, evs: Evento[]) => {
+        const fecha = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        setModal({ mode: 'day', fecha, eventos: evs });
+    };
+
+    // ── Abrir "nuevo evento" (desde modal de día o directo) ──
+    const openNewModal = (fecha: string) => {
+        setForm({ titulo: '', descripcion: '', hora_inicio: '', hora_fin: '', tipo: 'cita' });
+        setModal({ mode: 'new', fecha });
+    };
+
     // ── Guardar evento ──
     const handleSave = async () => {
         if (!form.titulo.trim() || modal?.mode !== 'new') return;
@@ -101,9 +118,16 @@ export default function Calendario() {
         boxSizing: 'border-box',
     };
 
-    // ── Lista de próximos eventos ──
+    // ── Lista de próximos eventos (sin límite) ──
     const hoyStr = hoy.toISOString().slice(0, 10);
-    const proximos = eventos.filter(e => e.fecha >= hoyStr).slice(0, 8);
+    const proximos = eventos.filter(e => e.fecha >= hoyStr);
+
+    // ── Formato de fecha legible ──
+    const formatFechaLargo = (fechaStr: string) => {
+        const [y, m, d] = fechaStr.split('-').map(Number);
+        const fecha = new Date(y, m - 1, d);
+        return `${DIAS_LARGO[fecha.getDay()]} ${d} de ${MESES[m - 1]}`;
+    };
 
     return (
         <div>
@@ -115,13 +139,13 @@ export default function Calendario() {
                     </h1>
                     <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Gestión de citas, visitas y eventos del equipo.</p>
                 </div>
-                <button onClick={() => { setForm({ titulo: '', descripcion: '', hora_inicio: '', hora_fin: '', tipo: 'cita' }); setModal({ mode: 'new', fecha: hoyStr }); }}
+                <button onClick={() => openNewModal(hoyStr)}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '10px', background: 'rgba(34,197,94,0.1)', border: '1px solid var(--primary-accent)', color: 'var(--primary-accent)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: '600' }}>
                     <Plus size={18} /> Agregar Evento
                 </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '20px', alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 290px', gap: '20px', alignItems: 'start' }}>
 
                 {/* ── Calendario grid ── */}
                 <div className="glass-panel" style={{ padding: '24px' }}>
@@ -145,10 +169,16 @@ export default function Calendario() {
                             if (!day) return <div key={idx} />;
                             const evs = eventosDelDia(day);
                             const today = isToday(day);
-                            const fechaDia = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                             return (
                                 <div key={idx}
-                                    onClick={() => { setForm({ titulo: '', descripcion: '', hora_inicio: '', hora_fin: '', tipo: 'cita' }); setModal({ mode: 'new', fecha: fechaDia }); }}
+                                    onClick={() => {
+                                        if (evs.length > 0) {
+                                            openDayModal(day, evs);
+                                        } else {
+                                            const fecha = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                            openNewModal(fecha);
+                                        }
+                                    }}
                                     style={{
                                         minHeight: '72px', padding: '6px', borderRadius: '8px', cursor: 'pointer',
                                         background: today ? 'rgba(34,197,94,0.08)' : evs.length ? 'rgba(56,189,248,0.04)' : 'transparent',
@@ -169,30 +199,44 @@ export default function Calendario() {
                                             </div>
                                         );
                                     })}
-                                    {evs.length > 3 && <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>+{evs.length - 3} más</div>}
+                                    {evs.length > 3 && (
+                                        <div
+                                            onClick={e => { e.stopPropagation(); openDayModal(day, evs); }}
+                                            style={{ fontSize: '0.6rem', color: 'var(--primary-accent)', fontWeight: '600', cursor: 'pointer', marginTop: '2px' }}>
+                                            +{evs.length - 3} más →
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
                     </div>
                 </div>
 
-                {/* ── Panel próximos eventos ── */}
+                {/* ── Panel próximos eventos (scrollable, sin límite) ── */}
                 <div className="glass-panel" style={{ padding: '20px' }}>
-                    <h3 style={{ margin: '0 0 16px', fontSize: '0.95rem' }}>📅 Próximos eventos</h3>
-                    {loading ? <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cargando...</p>
-                        : proximos.length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Sin eventos próximos.</p>
-                            : proximos.map(ev => {
-                                const cfg = TIPO_CONFIG[ev.tipo] || TIPO_CONFIG.otro;
-                                return (
-                                    <div key={ev.id} onClick={() => setModal({ mode: 'view', evento: ev })}
-                                        style={{ padding: '10px 12px', borderRadius: '8px', marginBottom: '8px', background: cfg.bg, border: `1px solid ${cfg.color}33`, cursor: 'pointer' }}>
-                                        <div style={{ fontSize: '0.8rem', fontWeight: '700', color: cfg.color }}>{ev.titulo}</div>
-                                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                            {ev.fecha} {ev.hora_inicio ? `· ${ev.hora_inicio.slice(0, 5)}` : ''}
+                    <h3 style={{ margin: '0 0 4px', fontSize: '0.95rem' }}>📅 Próximos eventos</h3>
+                    <p style={{ margin: '0 0 14px', fontSize: '0.73rem', color: 'var(--text-muted)' }}>
+                        {loading ? 'Cargando...' : `${proximos.length} evento${proximos.length !== 1 ? 's' : ''} pendiente${proximos.length !== 1 ? 's' : ''}`}
+                    </p>
+                    <div style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', paddingRight: '4px' }}>
+                        {loading ? null
+                            : proximos.length === 0
+                                ? <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Sin eventos próximos.</p>
+                                : proximos.map(ev => {
+                                    const cfg = TIPO_CONFIG[ev.tipo] || TIPO_CONFIG.otro;
+                                    return (
+                                        <div key={ev.id} onClick={() => setModal({ mode: 'view', evento: ev })}
+                                            style={{ padding: '10px 12px', borderRadius: '8px', marginBottom: '8px', background: cfg.bg, border: `1px solid ${cfg.color}33`, cursor: 'pointer', transition: 'opacity 0.15s' }}
+                                            onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
+                                            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
+                                            <div style={{ fontSize: '0.8rem', fontWeight: '700', color: cfg.color }}>{ev.titulo}</div>
+                                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                                {ev.fecha} {ev.hora_inicio ? `· ${ev.hora_inicio.slice(0, 5)}` : ''}
+                                            </div>
                                         </div>
-                                    </div>
-                                );
-                            })}
+                                    );
+                                })}
+                    </div>
                 </div>
             </div>
 
@@ -200,16 +244,65 @@ export default function Calendario() {
             {modal && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
                     onClick={() => setModal(null)}>
-                    <div className="glass-panel" style={{ width: '100%', maxWidth: '480px', padding: '28px', position: 'relative' }}
+                    <div className="glass-panel" style={{ width: '100%', maxWidth: modal.mode === 'day' ? '520px' : '480px', padding: '28px', position: 'relative', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
                         onClick={e => e.stopPropagation()}>
                         <button onClick={() => setModal(null)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
                             <X size={20} />
                         </button>
 
-                        {modal.mode === 'new' ? (
+                        {/* ── Vista de DÍA ── */}
+                        {modal.mode === 'day' && (() => {
+                            const fecha = modal.fecha;
+                            const evsDia = modal.eventos.slice().sort((a, b) => (a.hora_inicio ?? '').localeCompare(b.hora_inicio ?? ''));
+                            return (
+                                <>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                                        <CalendarDays size={20} color="var(--primary-accent)" />
+                                        <h3 style={{ margin: 0, fontSize: '1.15rem' }}>{formatFechaLargo(fecha)}</h3>
+                                    </div>
+                                    <p style={{ margin: '0 0 18px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                                        {evsDia.length} evento{evsDia.length !== 1 ? 's' : ''} este día
+                                    </p>
+                                    <div style={{ overflowY: 'auto', flex: 1, paddingRight: '4px', marginBottom: '16px' }}>
+                                        {evsDia.map(ev => {
+                                            const cfg = TIPO_CONFIG[ev.tipo] || TIPO_CONFIG.otro;
+                                            return (
+                                                <div key={ev.id}
+                                                    onClick={() => setModal({ mode: 'view', evento: ev })}
+                                                    style={{
+                                                        display: 'flex', alignItems: 'center', gap: '12px',
+                                                        padding: '12px 14px', borderRadius: '10px', marginBottom: '8px',
+                                                        background: cfg.bg, border: `1px solid ${cfg.color}44`,
+                                                        cursor: 'pointer', transition: 'opacity 0.15s',
+                                                    }}
+                                                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
+                                                    onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
+                                                    <div style={{ width: '4px', height: '36px', borderRadius: '4px', background: cfg.color, flexShrink: 0 }} />
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <div style={{ fontWeight: '700', fontSize: '0.88rem', color: cfg.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.titulo}</div>
+                                                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '3px' }}>
+                                                            {ev.hora_inicio ? `${ev.hora_inicio.slice(0, 5)}${ev.hora_fin ? ` – ${ev.hora_fin.slice(0, 5)}` : ''}` : 'Sin hora definida'}
+                                                            {ev.descripcion && <span style={{ marginLeft: '8px' }}>· {ev.descripcion.slice(0, 40)}{ev.descripcion.length > 40 ? '…' : ''}</span>}
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', flexShrink: 0 }}>ver →</div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <button onClick={() => openNewModal(fecha)}
+                                        style={{ width: '100%', padding: '11px', borderRadius: '8px', background: 'rgba(34,197,94,0.1)', border: '1px solid var(--primary-accent)', color: 'var(--primary-accent)', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                        <Plus size={16} /> Nuevo evento este día
+                                    </button>
+                                </>
+                            );
+                        })()}
+
+                        {/* ── Nuevo evento ── */}
+                        {modal.mode === 'new' && (
                             <>
                                 <h3 style={{ margin: '0 0 6px' }}>Nuevo Evento</h3>
-                                <p style={{ margin: '0 0 20px', fontSize: '0.8rem', color: 'var(--primary-accent)' }}>{modal.fecha}</p>
+                                <p style={{ margin: '0 0 20px', fontSize: '0.8rem', color: 'var(--primary-accent)' }}>{formatFechaLargo(modal.fecha)}</p>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                     <input placeholder="Título del evento *" value={form.titulo} onChange={e => setForm(p => ({ ...p, titulo: e.target.value }))} style={inputStyle} />
                                     <div style={{ display: 'flex', gap: '10px' }}>
@@ -237,26 +330,27 @@ export default function Calendario() {
                                     </button>
                                 </div>
                             </>
-                        ) : (
-                            (() => {
-                                const ev = modal.evento;
-                                const cfg = TIPO_CONFIG[ev.tipo] || TIPO_CONFIG.otro;
-                                return (
-                                    <>
-                                        <div style={{ display: 'inline-block', padding: '2px 10px', borderRadius: '20px', background: cfg.bg, color: cfg.color, fontSize: '0.75rem', fontWeight: '600', marginBottom: '10px' }}>{cfg.label}</div>
-                                        <h3 style={{ margin: '0 0 6px', fontSize: '1.3rem' }}>{ev.titulo}</h3>
-                                        <p style={{ margin: '0 0 16px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                                            📅 {ev.fecha}{ev.hora_inicio ? ` · ${ev.hora_inicio.slice(0, 5)}${ev.hora_fin ? ` – ${ev.hora_fin.slice(0, 5)}` : ''}` : ''}
-                                        </p>
-                                        {ev.descripcion && <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '16px', lineHeight: 1.6 }}>{ev.descripcion}</p>}
-                                        {ev.created_by && <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginBottom: '20px' }}>Creado por {ev.created_by.split('@')[0]}</p>}
-                                        <button onClick={() => handleDelete(ev.id)} style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>
-                                            Eliminar evento
-                                        </button>
-                                    </>
-                                );
-                            })()
                         )}
+
+                        {/* ── Ver evento ── */}
+                        {modal.mode === 'view' && (() => {
+                            const ev = modal.evento;
+                            const cfg = TIPO_CONFIG[ev.tipo] || TIPO_CONFIG.otro;
+                            return (
+                                <>
+                                    <div style={{ display: 'inline-block', padding: '2px 10px', borderRadius: '20px', background: cfg.bg, color: cfg.color, fontSize: '0.75rem', fontWeight: '600', marginBottom: '10px' }}>{cfg.label}</div>
+                                    <h3 style={{ margin: '0 0 6px', fontSize: '1.3rem' }}>{ev.titulo}</h3>
+                                    <p style={{ margin: '0 0 16px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                                        📅 {formatFechaLargo(ev.fecha)}{ev.hora_inicio ? ` · ${ev.hora_inicio.slice(0, 5)}${ev.hora_fin ? ` – ${ev.hora_fin.slice(0, 5)}` : ''}` : ''}
+                                    </p>
+                                    {ev.descripcion && <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '16px', lineHeight: 1.6 }}>{ev.descripcion}</p>}
+                                    {ev.created_by && <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginBottom: '20px' }}>Creado por {ev.created_by.split('@')[0]}</p>}
+                                    <button onClick={() => handleDelete(ev.id)} style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                        Eliminar evento
+                                    </button>
+                                </>
+                            );
+                        })()}
                     </div>
                 </div>
             )}
