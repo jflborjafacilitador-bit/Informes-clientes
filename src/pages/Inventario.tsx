@@ -356,10 +356,10 @@ export default function Inventario() {
                         padding: '8px 16px', borderRadius: '8px',
                         background: vista === 'plano_mza2' ? 'var(--primary-accent)' : 'transparent',
                         color: vista === 'plano_mza2' ? '#000' : 'var(--text-muted)',
-                        border: 'none', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s', opacity: 0.6
+                        border: 'none', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s'
                     }}
                 >
-                    Plano Manzana 2 (Próximamente)
+                    Plano Manzana 2
                 </button>
             </div>
 
@@ -464,13 +464,23 @@ export default function Inventario() {
                         />
                     )}
                 </div>
-            ) : (
-                <div className="glass-panel" style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    <Building2 size={48} style={{ margin: '0 auto 16px', opacity: 0.2 }} />
-                    <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Plano de Manzana 2</h3>
-                    <p style={{ marginTop: '8px' }}>El plano interactivo para esta manzana estará disponible próximamente.</p>
+            ) : vista === 'plano_mza2' ? (
+                <div style={{ height: '70vh', minHeight: '600px', display: 'flex', flexDirection: 'column' }}>
+                    {loading ? (
+                        <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }} className="glass-panel">
+                            <RefreshCw size={28} style={{ animation: 'spin 1s linear infinite', marginBottom: '12px', display: 'block', margin: '0 auto 12px' }} />
+                            Cargando plano e inventario...
+                        </div>
+                    ) : (
+                        <MapEditor 
+                            condominio="Manzana 2" 
+                            imageUrl="/Planos/CONDOMINIO 2 TUCAN.png" 
+                            houseStatuses={statusesMap}
+                            itemsData={itemsDataMap}
+                        />
+                    )}
                 </div>
-            )}
+            ) : null}
 
             {/* Keyframes */}
             <style>{`
