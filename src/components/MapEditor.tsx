@@ -68,6 +68,9 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
             if (data) {
                 setLayout(data);
                 setZones(data.zones || []);
+            } else {
+                setLayout(null);
+                setZones([]);
             }
         };
         load();
