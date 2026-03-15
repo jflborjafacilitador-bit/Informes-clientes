@@ -401,9 +401,37 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                                     </button>
                                 </div>
                             ) : (
-                                <button className="base-button" onClick={() => { setIsDrawing(true); setCurrentPoints([]); setSelectedZone(null); }}>
-                                    Dibujar Nuevo Lote
-                                </button>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button className="base-button" onClick={() => { setIsDrawing(true); setCurrentPoints([]); setSelectedZone(null); }}>
+                                        Dibujar Nuevo Lote
+                                    </button>
+                                    {condominio === 'Manzana 2' && (
+                                        <button className="base-button" style={{ background: '#f59e0b', color: '#000' }} onClick={() => {
+                                            const newCasas = Array.from(itemsData.values())
+                                                .filter(item => item.mza === '2' && !zones.find(z => z.casa === item.casa))
+                                                .sort((a, b) => Number(a.casa) - Number(b.casa));
+                                            
+                                            let row = 0; let col = 0;
+                                            const newZones = newCasas.map(item => {
+                                                const bx = 10 + (col * 5);
+                                                const by = 10 + (row * 5);
+                                                col++; if (col >= 15) { col = 0; row++; }
+                                                return {
+                                                    id: `auto_mza2_${item.casa}_${Date.now()}`,
+                                                    mza: item.mza,
+                                                    casa: item.casa,
+                                                    points: [{x: bx, y: by}, {x: bx+3, y: by}, {x: bx+3, y: by+3}, {x: bx, y: by+3}]
+                                                };
+                                            });
+                                            if (newZones.length > 0) {
+                                                setZones([...zones, ...newZones]);
+                                                alert(`Mágicamente se crearon ${newZones.length} polígonos. Presiona "Guardar en BD".`);
+                                            } else {
+                                                alert("Todas las casas ya tienen polígono asignado.");
+                                            }
+                                        }}>⚡ Auto-generar Lotes Mza 2</button>
+                                    )}
+                                </div>
                             )}
                         </>
                     )}
