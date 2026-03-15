@@ -407,35 +407,33 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                                     </button>
                                     {condominio === 'Manzana 2' && (
                                         <button className="base-button" style={{ background: '#f59e0b', color: '#000' }} onClick={() => {
-                                            const newCasas: {mza: string, casa: string}[] = [];
-                                            
-                                            // Extract directly from the global itemsData map keys to ensure we don't miss any due to value object shapes
-                                            Array.from(itemsData.keys()).forEach(key => {
-                                                const [kMza, kCasa] = key.split('||');
-                                                if (kMza === '2' && !zones.find(z => z.casa === kCasa)) {
-                                                    newCasas.push({ mza: kMza, casa: kCasa });
-                                                }
-                                            });
-                                            
-                                            newCasas.sort((a, b) => Number(a.casa) - Number(b.casa));
+                                            // Fallback ultra-seguro: Crear forzosamente los 64 lotes asumiendo que existen del 1 al 64 en Manzana 2
+                                            const lotesTotales = 64;
+                                            const newZones: MapZone[] = [];
                                             
                                             let row = 0; let col = 0;
-                                            const newZones = newCasas.map(item => {
-                                                const bx = 5 + (col * 3);
-                                                const by = 5 + (row * 3);
-                                                col++; if (col >= 25) { col = 0; row++; }
-                                                return {
-                                                    id: `auto_mza2_${item.casa}_${Date.now()}`,
-                                                    mza: item.mza,
-                                                    casa: item.casa,
-                                                    points: [{x: bx, y: by}, {x: bx+2, y: by}, {x: bx+2, y: by+2}, {x: bx, y: by+2}]
-                                                };
-                                            });
+                                            for (let i = 1; i <= lotesTotales; i++) {
+                                                const casaStr = i.toString();
+                                                // Solo agregar si no existe ya un polígono para esta casa
+                                                if (!zones.find(z => z.casa === casaStr)) {
+                                                    const bx = 5 + (col * 3);
+                                                    const by = 5 + (row * 3);
+                                                    col++; if (col >= 20) { col = 0; row++; }
+                                                    
+                                                    newZones.push({
+                                                        id: `auto_mza2_${casaStr}_${Date.now()}`,
+                                                        mza: '2',
+                                                        casa: casaStr,
+                                                        points: [{x: bx, y: by}, {x: bx+2, y: by}, {x: bx+2, y: by+2}, {x: bx, y: by+2}]
+                                                    });
+                                                }
+                                            }
+                                            
                                             if (newZones.length > 0) {
                                                 setZones([...zones, ...newZones]);
-                                                alert(`Mágicamente se crearon ${newZones.length} polígonos. Acomódalos y presiona "Guardar en BD".`);
+                                                alert(`¡Listo! Se forzó la creación de los ${newZones.length} polígonos faltantes (Casas 1 al 64). Acomódalos y presiona "Guardar en BD".`);
                                             } else {
-                                                alert("Todas las casas de Manzana 2 ya tienen polígono asignado (o no hay datos en el Excel).");
+                                                alert("Todas las 64 casas de Manzana 2 ya tienen polígono asignado.");
                                             }
                                         }}>⚡ Auto-generar Lotes Mza 2</button>
                                     )}
