@@ -76,7 +76,7 @@ const Field = ({
                 value={value}
                 onChange={e => onChange?.(e.target.value)}
                 style={{
-                    background: readOnly ? 'rgba(34,197,94,0.05)' : 'rgba(255,255,255,0.04)',
+                    background: readOnly ? 'rgba(34,197,94,0.05)' : 'var(--panel-item-bg)',
                     border: `1px solid ${readOnly ? 'rgba(34,197,94,0.2)' : 'var(--border-glass)'}`,
                     borderRadius: 8,
                     padding: `10px 14px 10px ${prefix ? '24px' : '14px'}`,
@@ -116,7 +116,7 @@ const Select = ({ label, value, options, onChange }: {
                 onChange={e => onChange(e.target.value)}
                 style={{
                     width: '100%',
-                    background: 'rgba(255,255,255,0.04)',
+                    background: 'var(--panel-item-bg)',
                     border: '1px solid var(--border-glass)',
                     borderRadius: 8,
                     padding: '10px 36px 10px 14px',
@@ -141,7 +141,7 @@ const CheckboxOption = ({ label, price, checked, onChange, isCustom = false, cus
         onClick={() => onChange(!checked)}
         style={{
             display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
-            borderRadius: 8, background: checked ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.02)',
+            borderRadius: 8, background: checked ? 'rgba(34,197,94,0.1)' : 'var(--panel-item-bg)',
             border: `1px solid ${checked ? 'rgba(34,197,94,0.3)' : 'var(--border-glass)'}`,
             cursor: 'pointer', transition: 'all 0.2s', flexWrap: 'wrap'
         }}
@@ -157,7 +157,7 @@ const CheckboxOption = ({ label, price, checked, onChange, isCustom = false, cus
                 onBlur={e => { if (e.target.value && onCustomValueChange) onCustomValueChange(fmt(num(e.target.value))); }}
                 onClick={e => e.stopPropagation()}
                 style={{
-                    background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-glass)',
+                    background: 'var(--ghost-bg)', border: '1px solid var(--border-glass)',
                     borderRadius: 4, padding: '4px 8px', color: 'var(--text-main)',
                     width: '90px', fontSize: '0.8rem', outline: 'none'
                 }}
@@ -512,7 +512,7 @@ export default function Calculadora() {
     const showMontoDisponible = tipo === 'CFE';
 
     const panelStyle: React.CSSProperties = {
-        background: 'rgba(15,25,20,0.65)',
+        background: 'var(--bg-panel)',
         backdropFilter: 'blur(12px)',
         border: '1px solid var(--border-glass)',
         borderRadius: 16,
@@ -632,7 +632,7 @@ export default function Calculadora() {
                                         padding: '0.75rem 1rem',
                                         borderRadius: 10,
                                         border: `1px solid ${tipo === t.value ? 'rgba(34,197,94,0.5)' : 'var(--border-glass)'}`,
-                                        background: tipo === t.value ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.02)',
+                                        background: tipo === t.value ? 'rgba(34,197,94,0.12)' : 'var(--panel-item-bg)',
                                         color: tipo === t.value ? 'var(--primary-accent)' : 'var(--text-muted)',
                                         cursor: 'pointer',
                                         fontFamily: 'inherit',
@@ -690,9 +690,9 @@ export default function Calculadora() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                 <Field label="Apartado" value={apartado} onChange={setApartado} />
                                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-                                    <button onClick={() => applyApartado(0.01)} style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', border: '1px solid var(--border-glass)', cursor: 'pointer' }}>1%</button>
-                                    <button onClick={() => applyApartado(0.10)} style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', border: '1px solid var(--border-glass)', cursor: 'pointer' }}>10%</button>
-                                    <button onClick={() => applyApartado('FIXED')} style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', border: '1px solid var(--border-glass)', cursor: 'pointer' }}>$20,000</button>
+                                    <button onClick={() => applyApartado(0.01)} style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: 4, background: 'var(--ghost-bg)', color: 'var(--text-muted)', border: '1px solid var(--border-glass)', cursor: 'pointer' }}>1%</button>
+                                    <button onClick={() => applyApartado(0.10)} style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: 4, background: 'var(--ghost-bg)', color: 'var(--text-muted)', border: '1px solid var(--border-glass)', cursor: 'pointer' }}>10%</button>
+                                    <button onClick={() => applyApartado('FIXED')} style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: 4, background: 'var(--ghost-bg)', color: 'var(--text-muted)', border: '1px solid var(--border-glass)', cursor: 'pointer' }}>$20,000</button>
                                 </div>
                             </div>
                         </div>
@@ -712,8 +712,8 @@ export default function Calculadora() {
                                 <div key={i} style={{
                                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                     padding: '8px 12px', borderRadius: 8,
-                                    background: 'rgba(255,255,255,0.02)',
-                                    borderBottom: i < resultado.desglose.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                                    background: 'var(--panel-item-bg)',
+                                    borderBottom: i < resultado.desglose.length - 1 ? '1px solid var(--ghost-bg)' : 'none',
                                 }}>
                                     <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{d.label}</span>
                                     <span style={{

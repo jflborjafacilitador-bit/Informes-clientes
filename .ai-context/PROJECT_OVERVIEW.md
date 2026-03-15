@@ -25,7 +25,7 @@ Existen distintos niveles de usuario que restringen el acceso a vistas (Sidebar)
 
 ### B. App Instalable (PWA)
 - El archivo `vite.config.ts` utiliza Workbox. Para compilar archivos pesados como los planos del mapa, el valor `maximumFileSizeToCacheInBytes` está aumentado a `15000000` (15 MB) para no fallar el build en GitHub Actions.
-- La versión manual hardcodeada debe mantenerse sincronizada en el `Sidebar.tsx` y en el `package.json`.
+- **OBLIGATORIO - REGLA DE DESPLIEGUE:** Cada vez que modifiques código y lo subas al servidor/GitHub (con git push), **DEBES** actualizar el número de versión (ej. 1.6.0 -> 1.6.1) en `package.json` y `Sidebar.tsx`. Es la única forma en la que el usuario puede notar si el build terminó exitosamente. Nunca olvides actualizar la versión.
 
 ### C. Generación de Contratos PDF
 - La ruta de Clientes permite generar contratos de compra-venta usando `jspdf` y `jspdf-autotable`.
