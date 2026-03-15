@@ -407,27 +407,35 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                                     </button>
                                     {condominio === 'Manzana 2' && (
                                         <button className="base-button" style={{ background: '#f59e0b', color: '#000' }} onClick={() => {
-                                            const newCasas = Array.from(itemsData.values())
-                                                .filter(item => item.mza === '2' && !zones.find(z => z.casa === item.casa))
-                                                .sort((a, b) => Number(a.casa) - Number(b.casa));
+                                            const newCasas: {mza: string, casa: string}[] = [];
+                                            
+                                            // Extract directly from the global itemsData map keys to ensure we don't miss any due to value object shapes
+                                            Array.from(itemsData.keys()).forEach(key => {
+                                                const [kMza, kCasa] = key.split('||');
+                                                if (kMza === '2' && !zones.find(z => z.casa === kCasa)) {
+                                                    newCasas.push({ mza: kMza, casa: kCasa });
+                                                }
+                                            });
+                                            
+                                            newCasas.sort((a, b) => Number(a.casa) - Number(b.casa));
                                             
                                             let row = 0; let col = 0;
                                             const newZones = newCasas.map(item => {
-                                                const bx = 10 + (col * 5);
-                                                const by = 10 + (row * 5);
-                                                col++; if (col >= 15) { col = 0; row++; }
+                                                const bx = 5 + (col * 3);
+                                                const by = 5 + (row * 3);
+                                                col++; if (col >= 25) { col = 0; row++; }
                                                 return {
                                                     id: `auto_mza2_${item.casa}_${Date.now()}`,
                                                     mza: item.mza,
                                                     casa: item.casa,
-                                                    points: [{x: bx, y: by}, {x: bx+3, y: by}, {x: bx+3, y: by+3}, {x: bx, y: by+3}]
+                                                    points: [{x: bx, y: by}, {x: bx+2, y: by}, {x: bx+2, y: by+2}, {x: bx, y: by+2}]
                                                 };
                                             });
                                             if (newZones.length > 0) {
                                                 setZones([...zones, ...newZones]);
-                                                alert(`Mágicamente se crearon ${newZones.length} polígonos. Presiona "Guardar en BD".`);
+                                                alert(`Mágicamente se crearon ${newZones.length} polígonos. Acomódalos y presiona "Guardar en BD".`);
                                             } else {
-                                                alert("Todas las casas ya tienen polígono asignado.");
+                                                alert("Todas las casas de Manzana 2 ya tienen polígono asignado (o no hay datos en el Excel).");
                                             }
                                         }}>⚡ Auto-generar Lotes Mza 2</button>
                                     )}
