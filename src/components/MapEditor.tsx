@@ -14,15 +14,15 @@ interface MapEditorProps {
 }
 
 const COLORS: Record<EstatusManual, string> = {
-    DISPONIBLE: 'rgba(34, 197, 94, 0.65)',
-    EN_PROCESO: 'rgba(245, 158, 11, 0.65)',
-    VENDIDA: 'rgba(239, 68, 68, 0.65)'
+    DISPONIBLE: 'rgba(34, 197, 94, 0.35)', // Softer green
+    EN_PROCESO: 'rgba(245, 158, 11, 0.35)', // Softer yellow
+    VENDIDA: 'rgba(239, 68, 68, 0.35)'     // Softer red
 };
 
 const BORDER_COLORS: Record<EstatusManual, string> = {
-    DISPONIBLE: 'rgba(34, 197, 94, 1)',
-    EN_PROCESO: 'rgba(245, 158, 11, 1)',
-    VENDIDA: 'rgba(239, 68, 68, 1)'
+    DISPONIBLE: 'rgba(34, 197, 94, 0.8)',
+    EN_PROCESO: 'rgba(245, 158, 11, 0.8)',
+    VENDIDA: 'rgba(239, 68, 68, 0.8)'
 };
 
 export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsData, onHouseClick }: MapEditorProps) {
