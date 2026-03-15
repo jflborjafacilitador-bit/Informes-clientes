@@ -1,5 +1,6 @@
-import { Bell, Search, User, Menu, Download } from 'lucide-react';
+import { Bell, Search, User, Menu, Download, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { useState, useEffect } from 'react';
 
 interface HeaderProps {
@@ -8,6 +9,7 @@ interface HeaderProps {
 
 export default function Header({ onMenuClick }: HeaderProps) {
     const { session, role } = useAuth();
+    const { theme, toggleTheme } = useTheme();
     const [installPrompt, setInstallPrompt] = useState<any>(null);
     const [installed, setInstalled] = useState(false);
 
@@ -35,7 +37,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                     onClick={onMenuClick}
                     className="hamburger-btn"
                     style={{
-                        background: 'rgba(255,255,255,0.05)',
+                        background: 'var(--ghost-bg)',
                         border: 'none',
                         borderRadius: '8px',
                         width: '40px', height: '40px',
@@ -63,7 +65,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                             width: '100%',
                             padding: '10px 16px 10px 44px',
                             borderRadius: '20px',
-                            background: 'rgba(255,255,255,0.03)',
+                            background: 'var(--panel-item-bg)',
                             border: '1px solid var(--border-glass)',
                             color: 'var(--text-main)',
                             outline: 'none',
@@ -76,7 +78,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                             e.currentTarget.style.boxShadow = '0 0 15px rgba(34, 197, 94, 0.1)';
                         }}
                         onBlur={(e) => {
-                            e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                            e.currentTarget.style.background = 'var(--panel-item-bg)';
                             e.currentTarget.style.borderColor = 'var(--border-glass)';
                             e.currentTarget.style.boxShadow = 'none';
                         }}
@@ -85,6 +87,24 @@ export default function Header({ onMenuClick }: HeaderProps) {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {/* Theme Toggle Button */}
+                <button
+                    onClick={toggleTheme}
+                    title={`Cambiar a modo ${theme === 'dark' ? 'iluminado' : 'oscuro'}`}
+                    style={{
+                        background: 'var(--ghost-bg)',
+                        border: 'none', borderRadius: '50%',
+                        width: '40px', height: '40px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: 'var(--text-main)', cursor: 'pointer', position: 'relative',
+                        transition: 'background 0.2s, transform 0.2s', flexShrink: 0,
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--ghost-bg-hover)'; e.currentTarget.style.transform = 'scale(1.05)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--ghost-bg)'; e.currentTarget.style.transform = 'scale(1)'; }}
+                >
+                    {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+                </button>
+
                 {/* Botón instalar PWA — visible solo si el navegador lo permite y no está instalada */}
                 {installPrompt && !installed && (
                     <button
@@ -107,15 +127,15 @@ export default function Header({ onMenuClick }: HeaderProps) {
                     </button>
                 )}
                 <button style={{
-                    background: 'rgba(255,255,255,0.05)',
+                    background: 'var(--ghost-bg)',
                     border: 'none', borderRadius: '50%',
                     width: '40px', height: '40px',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: 'var(--text-main)', cursor: 'pointer', position: 'relative',
                     transition: 'background 0.2s', flexShrink: 0,
                 }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--ghost-bg-hover)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'var(--ghost-bg)'}
                 >
                     <Bell size={18} />
                     <span style={{

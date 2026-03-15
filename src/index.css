@@ -11,6 +11,28 @@
   --success: #10b981;
   --danger: #ef4444;
   --warning: #f59e0b;
+  --sidebar-bg: rgba(10, 15, 13, 0.97);
+  --header-bg: rgba(10, 15, 13, 0.5);
+  --ghost-bg: rgba(255, 255, 255, 0.05);
+  --ghost-bg-hover: rgba(255, 255, 255, 0.1);
+  --panel-item-bg: rgba(255, 255, 255, 0.02);
+  --tooltip-bg: rgba(7, 9, 14, 0.95);
+}
+
+[data-theme='light'] {
+  --bg-dark: #f0fdf4;
+  --bg-panel: rgba(255, 255, 255, 0.85);
+  --border-glass: rgba(34, 197, 94, 0.3);
+  --primary-accent: #16a34a; /* Darker green for contrast */
+  --secondary-accent: #ea580c; /* Darker orange */
+  --text-main: #1f2937; /* Dark gray */
+  --text-muted: #4b5563;
+  --sidebar-bg: rgba(240, 253, 244, 0.97);
+  --header-bg: rgba(240, 253, 244, 0.85);
+  --ghost-bg: rgba(0, 0, 0, 0.05);
+  --ghost-bg-hover: rgba(0, 0, 0, 0.1);
+  --panel-item-bg: rgba(0, 0, 0, 0.03);
+  --tooltip-bg: rgba(255, 255, 255, 0.95);
 }
 
 * {
@@ -28,6 +50,7 @@ body {
   color: var(--text-main);
   min-height: 100vh;
   overflow-x: hidden;
+  transition: background-color 0.4s ease, color 0.4s ease;
 }
 
 /* Glassmorphism Panel Class */
@@ -104,13 +127,13 @@ body {
   width: 260px;
   height: 100%;
   border-right: 1px solid var(--border-glass);
-  background: rgba(10, 15, 13, 0.97);
+  background: var(--sidebar-bg);
   backdrop-filter: blur(16px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   z-index: 10;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.4s ease;
 }
 
 /* Desktop cerrado: colapsa a 0 (sin overlay) */
@@ -133,11 +156,12 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 2rem;
-  background: rgba(10, 15, 13, 0.5);
+  background: var(--header-bg);
   backdrop-filter: blur(8px);
   position: sticky;
   top: 0;
   z-index: 5;
+  transition: background-color 0.4s ease;
 }
 
 .content-wrapper {

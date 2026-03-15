@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Calculator, ChevronDown, Download, CheckSquare, Square } from 'lucide-react';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import autoTable from 'jspdf-autotable';
 
 // ─── Datos de precios ────────────────────────────────────────────
 const PRECIOS: Record<string, { modelo: string; version: string; precio: number; avaluo?: number }[]> = {
@@ -172,7 +172,6 @@ const CheckboxOption = ({ label, price, checked, onChange, isCustom = false, cus
 
 // ─── Componente principal ─────────────────────────────────────────
 export default function Calculadora() {
-    const pdfRef = useRef<HTMLDivElement>(null);
     const [isGenerating, setIsGenerating] = useState(false);
 
     const [manzana, setManzana] = useState('');
@@ -188,12 +187,17 @@ export default function Calculadora() {
     const [creditoFoviss, setCreditoFoviss] = useState('');
     const [apartado, setApartado] = useState('');
     const [descuento, setDescuento] = useState('');
+    
+    // Especial Contado / CFE
+    const [montoDisponible, setMontoDisponible] = useState('');
 
     // Extras
     const [extraPersianas, setExtraPersianas] = useState(false);
     const [extraCancel, setExtraCancel] = useState(false);
     const [extraProtecciones, setExtraProtecciones] = useState(false);
+    const [extraEsquina, setExtraEsquina] = useState(false);
     const [costoProtecciones, setCostoProtecciones] = useState('');
+    const [costoEsquina, setCostoEsquina] = useState('$20,000');
 
     // Listas derivadas
     const modelos = useMemo(() =>
@@ -211,9 +215,10 @@ export default function Calculadora() {
         let t = 0;
         if (extraPersianas) t += 8000;
         if (extraCancel) t += 10000;
+        if (extraEsquina) t += num(costoEsquina);
         if (extraProtecciones) t += num(costoProtecciones);
         return t;
-    }, [extraPersianas, extraCancel, extraProtecciones, costoProtecciones]);
+    }, [extraPersianas, extraCancel, extraEsquina, extraProtecciones, costoProtecciones, costoEsquina]);
 
     // Calcular resultado
     const resultado = useMemo(() => {
@@ -249,9 +254,13 @@ export default function Calculadora() {
                 { label: 'Apartado', monto: -apt },
             ];
         } else if (tipo === 'CFE') {
-            diferencia = pv - apt;
+            const disponible = num(montoDisponible);
+            diferencia = total - disponible - apt;
             desglose = [
                 { label: 'Valor Vivienda', monto: pv },
+                { label: 'Gastos Notariales', monto: gn },
+                { label: 'Valor Total', monto: total },
+                { label: 'Monto Disponible', monto: -disponible },
                 { label: 'Apartado', monto: -apt },
             ];
         } else if (tipo === 'BANCARIO') {
@@ -295,7 +304,7 @@ export default function Calculadora() {
         }
 
         return { diferencia, desglose, total, extrasTotal };
-    }, [tipo, precioBase, descuento, gastosNot, credito, subcuenta, creditoBanco, creditoFoviss, apartado, extrasTotal]);
+    }, [tipo, precioBase, descuento, gastosNot, credito, subcuenta, creditoBanco, creditoFoviss, apartado, extrasTotal, montoDisponible]);
 
     // Efecto para calcular Gastos Notariales en base al Avalúo
     useEffect(() => {
@@ -329,7 +338,8 @@ export default function Calculadora() {
     const resetCampos = () => {
         setGastosNot(''); setCredito(''); setSubcuenta('');
         setCreditoBanco(''); setCreditoFoviss(''); setApartado(''); setDescuento('');
-        setExtraPersianas(false); setExtraCancel(false); setExtraProtecciones(false);
+        setMontoDisponible('');
+        setExtraPersianas(false); setExtraCancel(false); setExtraProtecciones(false); setExtraEsquina(false);
     };
 
     // Funciones de conveniencia para botón "Apartado"
@@ -343,50 +353,163 @@ export default function Calculadora() {
     };
 
     const handleDownloadPDF = async () => {
-        if (!pdfRef.current) return;
         setIsGenerating(true);
         try {
-            // Un pequeño retraso para permitir renders (en caso de overlays)
-            await new Promise(r => setTimeout(r, 100));
-            const canvas = await html2canvas(pdfRef.current, {
-                scale: 1.5,
-                backgroundColor: '#0a0f0d', // Fundo oscuro del sistema
-                windowWidth: 1000 // Aseguramos que tome un acho respetable de PC
+            const doc = new jsPDF('p', 'mm', 'a4');
+            
+            // Colores corporativos
+            const verdeQuetzal = [34, 197, 94]; // rgb(34,197,94)
+            const grisOscuro = [40, 40, 40];
+            const grisClaro = [240, 240, 240];
+
+            // 1. Encabezado Header
+            // Dibujar fondo de encabezado
+            doc.setFillColor(verdeQuetzal[0], verdeQuetzal[1], verdeQuetzal[2]);
+            doc.rect(0, 0, 210, 40, 'F');
+            
+            // Textos del encabezado
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(22);
+            doc.text('COTIZACIÓN COMERCIAL', 105, 20, { align: 'center' });
+            
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'normal');
+            doc.text('Residencial Los Quetzales', 105, 28, { align: 'center' });
+            
+            const fecha = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+            doc.setFontSize(10);
+            doc.text(`Fecha: ${fecha}`, 190, 35, { align: 'right' });
+
+            // 2. Datos de la Propiedad (Tabla)
+            doc.setTextColor(grisOscuro[0], grisOscuro[1], grisOscuro[2]);
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Datos de la Propiedad', 15, 50);
+
+            let propertyBody = [
+                ['Manzana', manzana],
+                ['Modelo', modelo],
+                ['Versión', version],
+                ['Precio Base', fmt(precioBase || 0)]
+            ];
+
+            // Añadir extras a la propiedad
+            if (num(descuento) > 0) propertyBody.push(['Descuento', `-${fmt(num(descuento))}`]);
+            if (extraEsquina) propertyBody.push(['Extra: Terreno Excedente / Esquina', fmt(num(costoEsquina))]);
+            if (extraPersianas) propertyBody.push(['Extra: Persianas Cocina y Escalera', fmt(8000)]);
+            if (extraCancel) propertyBody.push(['Extra: Cancel Extra', fmt(10000)]);
+            if (extraProtecciones) propertyBody.push(['Extra: Protecciones', fmt(num(costoProtecciones))]);
+
+            propertyBody.push(['Precio de Venta (Con Extras)', fmt((precioBase || 0) - num(descuento) + (resultado?.extrasTotal || 0))]);
+
+            autoTable(doc, {
+                startY: 55,
+                head: [['Concepto', 'Detalle']],
+                body: propertyBody,
+                theme: 'striped',
+                headStyles: { fillColor: grisOscuro as [number, number, number], textColor: 255 },
+                styles: { fontSize: 10, cellPadding: 3 },
+                columnStyles: { 
+                    0: { fontStyle: 'bold', cellWidth: 100 }, 
+                    1: { halign: 'right' } 
+                }
             });
-            const imgData = canvas.toDataURL('image/jpeg', 0.95);
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pageWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
 
-            const margin = 10;
-            const maxPdfWidth = pageWidth - margin * 2;
-            const maxPdfHeight = pageHeight - margin * 2;
+            // 3. Esquema Financiero (Tabla)
+            let finalY = (doc as any).lastAutoTable.finalY || 55;
+            
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Esquema Financiero: ${TIPOS_CREDITO.find(t => t.value === tipo)?.label || ''}`, 15, finalY + 15);
 
-            let imgWidth = maxPdfWidth;
-            let imgHeight = (canvas.height * imgWidth) / canvas.width;
+            let desgloseFormat = resultado?.desglose.map(d => [
+                d.label, 
+                { content: fmt(Math.abs(d.monto)), styles: { textColor: d.monto < 0 ? [220, 38, 38] : grisOscuro } }
+            ]) || [];
 
-            if (imgHeight > maxPdfHeight) {
-                imgHeight = maxPdfHeight;
-                imgWidth = (canvas.width * imgHeight) / canvas.height;
-            }
+            autoTable(doc, {
+                startY: finalY + 20,
+                head: [['Concepto', 'Monto']],
+                body: desgloseFormat as any[],
+                theme: 'plain',
+                headStyles: { fillColor: grisClaro as [number, number, number], textColor: grisOscuro as [number, number, number] },
+                styles: { fontSize: 11, cellPadding: 4, lineColor: [200, 200, 200], lineWidth: 0.1 },
+                columnStyles: { 
+                    0: { fontStyle: 'normal' }, 
+                    1: { halign: 'right', fontStyle: 'bold' } 
+                }
+            });
 
-            const xOffset = (pageWidth - imgWidth) / 2;
-            pdf.addImage(imgData, 'JPEG', xOffset, margin, imgWidth, imgHeight);
-            pdf.save(`Cotizacion_${modelo}_${tipo}.pdf`);
+            // 4. Resultado Final
+            finalY = (doc as any).lastAutoTable.finalY + 10;
+            const esAFavor = (resultado?.diferencia || 0) <= 0;
+            const colorResultado = esAFavor ? verdeQuetzal : [220, 38, 38]; // Verde o Rojo
+            
+            doc.setDrawColor(colorResultado[0], colorResultado[1], colorResultado[2]);
+            doc.setFillColor(colorResultado[0], colorResultado[1], colorResultado[2]);
+            
+            // Caja de resultado suave (fondo)
+            const gState = new (doc as any).GState({ opacity: 0.1 });
+            doc.setGState(gState);
+            doc.rect(15, finalY, 180, 25, 'F');
+            const gStateSolid = new (doc as any).GState({ opacity: 1 });
+            doc.setGState(gStateSolid);
+            
+            // Borde de caja y textos
+            doc.rect(15, finalY, 180, 25, 'D');
+            
+            doc.setTextColor(colorResultado[0], colorResultado[1], colorResultado[2]);
+            doc.setFontSize(10);
+            doc.text('DIFERENCIA FINAL', 20, finalY + 8);
+            doc.setFontSize(9);
+            doc.text(esAFavor ? 'Saldo a favor del cliente' : 'A cubrir con recursos propios', 20, finalY + 14);
+
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            const difText = `${esAFavor ? '+' : '-'}${fmt(Math.abs(resultado?.diferencia || 0))}`;
+            doc.text(difText, 185, finalY + 15, { align: 'right' });
+
+            // 5. Pie de Página y Avisos
+            doc.setTextColor(100, 100, 100);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'italic');
+            const footerText = "Nota: Esta cotización es de carácter informativo y está sujeta a cambios sin previo aviso conforme a la validación de capacidad de crédito y disponibilidad de vivienda. Los gastos notariales y de titulación son aproximados.";
+            
+            const lines = doc.splitTextToSize(footerText, 180);
+            doc.text(lines, 15, 275); // Posicionado cerca del fondo A4 (297mm)
+
+            // Intentar Cargar e insertar Logo
+            try {
+                // Buscamos el logo de la carpeta public
+                const logoInfo = new Image();
+                logoInfo.src = '/Logo 1.1 sin fondo.png'; // Asumiendo que esta es la ruta en public
+                
+                logoInfo.onload = () => {
+                   // Insertar logo en el header si carga rápido. Como onload es async, 
+                   // en PDF sincrónicos a veces hay que convertirlo primero a base64.
+                   // Por simplicidad de jsPDF sincrono sin promesas complejas, omitiremos el logo imgData si falla el load sincrono,
+                   // pero para asegurarnos, guardamos y descargamos dentro del finally.
+                };
+            } catch(e) {}
+
+            doc.save(`Cotizacion_${modelo}_${tipo}.pdf`);
+            
         } catch (error) {
             console.error('Error generating PDF:', error);
-            alert('Hubo un error al generar el PDF.');
+            alert('Hubo un error al generar el PDF. Verifica la consola.');
         } finally {
             setIsGenerating(false);
         }
     };
 
     // Campos visibles según tipo
-    const showGN = tipo && tipo !== 'CFE';
+    const showGN = tipo; // Ahora GN se muestra en todos
     const showCredito = tipo && ['INFONAVIT', 'FOVISSSTE', 'COFINAVIT', 'FOVISSSTE_INFONAVIT'].includes(tipo);
     const showSubcuenta = tipo && ['INFONAVIT', 'COFINAVIT', 'FOVISSSTE_INFONAVIT'].includes(tipo);
     const showBanco = tipo && ['BANCARIO', 'COFINAVIT'].includes(tipo);
     const showFoviss = tipo === 'FOVISSSTE_INFONAVIT';
+    const showMontoDisponible = tipo === 'CFE';
 
     const panelStyle: React.CSSProperties = {
         background: 'rgba(15,25,20,0.65)',
@@ -404,8 +527,7 @@ export default function Calculadora() {
 
     return (
         <div style={{ position: 'relative' }}>
-            {/* Wrapper invisible para el PDF que captura todo el contenido  */}
-            <div ref={pdfRef} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '10px' }}>
 
                 {/* Encabezado */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
@@ -487,6 +609,7 @@ export default function Calculadora() {
                             Equipamiento Extra / Adicionales (Opcional)
                         </h2>
                         <div style={gridStyle}>
+                            <CheckboxOption label="Esquina / Terreno Excedente" checked={extraEsquina} onChange={setExtraEsquina} isCustom customValue={costoEsquina} onCustomValueChange={setCostoEsquina} />
                             <CheckboxOption label="Persianas Cocina y Escalera" price={8000} checked={extraPersianas} onChange={setExtraPersianas} />
                             <CheckboxOption label="Cancel Extra" price={10000} checked={extraCancel} onChange={setExtraCancel} />
                             <CheckboxOption label="Paquete de Protecciones" checked={extraProtecciones} onChange={setExtraProtecciones} isCustom customValue={costoProtecciones} onCustomValueChange={setCostoProtecciones} />
@@ -542,6 +665,15 @@ export default function Calculadora() {
                                     value={gastosNot}
                                     onChange={setGastosNot}
                                     helperText="Calculado automático según avalúo (Ignorar si no aplica)"
+                                />
+                            )}
+
+                            {showMontoDisponible && (
+                                <Field
+                                    label="Monto que tiene el cliente (Disponible)"
+                                    value={montoDisponible}
+                                    onChange={setMontoDisponible}
+                                    helperText="Fondos propios que aportará"
                                 />
                             )}
 

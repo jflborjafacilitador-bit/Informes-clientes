@@ -8,6 +8,7 @@ import {
     type EstatusManual,
 } from '../services/inventarioEstatusService';
 import { useAuth } from '../contexts/AuthContext';
+import MapEditor from '../components/MapEditor';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const ESTATUS_CONFIG: Record<EstatusManual, { label: string; color: string; bg: string; border: string; dot: string }> = {
@@ -156,7 +157,8 @@ export default function Inventario() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Filtros
+    // Filtros y Vistas
+    const [vista, setVista] = useState<'lista' | 'plano_mza3' | 'plano_mza2'>('lista');
     const [filtroCondominio, setFiltroCondominio] = useState('Todos');
     const [filtroEstatus, setFiltroEstatus] = useState('Todos');
 
@@ -212,6 +214,15 @@ export default function Inventario() {
         i => resolveEstatus(i) === 'DISPONIBLE' &&
             i.fechaEscrituracion.toUpperCase() === 'INMEDIATA'
     ).length;
+
+    // ── Precomputar Mapas de Datos para MapEditor ──
+    const itemsDataMap = new Map<string, any>();
+    const statusesMap = new Map<string, EstatusManual>();
+    items.forEach(item => {
+        const k = casaKey(item.mza, item.casa);
+        itemsDataMap.set(k, item);
+        statusesMap.set(k, resolveEstatus(item));
+    });
 
     // ── Filtro button style ──
     const btnStyle = (active: boolean, activeColor = 'var(--primary-accent)'): React.CSSProperties => ({
@@ -315,90 +326,151 @@ export default function Inventario() {
                 </div>
             </div>
 
-            {/* Tabla */}
-            <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
-                {loading ? (
-                    <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                        <RefreshCw size={28} style={{ animation: 'spin 1s linear infinite', marginBottom: '12px', display: 'block', margin: '0 auto 12px' }} />
-                        Cargando inventario...
-                    </div>
-                ) : error ? (
-                    <div style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>⚠️ {error}</div>
-                ) : filtered.length === 0 ? (
-                    <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                        Sin resultados con los filtros actuales.
-                    </div>
-                ) : (
-                    <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
-                            <thead>
-                                <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--border-glass)' }}>
-                                    {['Mza', 'Casa', 'Condominio', 'Prototipo', 'DTU', 'M2 Constr.', 'M2 Terreno', 'Esquema de Venta', 'Estatus', 'Escrituración', 'Marcar Estatus'].map(h => (
-                                        <th key={h} style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: '600', whiteSpace: 'nowrap' }}>
-                                            {h}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filtered.map((item, idx) => {
-                                    const effectiveEstatus = resolveEstatus(item);
-                                    return (
-                                        <tr key={`${item.mza}-${item.casa}-${idx}`}
-                                            style={{
-                                                borderBottom: '1px solid rgba(255,255,255,0.04)',
-                                                background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
-                                                transition: 'background 0.15s',
-                                            }}
-                                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(34,197,94,0.04)')}
-                                            onMouseLeave={e => (e.currentTarget.style.background = idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)')}
-                                        >
-                                            <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{item.mza}</td>
-                                            <td style={{ padding: '12px 16px', fontWeight: '600' }}>{item.casa}</td>
-                                            <td style={{ padding: '12px 16px' }}>{item.condominio}</td>
-                                            <td style={{ padding: '12px 16px' }}>
-                                                <span style={{ padding: '2px 8px', borderRadius: '6px', fontSize: '0.75rem', background: 'rgba(0,240,255,0.07)', color: 'var(--primary-accent)' }}>
-                                                    {item.prototipo}
-                                                </span>
-                                            </td>
-                                            <td style={{ padding: '12px 16px', color: item.dtu === 'Si' ? '#22c55e' : 'var(--text-muted)' }}>
-                                                {item.dtu === 'Si' ? '✓ Listo' : item.fechaDtu}
-                                            </td>
-                                            <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{item.m2Construccion}</td>
-                                            <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{item.m2Terreno}</td>
-                                            <td style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.75rem', maxWidth: '180px' }}>
-                                                {item.esquemaVenta}
-                                            </td>
-                                            <td style={{ padding: '12px 16px' }}>
-                                                <EstatusBadge estatus={effectiveEstatus} />
-                                            </td>
-                                            <td style={{
-                                                padding: '12px 16px',
-                                                color: item.fechaEscrituracion.toUpperCase() === 'INMEDIATA' ? '#f59e0b' : 'var(--text-muted)',
-                                                fontWeight: item.fechaEscrituracion.toUpperCase() === 'INMEDIATA' ? '600' : '400',
-                                            }}>
-                                                {item.fechaEscrituracion}
-                                            </td>
-                                            <td style={{ padding: '12px 16px' }}>
-                                                {user && (
-                                                    <EstatusSelector
-                                                        mza={item.mza}
-                                                        casa={item.casa}
-                                                        condominio={item.condominio}
-                                                        current={effectiveEstatus}
-                                                        userId={user.id}
-                                                        onChanged={handleEstatusChanged}
-                                                    />
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+            {/* Selector de Vistas Tabs */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid var(--border-glass)', paddingBottom: '12px' }}>
+                <button
+                    onClick={() => setVista('lista')}
+                    style={{
+                        padding: '8px 16px', borderRadius: '8px',
+                        background: vista === 'lista' ? 'var(--primary-accent)' : 'transparent',
+                        color: vista === 'lista' ? '#000' : 'var(--text-muted)',
+                        border: 'none', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                >
+                    Vista Lista (General)
+                </button>
+                <button
+                    onClick={() => setVista('plano_mza3')}
+                    style={{
+                        padding: '8px 16px', borderRadius: '8px',
+                        background: vista === 'plano_mza3' ? 'var(--primary-accent)' : 'transparent',
+                        color: vista === 'plano_mza3' ? '#000' : 'var(--text-muted)',
+                        border: 'none', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                >
+                    Plano Manzana 3
+                </button>
+                <button
+                    onClick={() => setVista('plano_mza2')}
+                    style={{
+                        padding: '8px 16px', borderRadius: '8px',
+                        background: vista === 'plano_mza2' ? 'var(--primary-accent)' : 'transparent',
+                        color: vista === 'plano_mza2' ? '#000' : 'var(--text-muted)',
+                        border: 'none', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s', opacity: 0.6
+                    }}
+                >
+                    Plano Manzana 2 (Próximamente)
+                </button>
             </div>
+
+            {/* Renderizado Condicional Lista vs Plano */}
+            {vista === 'lista' ? (
+                <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
+                    {loading ? (
+                        <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            <RefreshCw size={28} style={{ animation: 'spin 1s linear infinite', marginBottom: '12px', display: 'block', margin: '0 auto 12px' }} />
+                            Cargando inventario...
+                        </div>
+                    ) : error ? (
+                        <div style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>⚠️ {error}</div>
+                    ) : filtered.length === 0 ? (
+                        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            Sin resultados con los filtros actuales.
+                        </div>
+                    ) : (
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
+                                <thead>
+                                    <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--border-glass)' }}>
+                                        {['Mza', 'Casa', 'Condominio', 'Prototipo', 'DTU', 'M2 Constr.', 'M2 Terreno', 'Esquema de Venta', 'Estatus', 'Escrituración', 'Marcar Estatus'].map(h => (
+                                            <th key={h} style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                                {h}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filtered.map((item, idx) => {
+                                        const effectiveEstatus = resolveEstatus(item);
+                                        return (
+                                            <tr key={`${item.mza}-${item.casa}-${idx}`}
+                                                style={{
+                                                    borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                                    background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
+                                                    transition: 'background 0.15s',
+                                                }}
+                                                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(34,197,94,0.04)')}
+                                                onMouseLeave={e => (e.currentTarget.style.background = idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)')}
+                                            >
+                                                <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{item.mza}</td>
+                                                <td style={{ padding: '12px 16px', fontWeight: '600' }}>{item.casa}</td>
+                                                <td style={{ padding: '12px 16px' }}>{item.condominio}</td>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    <span style={{ padding: '2px 8px', borderRadius: '6px', fontSize: '0.75rem', background: 'rgba(0,240,255,0.07)', color: 'var(--primary-accent)' }}>
+                                                        {item.prototipo}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '12px 16px', color: item.dtu === 'Si' ? '#22c55e' : 'var(--text-muted)' }}>
+                                                    {item.dtu === 'Si' ? '✓ Listo' : item.fechaDtu}
+                                                </td>
+                                                <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{item.m2Construccion}</td>
+                                                <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{item.m2Terreno}</td>
+                                                <td style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.75rem', maxWidth: '180px' }}>
+                                                    {item.esquemaVenta}
+                                                </td>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    <EstatusBadge estatus={effectiveEstatus} />
+                                                </td>
+                                                <td style={{
+                                                    padding: '12px 16px',
+                                                    color: item.fechaEscrituracion.toUpperCase() === 'INMEDIATA' ? '#f59e0b' : 'var(--text-muted)',
+                                                    fontWeight: item.fechaEscrituracion.toUpperCase() === 'INMEDIATA' ? '600' : '400',
+                                                }}>
+                                                    {item.fechaEscrituracion}
+                                                </td>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    {user && (
+                                                        <EstatusSelector
+                                                            mza={item.mza}
+                                                            casa={item.casa}
+                                                            condominio={item.condominio}
+                                                            current={effectiveEstatus}
+                                                            userId={user.id}
+                                                            onChanged={handleEstatusChanged}
+                                                        />
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            ) : vista === 'plano_mza3' ? (
+                <div style={{ height: '70vh', minHeight: '600px', display: 'flex', flexDirection: 'column' }}>
+                    {loading ? (
+                        <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }} className="glass-panel">
+                            <RefreshCw size={28} style={{ animation: 'spin 1s linear infinite', marginBottom: '12px', display: 'block', margin: '0 auto 12px' }} />
+                            Cargando plano e inventario...
+                        </div>
+                    ) : (
+                        <MapEditor 
+                            condominio="Manzana 3" 
+                            imageUrl="/Planos/CONDOMINIO 3 AVE DE PARAISO 03-02-26.png" 
+                            houseStatuses={statusesMap}
+                            itemsData={itemsDataMap}
+                        />
+                    )}
+                </div>
+            ) : (
+                <div className="glass-panel" style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <Building2 size={48} style={{ margin: '0 auto 16px', opacity: 0.2 }} />
+                    <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Plano de Manzana 2</h3>
+                    <p style={{ marginTop: '8px' }}>El plano interactivo para esta manzana estará disponible próximamente.</p>
+                </div>
+            )}
 
             {/* Keyframes */}
             <style>{`

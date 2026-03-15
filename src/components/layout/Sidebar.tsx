@@ -59,7 +59,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               <Link key={link.to} to={link.to} onClick={onClose} style={{
                 display: 'flex', alignItems: 'center', gap: '12px',
                 padding: '12px 16px', borderRadius: '12px', textDecoration: 'none',
-                color: isActive ? '#fff' : 'var(--text-muted)',
+                color: isActive ? 'var(--text-main)' : 'var(--text-muted)',
                 background: isActive ? 'rgba(99,102,241,0.1)' : 'transparent',
                 border: isActive ? '1px solid rgba(99,102,241,0.3)' : '1px solid transparent',
                 transition: 'all 0.3s ease',
@@ -115,7 +115,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 border: '1px solid rgba(34,197,94,0.25)',
                 borderRadius: '4px',
                 padding: '0px 5px',
-              }}>v1.5.0</span>
+              }}>v1.6.0</span>
             </div>
           </div>
         </div>
@@ -148,7 +148,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 padding: '12px 16px',
                 borderRadius: '12px',
                 textDecoration: 'none',
-                color: isActive ? '#fff' : 'var(--text-muted)',
+                color: isActive ? 'var(--text-main)' : 'var(--text-muted)',
                 background: isActive ? 'rgba(34, 197, 94, 0.1)' : 'transparent',
                 border: isActive ? '1px solid var(--border-glass)' : '1px solid transparent',
                 transition: 'all 0.3s ease'

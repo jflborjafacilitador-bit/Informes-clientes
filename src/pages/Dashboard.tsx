@@ -50,7 +50,7 @@ const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
         return (
             <div style={{
-                background: 'rgba(7,9,14,0.95)', border: '1px solid var(--border-glass)',
+                background: 'var(--tooltip-bg)', border: '1px solid var(--border-glass)',
                 borderRadius: '8px', padding: '10px 14px', fontSize: '0.85rem'
             }}>
                 <p style={{ margin: 0, fontWeight: '600', color: payload[0].payload.fill }}>{payload[0].name}</p>
@@ -383,7 +383,7 @@ export default function Dashboard() {
                                         padding: '10px 12px',
                                         background: !c.assigned_to && !c.sheet_assigned
                                             ? 'rgba(239,68,68,0.05)'
-                                            : 'rgba(255,255,255,0.02)',
+                                            : 'var(--panel-item-bg)',
                                         border: !c.assigned_to && !c.sheet_assigned
                                             ? '1px solid rgba(239,68,68,0.2)'
                                             : '1px solid rgba(80,200,255,0.08)',
@@ -401,7 +401,7 @@ export default function Dashboard() {
                                                 fontSize: '0.65rem', fontWeight: '600', padding: '2px 7px', borderRadius: '20px',
                                                 background: c.status === 'Activo' || c.status === 'Citado' ? 'rgba(16,185,129,0.15)'
                                                     : c.status === 'Nuevo' ? 'rgba(0,240,255,0.1)'
-                                                        : 'rgba(255,255,255,0.05)',
+                                                        : 'var(--ghost-bg)',
                                                 color: c.status === 'Activo' || c.status === 'Citado' ? 'var(--success)'
                                                     : c.status === 'Nuevo' ? 'var(--primary-accent)'
                                                         : 'var(--text-muted)'
@@ -429,7 +429,7 @@ export default function Dashboard() {
                                     <div key={nombre} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                         <span style={{
                                             width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            background: i === 0 ? 'rgba(234,179,8,0.2)' : 'rgba(255,255,255,0.05)',
+                                            background: i === 0 ? 'rgba(234,179,8,0.2)' : 'var(--ghost-bg)',
                                             color: i === 0 ? '#eab308' : 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '700'
                                         }}>{i + 1}</span>
                                         <div style={{ flex: 1 }}>
@@ -470,11 +470,11 @@ export default function Dashboard() {
                             const diff = a.last_seen ? Date.now() - new Date(a.last_seen).getTime() : null;
                             const hace = diff == null ? '' : diff < 60000 ? 'Ahora mismo' : diff < 3600000 ? `Hace ${Math.floor(diff / 60000)} min` : diff < 86400000 ? `Hace ${Math.floor(diff / 3600000)}h` : `Hace ${Math.floor(diff / 86400000)}d`;
                             return (
-                                <div key={i} style={{
+                                    <div key={i} style={{
                                     display: 'flex', alignItems: 'center', gap: '12px',
                                     padding: '10px 14px', borderRadius: '8px',
-                                    background: 'rgba(255,255,255,0.02)',
-                                    border: '1px solid rgba(80,200,255,0.07)',
+                                    background: 'var(--panel-item-bg)',
+                                    border: '1px solid var(--border-glass)',
                                 }}>
                                     {/* Avatar */}
                                     <div style={{

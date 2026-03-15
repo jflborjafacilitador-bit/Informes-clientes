@@ -15,6 +15,7 @@ import Calculadora from './pages/Calculadora';
 import InicioRecepcion from './pages/InicioRecepcion';
 import UpdateBanner from './components/UpdateBanner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { supabase } from './services/supabaseClient';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -139,31 +140,33 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <AppLayout>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/" element={
-              <ProtectedRoute>
-                <RoleRedirect recepcionPath="/inicio-recepcion" escrituracionPath="/inventario">
-                  <Dashboard />
-                </RoleRedirect>
-              </ProtectedRoute>
-            } />
-            <Route path="/inicio-recepcion" element={<ProtectedRoute><InicioRecepcion /></ProtectedRoute>} />
-            <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
-            <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
-            <Route path="/configuracion" element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />
-            <Route path="/inventario" element={<ProtectedRoute><Inventario /></ProtectedRoute>} />
-            <Route path="/catering" element={<ProtectedRoute><Catering /></ProtectedRoute>} />
-            <Route path="/calendario" element={<ProtectedRoute><Calendario /></ProtectedRoute>} />
-            <Route path="/calculadora" element={<ProtectedRoute><Calculadora /></ProtectedRoute>} />
-            <Route path="/usuarios" element={<ProtectedRoute><Usuarios /></ProtectedRoute>} />
-          </Routes>
-        </AppLayout>
-      </Router>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <AppLayout>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <RoleRedirect recepcionPath="/inicio-recepcion" escrituracionPath="/inventario">
+                    <Dashboard />
+                  </RoleRedirect>
+                </ProtectedRoute>
+              } />
+              <Route path="/inicio-recepcion" element={<ProtectedRoute><InicioRecepcion /></ProtectedRoute>} />
+              <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
+              <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
+              <Route path="/configuracion" element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />
+              <Route path="/inventario" element={<ProtectedRoute><Inventario /></ProtectedRoute>} />
+              <Route path="/catering" element={<ProtectedRoute><Catering /></ProtectedRoute>} />
+              <Route path="/calendario" element={<ProtectedRoute><Calendario /></ProtectedRoute>} />
+              <Route path="/calculadora" element={<ProtectedRoute><Calculadora /></ProtectedRoute>} />
+              <Route path="/usuarios" element={<ProtectedRoute><Usuarios /></ProtectedRoute>} />
+            </Routes>
+          </AppLayout>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
