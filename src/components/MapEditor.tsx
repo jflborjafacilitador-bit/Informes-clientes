@@ -614,8 +614,15 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                                                 onClick={() => {
                                                     // Determinar versión base en el csv (ej. 'EQUIPADA', 'AUSTERA', etc)
                                                     let ver = activeItem.equipamiento || '';
-                                                    if (ver.toLowerCase().includes('equip')) ver = 'EQUIPADA';
-                                                    else if (ver.toLowerCase().includes('aust')) ver = 'AUSTERA';
+                                                    const isEquipada = ver.toLowerCase().includes('equip');
+                                                    const isAustera = ver.toLowerCase().includes('aust');
+                                                    const isElite = ver.toLowerCase().includes('elite');
+
+                                                    if (isEquipada) ver = 'EQUIPADA';
+                                                    else if (isAustera) ver = 'AUSTERA';
+                                                    else ver = 'EQUIPADA';
+
+                                                    if (isElite) ver += ' ELITE';
 
                                                     navigate(`/calculadora?manzana=${activeZoneData.mza}&modelo=${activeItem.prototipo}&version=${ver}`);
                                                 }}

@@ -129,8 +129,8 @@ const Select = ({ label, value, options, onChange }: {
                     outline: 'none',
                 }}
             >
-                <option value="">— Seleccionar —</option>
-                {options.map(o => <option key={o} value={o}>{o}</option>)}
+                <option value="" style={{ color: 'var(--text-main)', background: 'var(--panel-item-bg)' }}>— Seleccionar —</option>
+                {options.map(o => <option key={o} value={o} style={{ color: 'var(--text-main)', background: 'var(--panel-item-bg)' }}>{o}</option>)}
             </select>
             <ChevronDown size={16} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
         </div>
@@ -177,9 +177,13 @@ export default function Calculadora() {
 
     const mzParam = searchParams.get('manzana') || '';
     const initialMza = mzParam ? (mzParam.toLowerCase().startsWith('manzana') ? mzParam : `Manzana ${mzParam}`) : '';
+    
+    // Convert 'QUETZA' to 'QUETZAL' if it comes misspelled from map data
+    const rawModelo = searchParams.get('modelo') || '';
+    const initialModelo = rawModelo.replace('QUETZA PLUS', 'QUETZAL PLUS');
 
     const [manzana, setManzana] = useState(initialMza);
-    const [modelo, setModelo] = useState(searchParams.get('modelo') || '');
+    const [modelo, setModelo] = useState(initialModelo);
     const [version, setVersion] = useState(searchParams.get('version') || '');
     const [tipo, setTipo] = useState<TipoCredito | ''>('');
 
