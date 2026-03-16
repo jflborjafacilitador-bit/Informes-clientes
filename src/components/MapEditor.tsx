@@ -485,6 +485,14 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                                             }
                                         }}>⚡ Auto-generar Lotes Mza 2</button>
                                     )}
+                                    <button className="base-button" style={{ background: '#ef4444', color: '#fff' }} onClick={() => {
+                                        if (window.confirm('🚨 ¿Estás seguro de eliminar TODOS los lotes de esta manzana? Esta acción no se puede deshacer una vez que guardes en BD.')) {
+                                            setZones([]);
+                                            setSelectedZone(null);
+                                        }
+                                    }}>
+                                        <Trash2 size={16} /> Borrar Todos
+                                    </button>
                                 </div>
                             )}
                         </>
