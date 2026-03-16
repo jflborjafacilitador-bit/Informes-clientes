@@ -479,19 +479,36 @@ export default function Calculadora() {
             const lines = doc.splitTextToSize(footerText, 180);
             doc.text(lines, 15, 275); // Posicionado cerca del fondo A4 (297mm)
 
-            // Intentar Cargar e insertar Logo
+            // Cargar e insertar Logo asincrónicamente
             try {
-                // Buscamos el logo de la carpeta public
-                const logoInfo = new Image();
-                logoInfo.src = '/Logo 1.1 sin fondo.png'; // Asumiendo que esta es la ruta en public
-                
-                logoInfo.onload = () => {
-                   // Insertar logo en el header si carga rápido. Como onload es async, 
-                   // en PDF sincrónicos a veces hay que convertirlo primero a base64.
-                   // Por simplicidad de jsPDF sincrono sin promesas complejas, omitiremos el logo imgData si falla el load sincrono,
-                   // pero para asegurarnos, guardamos y descargamos dentro del finally.
-                };
-            } catch(e) {}
+                const imgData = await new Promise<string | null>((resolve) => {
+                    const img = new Image();
+                    img.src = '/Logo 1.1 sin fondo.png';
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        // Reducir la escala para evitar errores de memoria o canvas gigantes
+                        const maxW = 800;
+                        const scale = img.width > maxW ? maxW / img.width : 1;
+                        canvas.width = img.width * scale;
+                        canvas.height = img.height * scale;
+                        const ctx = canvas.getContext('2d');
+                        if (ctx) {
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                            resolve(canvas.toDataURL('image/png'));
+                        } else {
+                            resolve(null);
+                        }
+                    };
+                    img.onerror = () => resolve(null);
+                });
+
+                if (imgData) {
+                    // Dimensiones del logo en el PDF (mm)
+                    doc.addImage(imgData, 'PNG', 15, 5, 52, 28);
+                }
+            } catch (e) {
+                console.error("Error cargando logo en PDF", e);
+            }
 
             doc.save(`Cotizacion_${modelo}_${tipo}.pdf`);
             
