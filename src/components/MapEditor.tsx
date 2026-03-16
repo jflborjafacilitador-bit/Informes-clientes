@@ -475,13 +475,13 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                             <label style={{ fontSize: '0.8rem', color: '#22c55e', display: 'flex', justifyContent: 'space-between' }}>
                                 <span>Estirar Ancho ({(globalScaleX*100).toFixed(0)}%)</span>
                             </label>
-                            <input type="range" min="0.5" max="2" step="0.01" value={globalScaleX} onChange={e => setGlobalScaleX(Number(e.target.value))} style={{ width: '100%' }} />
+                            <input type="range" min="0.1" max="10" step="0.01" value={globalScaleX} onChange={e => setGlobalScaleX(Number(e.target.value))} style={{ width: '100%' }} />
                         </div>
                         <div style={{ marginBottom: '12px' }}>
                             <label style={{ fontSize: '0.8rem', color: '#22c55e', display: 'flex', justifyContent: 'space-between' }}>
                                 <span>Estirar Alto ({(globalScaleY*100).toFixed(0)}%)</span>
                             </label>
-                            <input type="range" min="0.5" max="2" step="0.01" value={globalScaleY} onChange={e => setGlobalScaleY(Number(e.target.value))} style={{ width: '100%' }} />
+                            <input type="range" min="0.1" max="10" step="0.01" value={globalScaleY} onChange={e => setGlobalScaleY(Number(e.target.value))} style={{ width: '100%' }} />
                         </div>
                         <div style={{ marginBottom: '12px' }}>
                             <label style={{ fontSize: '0.8rem', color: '#f59e0b', display: 'flex', justifyContent: 'space-between' }}>
@@ -542,9 +542,10 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                         minScale={0.1}
                         maxScale={8}
                         centerOnInit={true}
-                        disabled={mode === 'edit' || mode === 'drag'} // Disable panning while drawing/dragging
-                        wheel={{ step: 0.1 }}
-                        panning={{ disabled: mode === 'edit' || mode === 'drag', velocityDisabled: true }}
+                        wheel={{ step: 0.1, disabled: mode !== 'view' }}
+                        panning={{ disabled: mode !== 'view', velocityDisabled: true }}
+                        pinch={{ disabled: mode !== 'view' }}
+                        doubleClick={{ disabled: true }}
                     >
                         <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }} contentStyle={{ width: '100%', height: '100%' }}>
                             <div style={{ 
