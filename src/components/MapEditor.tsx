@@ -59,6 +59,27 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
     const [globalSkewX, setGlobalSkewX] = useState(0);
     const [globalSkewY, setGlobalSkewY] = useState(0);
 
+    // Draggable Panel State
+    const [panelOffset, setPanelOffset] = useState({ x: 0, y: 0 });
+    const panelDragStart = useRef<{x: number, y: number} | null>(null);
+
+    const startPanelDrag = (e: React.PointerEvent) => {
+        panelDragStart.current = { x: e.clientX - panelOffset.x, y: e.clientY - panelOffset.y };
+        e.currentTarget.setPointerCapture(e.pointerId);
+    };
+    const doPanelDrag = (e: React.PointerEvent) => {
+        if (panelDragStart.current) {
+            setPanelOffset({
+                x: e.clientX - panelDragStart.current.x,
+                y: e.clientY - panelDragStart.current.y
+            });
+        }
+    };
+    const endPanelDrag = (e: React.PointerEvent) => {
+        panelDragStart.current = null;
+        e.currentTarget.releasePointerCapture(e.pointerId);
+    };
+
     const svgRef = useRef<SVGSVGElement>(null);
     const imgRef = useRef<HTMLImageElement>(null);
 
@@ -315,7 +336,34 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
         try {
             const w = layout?.width || imgRef.current?.naturalWidth || 1000;
             const h = layout?.height || imgRef.current?.naturalHeight || 1000;
-            await saveMapLayout(condominio, imageUrl, w, h, zones);
+            
+            // Si hay alineación global pendiente sin aplicar, aplícala al array antes de guardar.
+            let zonesToSave = zones;
+            if (globalOffsetX !== 0 || globalOffsetY !== 0 || globalScaleX !== 1 || globalScaleY !== 1 || globalSkewX !== 0 || globalSkewY !== 0) {
+                const radX = (globalSkewX * Math.PI) / 180;
+                const radY = (globalSkewY * Math.PI) / 180;
+                zonesToSave = zones.map(z => ({
+                    ...z,
+                    points: z.points.map(p => {
+                        const px = p.x * globalScaleX;
+                        const py = p.y * globalScaleY;
+                        return {
+                            x: px + py * Math.tan(radX) + globalOffsetX,
+                            y: py + px * Math.tan(radY) + globalOffsetY
+                        };
+                    })
+                }));
+                // Restablecer localmente
+                setZones(zonesToSave);
+                setGlobalOffsetX(0);
+                setGlobalOffsetY(0);
+                setGlobalScaleX(1);
+                setGlobalScaleY(1);
+                setGlobalSkewX(0);
+                setGlobalSkewY(0);
+            }
+
+            await saveMapLayout(condominio, imageUrl, w, h, zonesToSave);
             alert('¡Mapa guardado con éxito!');
         } catch {
             alert('Error guardando mapa.');
@@ -658,10 +706,16 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                 </div>
                 
                 {(mode === 'edit' || mode === 'drag') && selectedZone && (
-                     <div className="glass-panel" style={{ width: '280px', flexShrink: 0, padding: '20px', position: 'absolute', right: '10px', top: '10px', zIndex: 10 }}>
-                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-                              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Asignar Lote</h3>
-                              <button onClick={() => setSelectedZone(null)} className="icon-btn"><X size={18}/></button>
+                     <div className="glass-panel" style={{ width: '280px', flexShrink: 0, padding: '20px', position: 'absolute', right: '10px', top: '10px', zIndex: 10, transform: `translate(${panelOffset.x}px, ${panelOffset.y}px)`, transition: panelDragStart.current ? 'none' : 'transform 0.1s ease-out' }}>
+                         <div 
+                              style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center', cursor: 'grab', padding: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', userSelect: 'none' }}
+                              onPointerDown={startPanelDrag}
+                              onPointerMove={doPanelDrag}
+                              onPointerUp={endPanelDrag}
+                              onPointerCancel={endPanelDrag}
+                         >
+                              <h3 style={{ margin: 0, fontSize: '1.1rem', pointerEvents: 'none' }}>Asignar Lote</h3>
+                              <button onPointerDown={e => e.stopPropagation()} onClick={() => setSelectedZone(null)} className="icon-btn" style={{ padding: '2px', cursor: 'pointer' }}><X size={18}/></button>
                          </div>
                          
                          {mode === 'drag' && (
