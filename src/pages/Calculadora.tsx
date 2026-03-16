@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Calculator, ChevronDown, Download, CheckSquare, Square } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -170,13 +171,13 @@ const CheckboxOption = ({ label, price, checked, onChange, isCustom = false, cus
     </div>
 );
 
-// ─── Componente principal ─────────────────────────────────────────
 export default function Calculadora() {
+    const [searchParams] = useSearchParams();
     const [isGenerating, setIsGenerating] = useState(false);
 
-    const [manzana, setManzana] = useState('');
-    const [modelo, setModelo] = useState('');
-    const [version, setVersion] = useState('');
+    const [manzana, setManzana] = useState(searchParams.get('manzana') || '');
+    const [modelo, setModelo] = useState(searchParams.get('modelo') || '');
+    const [version, setVersion] = useState(searchParams.get('version') || '');
     const [tipo, setTipo] = useState<TipoCredito | ''>('');
 
     // Campos editables

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, type MouseEvent } from 'react';
-import { Save, Trash2, Edit3, X, Check, Eye, Move } from 'lucide-react';
+import { Save, Trash2, Edit3, X, Check, Eye, Move, Calculator } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { fetchMapLayout, saveMapLayout, type MapLayout, type MapZone } from '../services/mapLayoutsService';
 import type { EstatusManual } from '../services/inventarioEstatusService';
@@ -39,9 +40,12 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
     const [isDrawing, setIsDrawing] = useState(false);
     const [currentPoints, setCurrentPoints] = useState<{x: number, y: number}[]>([]);
     const [hoveredZone, setHoveredZone] = useState<string | null>(null);
+    const [clickedZone, setClickedZone] = useState<string | null>(null);
     const [selectedZone, setSelectedZone] = useState<string | null>(null);
     const [editMza, setEditMza] = useState('');
     const [editCasa, setEditCasa] = useState('');
+
+    const navigate = useNavigate();
 
     const [isSaving, setIsSaving] = useState(false);
     
@@ -384,9 +388,7 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
         return houseStatuses.get(key) || 'DISPONIBLE';
     };
 
-    const hoveredZoneData = hoveredZone ? zones.find(z => z.id === hoveredZone) : null;
-    const hoveredStatus = hoveredZoneData ? getZoneStatus(hoveredZoneData) : null;
-    const hoveredItem = hoveredZoneData ? itemsData.get(`${hoveredZoneData.mza}||${hoveredZoneData.casa}`) : null;
+
 
     const activeZone = selectedZone ? zones.find(z => z.id === selectedZone) : null;
     let selectedW = 0, selectedH = 0;
@@ -410,7 +412,7 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                         <button 
                             className="ghost-button" 
                             style={{ background: mode === 'view' ? 'var(--primary-accent)' : 'transparent', color: mode === 'view' ? '#000' : '#fff' }}
-                            onClick={() => { setMode('view'); setIsDrawing(false); setSelectedZone(null); }}
+                            onClick={() => { setMode('view'); setIsDrawing(false); setSelectedZone(null); setClickedZone(null); }}
                         >
                             <Eye size={16} /> Navegar
                         </button>
@@ -561,37 +563,73 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                 {/* React Zoom Pan Pinch Wrap */}
                 <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#e0e0e0', borderRadius: '16px', border: '1px solid var(--border-glass)' }}>
                     
-                    {mode === 'view' && hoveredZoneData && hoveredStatus && (
-                        <div style={{
-                            position: 'absolute', top: 20, right: 20,
-                            background: 'rgba(10, 15, 13, 0.95)', backdropFilter: 'blur(10px)',
-                            border: `1px solid ${BORDER_COLORS[hoveredStatus]}`,
-                            padding: '16px', borderRadius: '12px', color: 'white', zIndex: 10,
-                            boxShadow: '0 10px 40px rgba(0,0,0,0.6)', pointerEvents: 'none', minWidth: '240px'
-                        }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Mza {hoveredZoneData.mza} | {hoveredZoneData.casa}</span>
-                                <span style={{ 
-                                    padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold',
-                                    background: COLORS[hoveredStatus], color: hoveredStatus === 'DISPONIBLE' ? 'white' : 'black'
-                                }}>
-                                    {hoveredStatus.replace('_', ' ')}
-                                </span>
-                            </div>
-                            
-                            {hoveredItem ? (
-                                <div style={{ fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '4px', color: 'var(--text-muted)' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Prototipo:</span> <span style={{ color: 'white' }}>{hoveredItem.prototipo}</span></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Terreno:</span> <span style={{ color: 'white' }}>{hoveredItem.m2Terreno}</span></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Construcción:</span> <span style={{ color: 'white' }}>{hoveredItem.m2Construccion}</span></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>DTU:</span> <span style={{ color: hoveredItem.dtu === 'Si' ? '#22c55e' : 'white' }}>{hoveredItem.dtu === 'Si' ? '✓ Listo' : hoveredItem.fechaDtu}</span></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Escrituración:</span> <span style={{ color: hoveredItem.fechaEscrituracion.toUpperCase() === 'INMEDIATA' ? '#f59e0b' : 'white' }}>{hoveredItem.fechaEscrituracion}</span></div>
+                    {/* Pinned or Hovered Tooltip */}
+                    {mode === 'view' && (clickedZone || hoveredZone) ? (() => {
+                        const activeId = clickedZone || hoveredZone;
+                        const activeZoneData = zones.find(z => z.id === activeId);
+                        const activeStatus = activeZoneData ? getZoneStatus(activeZoneData) : null;
+                        const activeItem = activeZoneData ? itemsData.get(`${activeZoneData.mza}||${activeZoneData.casa}`) : null;
+
+                        if (!activeZoneData || !activeStatus) return null;
+
+                        return (
+                            <div style={{
+                                position: 'absolute', top: 20, right: 20,
+                                background: 'rgba(10, 15, 13, 0.95)', backdropFilter: 'blur(10px)',
+                                border: `1px solid ${BORDER_COLORS[activeStatus]}`,
+                                padding: '16px', borderRadius: '12px', color: 'white', zIndex: 10,
+                                boxShadow: clickedZone ? '0 10px 40px rgba(0,0,0,0.8)' : '0 10px 40px rgba(0,0,0,0.6)', 
+                                minWidth: '240px',
+                                pointerEvents: 'auto' // Important so buttons inside work
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Mza {activeZoneData.mza} | {activeZoneData.casa}</span>
+                                        <span style={{ 
+                                            padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', width: 'fit-content', marginTop: '4px',
+                                            background: COLORS[activeStatus], color: activeStatus === 'DISPONIBLE' ? 'white' : 'black'
+                                        }}>
+                                            {activeStatus.replace('_', ' ')}
+                                        </span>
+                                    </div>
+                                    {clickedZone && (
+                                        <button onClick={() => setClickedZone(null)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}>
+                                            <X size={18} />
+                                        </button>
+                                    )}
                                 </div>
-                            ) : (
-                                <div style={{ fontSize: '0.8rem', color: '#ef4444', marginTop: '6px' }}>Propiedad agotada o no disponible en lista.</div>
-                            )}
-                        </div>
-                    )}
+                                
+                                {activeItem ? (
+                                    <div style={{ fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '4px', color: 'var(--text-muted)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Prototipo:</span> <span style={{ color: 'white' }}>{activeItem.prototipo}</span></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Terreno:</span> <span style={{ color: 'white' }}>{activeItem.m2Terreno}</span></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Construcción:</span> <span style={{ color: 'white' }}>{activeItem.m2Construccion}</span></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>DTU:</span> <span style={{ color: activeItem.dtu === 'Si' ? '#22c55e' : 'white' }}>{activeItem.dtu === 'Si' ? '✓ Listo' : activeItem.fechaDtu}</span></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Escrituración:</span> <span style={{ color: activeItem.fechaEscrituracion.toUpperCase() === 'INMEDIATA' ? '#f59e0b' : 'white' }}>{activeItem.fechaEscrituracion}</span></div>
+                                        
+                                        {clickedZone && activeStatus === 'DISPONIBLE' && (
+                                            <button 
+                                                className="base-button" 
+                                                style={{ marginTop: '12px', background: 'var(--primary-accent)', color: '#000', width: '100%', justifyContent: 'center' }}
+                                                onClick={() => {
+                                                    // Determinar versión base en el csv (ej. 'EQUIPADA', 'AUSTERA', etc)
+                                                    let ver = activeItem.equipamiento || '';
+                                                    if (ver.toLowerCase().includes('equip')) ver = 'EQUIPADA';
+                                                    else if (ver.toLowerCase().includes('aust')) ver = 'AUSTERA';
+
+                                                    navigate(`/calculadora?manzana=${activeZoneData.mza}&modelo=${activeItem.prototipo}&version=${ver}`);
+                                                }}
+                                            >
+                                                <Calculator size={16} /> Calcular
+                                            </button>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div style={{ fontSize: '0.8rem', color: '#ef4444', marginTop: '6px' }}>Propiedad agotada o no disponible en lista.</div>
+                                )}
+                            </div>
+                        );
+                    })() : null}
 
                     <TransformWrapper
                         initialScale={0.9}
@@ -681,8 +719,14 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                                                         setSelectedZone(zone.id);
                                                         setEditMza(zone.mza);
                                                         setEditCasa(zone.casa);
-                                                    } else if (onHouseClick && status !== 'VENDIDA') {
-                                                        onHouseClick(zone.mza, zone.casa);
+                                                    } else if (mode === 'view') {
+                                                        if (status !== 'VENDIDA') {
+                                                            if (clickedZone === zone.id) setClickedZone(null); // toggle off
+                                                            else setClickedZone(zone.id);
+                                                            
+                                                            // Opcional callback al padre
+                                                            if (onHouseClick) onHouseClick(zone.mza, zone.casa);
+                                                        }
                                                     }
                                                 }}
                                             />
