@@ -5,6 +5,7 @@ import {
     fetchEstatusOverrides,
     upsertEstatus,
     casaKey,
+    resolveEstatus,
     type EstatusManual,
 } from '../services/inventarioEstatusService';
 import { useAuth } from '../contexts/AuthContext';
@@ -35,12 +36,6 @@ const ESTATUS_CONFIG: Record<EstatusManual, { label: string; color: string; bg: 
     },
 };
 
-/** Normaliza el estatus que viene del CSV a uno de los 3 valores canónicos */
-function csvToManual(estatus: string): EstatusManual {
-    const s = estatus.toUpperCase();
-    if (s === 'DISPONIBLE' || s === 'DUSPONIBLE') return 'DISPONIBLE';
-    return 'DISPONIBLE'; // default
-}
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 const StatCard = ({ title, value, icon: Icon, color, subtitle }: any) => (
@@ -178,12 +173,7 @@ export default function Inventario() {
 
     useEffect(() => { load(); }, [load]);
 
-    /** Resuelve el estatus efectivo de una casa (override > CSV) */
-    const resolveEstatus = (item: InventarioItem): EstatusManual => {
-        const key = casaKey(item.mza, item.casa);
-        if (overrides.has(key)) return overrides.get(key)!;
-        return csvToManual(item.estatus);
-    };
+
 
     /** Callback cuando el usuario cambia el estatus de una casa */
     const handleEstatusChanged = (key: string, newEstatus: EstatusManual) => {
@@ -200,18 +190,18 @@ export default function Inventario() {
     // ── Filtrado ──
     const filtered = items.filter(item => {
         const condOk = filtroCondominio === 'Todos' || item.condominio === filtroCondominio;
-        const est = resolveEstatus(item);
+        const est = resolveEstatus(item.mza, item.casa, item.estatus, overrides);
         const estatusOk = filtroEstatus === 'Todos' || est === filtroEstatus;
         return condOk && estatusOk;
     });
 
     // ── Métricas ──
     const total = items.length;
-    const disponibles = items.filter(i => resolveEstatus(i) === 'DISPONIBLE').length;
-    const enProceso = items.filter(i => resolveEstatus(i) === 'EN_PROCESO').length;
-    const vendidas = items.filter(i => resolveEstatus(i) === 'VENDIDA').length;
+    const disponibles = items.filter(i => resolveEstatus(i.mza, i.casa, i.estatus, overrides) === 'DISPONIBLE').length;
+    const enProceso = items.filter(i => resolveEstatus(i.mza, i.casa, i.estatus, overrides) === 'EN_PROCESO').length;
+    const vendidas = items.filter(i => resolveEstatus(i.mza, i.casa, i.estatus, overrides) === 'VENDIDA').length;
     const inmediatas = items.filter(
-        i => resolveEstatus(i) === 'DISPONIBLE' &&
+        i => resolveEstatus(i.mza, i.casa, i.estatus, overrides) === 'DISPONIBLE' &&
             i.fechaEscrituracion.toUpperCase() === 'INMEDIATA'
     ).length;
 
@@ -221,7 +211,7 @@ export default function Inventario() {
     items.forEach(item => {
         const k = casaKey(item.mza, item.casa);
         itemsDataMap.set(k, item);
-        statusesMap.set(k, resolveEstatus(item));
+        statusesMap.set(k, resolveEstatus(item.mza, item.casa, item.estatus, overrides));
     });
 
     // ── Filtro button style ──
@@ -391,7 +381,7 @@ export default function Inventario() {
                                 </thead>
                                 <tbody>
                                     {filtered.map((item, idx) => {
-                                        const effectiveEstatus = resolveEstatus(item);
+                                        const effectiveEstatus = resolveEstatus(item.mza, item.casa, item.estatus, overrides);
                                         return (
                                             <tr key={`${item.mza}-${item.casa}-${idx}`}
                                                 style={{

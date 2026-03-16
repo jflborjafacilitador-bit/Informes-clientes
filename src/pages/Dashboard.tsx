@@ -3,6 +3,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { Users, AlertCircle, CalendarCheck, UserX, CalendarDays, Building2, Activity } from 'lucide-react';
 import { fetchClientsFromSheet } from '../services/googleSheets';
 import { fetchInventario } from '../services/inventarioService';
+import { fetchEstatusOverrides, resolveEstatus } from '../services/inventarioEstatusService';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -69,6 +70,7 @@ export default function Dashboard() {
     // Inventario
     const [invDisponibles, setInvDisponibles] = useState(0);
     const [invTotal, setInvTotal] = useState(0);
+    const [invDisponiblesMza, setInvDisponiblesMza] = useState<Record<string, number>>({});
     // Actividad reciente
     const [activity, setActivity] = useState<{ email: string; last_action: string; last_seen: string }[]>([]);
     // Todos los asesores registrados
@@ -87,10 +89,21 @@ export default function Dashboard() {
         if (session && role) {
             loadData();
             // Cargar inventario
-            fetchInventario().then(items => {
-                const disp = items.filter(i => i.estatus === 'DISPONIBLE' || i.estatus === 'DUSPONIBLE').length;
+            Promise.all([fetchInventario(), fetchEstatusOverrides()]).then(([items, overrides]) => {
+                let disp = 0;
+                const mzaDisp: Record<string, number> = {};
+                items.forEach(i => {
+                    if (resolveEstatus(i.mza, i.casa, i.estatus, overrides) === 'DISPONIBLE') {
+                        disp++;
+                        const rawMza = (i.mza || '').trim();
+                        const mzaName = rawMza.toLowerCase().startsWith('manzana') ? rawMza : `Manzana ${rawMza}`;
+                        mzaDisp[mzaName] = (mzaDisp[mzaName] || 0) + 1;
+                    }
+                });
+                
                 setInvDisponibles(disp);
                 setInvTotal(items.length);
+                setInvDisponiblesMza(mzaDisp);
             }).catch(() => { });
             const channel = supabase.channel('realtime_dashboard')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'client_overrides' }, () => { loadData(); })
@@ -299,6 +312,24 @@ export default function Dashboard() {
                     </span>
                     <span style={{ color: '#ef4444', fontWeight: '600' }}>🔴 {invTotal - invDisponibles} No disponibles</span>
                 </div>
+                
+                {Object.keys(invDisponiblesMza).length > 0 && (
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                        {Object.entries(invDisponiblesMza).map(([mza, count]) => (
+                            <div key={mza} style={{ 
+                                padding: '4px 10px', 
+                                borderRadius: '12px', 
+                                border: '1px solid rgba(34,197,94,0.3)', 
+                                background: 'rgba(34,197,94,0.05)',
+                                fontSize: '0.75rem',
+                                color: 'var(--text-main)'
+                            }}>
+                                <span style={{ color: 'var(--text-muted)' }}>{mza}:</span> <strong style={{color: 'var(--primary-accent)'}}>{count}</strong> libres
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 <div style={{ height: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', overflow: 'hidden' }}>
                     <div style={{
                         height: '100%',

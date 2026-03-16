@@ -58,3 +58,25 @@ export const upsertEstatus = async (
         throw error;
     }
 };
+
+/** Normaliza el estatus que viene del CSV a uno de los 3 valores canónicos */
+export function csvToManual(estatus: string): EstatusManual {
+    if (!estatus) return 'DISPONIBLE';
+    const s = estatus.toUpperCase();
+    if (s.includes('VENDIDA') || s.includes('ENTREGADA')) return 'VENDIDA';
+    if (s.includes('PROCESO') || s.includes('APARTAD') || s.includes('FIRMA')) return 'EN_PROCESO';
+    // Si dice DISPONIBLE o cualquier otra cosa no explícitamente vendida/apartada
+    return 'DISPONIBLE'; 
+}
+
+/** Resuelve el estatus efectivo de una casa (override DB > CSV String) */
+export function resolveEstatus(
+    mza: string, 
+    casa: string, 
+    csvEstatus: string, 
+    overrides: Map<string, EstatusManual>
+): EstatusManual {
+    const key = casaKey(mza, casa);
+    if (overrides.has(key)) return overrides.get(key)!;
+    return csvToManual(csvEstatus);
+}
