@@ -175,7 +175,10 @@ export default function Calculadora() {
     const [searchParams] = useSearchParams();
     const [isGenerating, setIsGenerating] = useState(false);
 
-    const [manzana, setManzana] = useState(searchParams.get('manzana') || '');
+    const mzParam = searchParams.get('manzana') || '';
+    const initialMza = mzParam ? (mzParam.toLowerCase().startsWith('manzana') ? mzParam : `Manzana ${mzParam}`) : '';
+
+    const [manzana, setManzana] = useState(initialMza);
     const [modelo, setModelo] = useState(searchParams.get('modelo') || '');
     const [version, setVersion] = useState(searchParams.get('version') || '');
     const [tipo, setTipo] = useState<TipoCredito | ''>('');
@@ -203,18 +206,18 @@ export default function Calculadora() {
 
     // Listas derivadas
     const modelos = useMemo(() =>
-        manzana ? [...new Set(PRECIOS[manzana].map(r => r.modelo))] : [], [manzana]);
+        manzana && PRECIOS[manzana] ? [...new Set(PRECIOS[manzana].map(r => r.modelo))] : [], [manzana]);
 
     const versiones = useMemo(() =>
-        (manzana && modelo) ? PRECIOS[manzana].filter(r => r.modelo === modelo).map(r => r.version) : [], [manzana, modelo]);
+        (manzana && PRECIOS[manzana] && modelo) ? PRECIOS[manzana].filter(r => r.modelo === modelo).map(r => r.version) : [], [manzana, modelo]);
 
     const precioBase = useMemo(() => {
-        if (!manzana || !modelo || !version) return 0;
+        if (!manzana || !PRECIOS[manzana] || !modelo || !version) return 0;
         return PRECIOS[manzana].find(r => r.modelo === modelo && r.version === version)?.precio ?? 0;
     }, [manzana, modelo, version]);
 
     const valAvaluo = useMemo(() => {
-        if (!manzana || !modelo || !version) return 0;
+        if (!manzana || !PRECIOS[manzana] || !modelo || !version) return 0;
         return PRECIOS[manzana].find(r => r.modelo === modelo && r.version === version)?.avaluo ?? 0;
     }, [manzana, modelo, version]);
 
