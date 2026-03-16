@@ -51,7 +51,7 @@ jobs:
             set net:max-retries 3
             set xfer:use-temp-file yes
             set xfer:temp-file-name *.tmp
-            mirror --reverse --transfer-all --overwrite --verbose --exclude-glob *.map \
+            mirror --reverse --parallel=10 --transfer-all --overwrite --verbose --exclude-glob *.map \
               ./dist/ ./domains/registro.residenciallosquetzales.com/public_html/
             bye
           SFTP_SCRIPT

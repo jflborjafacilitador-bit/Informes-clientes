@@ -34,13 +34,14 @@ El flujo es:
 El comando de sincronización DEBE usar el flag **`--transfer-all`**, NO `--ignore-time`.
 
 ```bash
-mirror --reverse --transfer-all --overwrite --verbose --exclude-glob *.map \
+mirror --reverse --parallel=10 --transfer-all --overwrite --verbose --exclude-glob *.map \
   ./dist/ ./domains/registro.residenciallosquetzales.com/public_html/
 ```
 
-**¿Por qué?**
+**¿Por qué `--transfer-all` y `--parallel=10`?**
 - `--ignore-time` le deja la decisión al servidor sobre si el archivo "cambió". En SFTP de Hostinger, los timestamps a veces no se comparan bien y el servidor cree que los archivos son iguales cuando no lo son → **los archivos viejos permanecen**.
-- `--transfer-all` sube **siempre** todos los archivos, sin comparar. Es más lento pero garantiza que los cambios lleguen.
+- `--transfer-all` sube **siempre** todos los archivos, sin comparar. Es más lento secuencialmente, pero garantiza que los cambios lleguen.
+- `--parallel=10` acelera enormemente este proceso abriendo 10 conexiones simultáneas para subir varios archivos a la vez, reduciendo el tiempo de despliegue de 5+ minutos a menos de 1 minuto.
 
 ---
 
