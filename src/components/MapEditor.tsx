@@ -538,21 +538,31 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                     )}
 
                     <TransformWrapper
-                        initialScale={1}
-                        minScale={0.2}
-                        maxScale={5}
+                        initialScale={0.9}
+                        minScale={0.1}
+                        maxScale={8}
                         centerOnInit={true}
                         disabled={mode === 'edit' || mode === 'drag'} // Disable panning while drawing/dragging
-                        wheel={{ disabled: false }}
+                        wheel={{ step: 0.1 }}
                         panning={{ disabled: mode === 'edit' || mode === 'drag', velocityDisabled: true }}
                     >
                         <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }} contentStyle={{ width: '100%', height: '100%' }}>
                             <div style={{ 
                                 position: 'relative', 
-                                width: `${w}px`, 
-                                height: `${h}px`,
-                                transformOrigin: 'top left'
+                                width: '100%', 
+                                height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transformOrigin: 'center'
                             }}>
+                                <div style={{ 
+                                    position: 'relative', 
+                                    width: `${w}px`, 
+                                    height: `${h}px`,
+                                    maxWidth: '100%',
+                                    maxHeight: '100%'
+                                }}>
                                 <img 
                                     ref={imgRef}
                                     src={imageUrl} 
@@ -640,6 +650,7 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                                         return null;
                                     })}
                                 </svg>
+                                </div>
                             </div>
                         </TransformComponent>
                     </TransformWrapper>
