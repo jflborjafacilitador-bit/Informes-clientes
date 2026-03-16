@@ -162,7 +162,7 @@ const CheckboxOption = ({ label, price, checked, onChange, isCustom = false, cus
                     width: '90px', fontSize: '0.8rem', outline: 'none'
                 }}
             />
-        ) : (
+        ) : price !== undefined && (
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: checked ? 'var(--primary-accent)' : 'var(--text-muted)' }}>
                 +{fmt(price)}
             </span>
