@@ -41,6 +41,7 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
     const [currentPoints, setCurrentPoints] = useState<{x: number, y: number}[]>([]);
     const [hoveredZone, setHoveredZone] = useState<string | null>(null);
     const [clickedZone, setClickedZone] = useState<string | null>(null);
+    const [showVersionsFor, setShowVersionsFor] = useState<string | null>(null);
     const [selectedZone, setSelectedZone] = useState<string | null>(null);
     const [editMza, setEditMza] = useState('');
     const [editCasa, setEditCasa] = useState('');
@@ -412,7 +413,7 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                         <button 
                             className="ghost-button" 
                             style={{ background: mode === 'view' ? 'var(--primary-accent)' : 'transparent', color: mode === 'view' ? '#000' : '#fff' }}
-                            onClick={() => { setMode('view'); setIsDrawing(false); setSelectedZone(null); setClickedZone(null); }}
+                            onClick={() => { setMode('view'); setIsDrawing(false); setSelectedZone(null); setClickedZone(null); setShowVersionsFor(null); }}
                         >
                             <Eye size={16} /> Navegar
                         </button>
@@ -608,27 +609,35 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Escrituración:</span> <span style={{ color: activeItem.fechaEscrituracion.toUpperCase() === 'INMEDIATA' ? '#f59e0b' : 'white' }}>{activeItem.fechaEscrituracion}</span></div>
                                         
                                         {clickedZone && activeStatus === 'DISPONIBLE' && (
-                                            <button 
-                                                className="base-button" 
-                                                style={{ marginTop: '12px', background: 'var(--primary-accent)', color: '#000', width: '100%', justifyContent: 'center' }}
-                                                onClick={() => {
-                                                    // Determinar versión base en el csv (ej. 'EQUIPADA', 'AUSTERA', etc)
-                                                    let ver = activeItem.equipamiento || '';
-                                                    const isEquipada = ver.toLowerCase().includes('equip');
-                                                    const isAustera = ver.toLowerCase().includes('aust');
-                                                    const isElite = ver.toLowerCase().includes('elite');
-
-                                                    if (isEquipada) ver = 'EQUIPADA';
-                                                    else if (isAustera) ver = 'AUSTERA';
-                                                    else ver = 'EQUIPADA';
-
-                                                    if (isElite) ver += ' ELITE';
-
-                                                    navigate(`/calculadora?manzana=${activeZoneData.mza}&modelo=${activeItem.prototipo}&version=${ver}`);
-                                                }}
-                                            >
-                                                <Calculator size={16} /> Calcular
-                                            </button>
+                                            showVersionsFor === activeId ? (
+                                                <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                    <div style={{ fontSize: '0.75rem', color: 'var(--primary-accent)', marginBottom: '4px', textAlign: 'center', fontWeight: 'bold' }}>SELECCIONA LA VERSIÓN:</div>
+                                                    {['AUSTERA', 'EQUIPADA', 'AUSTERA ELITE', 'EQUIPADA ELITE'].map(v => (
+                                                        <button 
+                                                            key={v}
+                                                            className="base-button" 
+                                                            style={{ background: 'rgba(34,197,94,0.1)', color: 'white', border: '1px solid var(--primary-accent)', width: '100%', justifyContent: 'center', fontSize: '0.8rem', padding: '6px' }}
+                                                            onClick={e => {
+                                                                e.stopPropagation();
+                                                                navigate(`/calculadora?manzana=${activeZoneData.mza}&modelo=${activeItem.prototipo}&version=${v}`);
+                                                            }}
+                                                        >
+                                                            {v}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <button 
+                                                    className="base-button" 
+                                                    style={{ marginTop: '12px', background: 'var(--primary-accent)', color: '#000', width: '100%', justifyContent: 'center' }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setShowVersionsFor(activeId);
+                                                    }}
+                                                >
+                                                    <Calculator size={16} /> Calcular
+                                                </button>
+                                            )
                                         )}
                                     </div>
                                 ) : (
@@ -728,8 +737,13 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                                                         setEditCasa(zone.casa);
                                                     } else if (mode === 'view') {
                                                         if (status !== 'VENDIDA') {
-                                                            if (clickedZone === zone.id) setClickedZone(null); // toggle off
-                                                            else setClickedZone(zone.id);
+                                                            if (clickedZone === zone.id) {
+                                                                setClickedZone(null); // toggle off
+                                                                setShowVersionsFor(null);
+                                                            } else {
+                                                                setClickedZone(zone.id);
+                                                                setShowVersionsFor(null);
+                                                            }
                                                             
                                                             // Opcional callback al padre
                                                             if (onHouseClick) onHouseClick(zone.mza, zone.casa);
