@@ -190,6 +190,7 @@ export default function Calculadora() {
     
     // Especial Contado / CFE
     const [montoDisponible, setMontoDisponible] = useState('');
+    const [usarAvaluo, setUsarAvaluo] = useState(false);
 
     // Extras
     const [extraPersianas, setExtraPersianas] = useState(false);
@@ -211,6 +212,13 @@ export default function Calculadora() {
         return PRECIOS[manzana].find(r => r.modelo === modelo && r.version === version)?.precio ?? 0;
     }, [manzana, modelo, version]);
 
+    const valAvaluo = useMemo(() => {
+        if (!manzana || !modelo || !version) return 0;
+        return PRECIOS[manzana].find(r => r.modelo === modelo && r.version === version)?.avaluo ?? 0;
+    }, [manzana, modelo, version]);
+
+    const precioOperacion = usarAvaluo && valAvaluo > 0 ? valAvaluo : precioBase;
+
     const extrasTotal = useMemo(() => {
         let t = 0;
         if (extraPersianas) t += 8000;
@@ -222,8 +230,8 @@ export default function Calculadora() {
 
     // Calcular resultado
     const resultado = useMemo(() => {
-        if (!tipo || !precioBase) return null;
-        const subtotal = precioBase - num(descuento);
+        if (!tipo || !precioOperacion) return null;
+        const subtotal = precioOperacion - num(descuento);
         const pv = subtotal + extrasTotal; // Precio de Venta (con extras)
         const gn = num(gastosNot);
         const total = pv + gn;
@@ -304,7 +312,7 @@ export default function Calculadora() {
         }
 
         return { diferencia, desglose, total, extrasTotal };
-    }, [tipo, precioBase, descuento, gastosNot, credito, subcuenta, creditoBanco, creditoFoviss, apartado, extrasTotal, montoDisponible]);
+    }, [tipo, precioOperacion, descuento, gastosNot, credito, subcuenta, creditoBanco, creditoFoviss, apartado, extrasTotal, montoDisponible]);
 
     // Efecto para calcular Gastos Notariales en base al Avalúo
     useEffect(() => {
@@ -340,15 +348,16 @@ export default function Calculadora() {
         setCreditoBanco(''); setCreditoFoviss(''); setApartado(''); setDescuento('');
         setMontoDisponible('');
         setExtraPersianas(false); setExtraCancel(false); setExtraProtecciones(false); setExtraEsquina(false);
+        setUsarAvaluo(false);
     };
 
     // Funciones de conveniencia para botón "Apartado"
     const applyApartado = (pct: number | 'FIXED') => {
-        if (!precioBase) return;
+        if (!precioOperacion) return;
         if (pct === 'FIXED') {
             setApartado(fmt(20000));
         } else {
-            setApartado(fmt(precioBase * pct));
+            setApartado(fmt(precioOperacion * pct));
         }
     };
 
@@ -391,7 +400,7 @@ export default function Calculadora() {
                 ['Manzana', manzana],
                 ['Modelo', modelo],
                 ['Versión', version],
-                ['Precio Base', fmt(precioBase || 0)]
+                [usarAvaluo ? 'Valor de Avalúo (Base Calculada)' : 'Precio Base', fmt(precioOperacion || 0)]
             ];
 
             // Añadir extras a la propiedad
@@ -401,7 +410,7 @@ export default function Calculadora() {
             if (extraCancel) propertyBody.push(['Extra: Cancel Extra', fmt(10000)]);
             if (extraProtecciones) propertyBody.push(['Extra: Protecciones', fmt(num(costoProtecciones))]);
 
-            propertyBody.push(['Precio de Venta (Con Extras)', fmt((precioBase || 0) - num(descuento) + (resultado?.extrasTotal || 0))]);
+            propertyBody.push(['Precio de Venta (Con Extras)', fmt((precioOperacion || 0) - num(descuento) + (resultado?.extrasTotal || 0))]);
 
             autoTable(doc, {
                 startY: 55,
@@ -425,7 +434,7 @@ export default function Calculadora() {
 
             let desgloseFormat = resultado?.desglose.map(d => [
                 d.label, 
-                { content: fmt(Math.abs(d.monto)), styles: { textColor: d.monto < 0 ? [220, 38, 38] : grisOscuro } }
+                { content: fmt(Math.abs(d.monto)), styles: { textColor: d.monto < 0 ? [37, 99, 235] : grisOscuro } }
             ]) || [];
 
             autoTable(doc, {
@@ -444,7 +453,7 @@ export default function Calculadora() {
             // 4. Resultado Final
             finalY = (doc as any).lastAutoTable.finalY + 10;
             const esAFavor = (resultado?.diferencia || 0) <= 0;
-            const colorResultado = esAFavor ? verdeQuetzal : [220, 38, 38]; // Verde o Rojo
+            const colorResultado = esAFavor ? verdeQuetzal : [37, 99, 235]; // Verde o Azul
             
             doc.setDrawColor(colorResultado[0], colorResultado[1], colorResultado[2]);
             doc.setFillColor(colorResultado[0], colorResultado[1], colorResultado[2]);
@@ -601,19 +610,24 @@ export default function Calculadora() {
                             marginTop: '1rem', padding: '1rem', borderRadius: 12,
                             background: 'rgba(34,197,94,0.07)',
                             border: '1px solid rgba(34,197,94,0.2)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8,
+                            display: 'flex', flexDirection: 'column', gap: 12,
                         }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Precio Base 2026</span>
-                                <span style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--primary-accent)' }} className="glow-text">
-                                    {fmt(precioBase)}
-                                </span>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Precio Base 2026</span>
+                                    <span style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--primary-accent)' }} className="glow-text">
+                                        {fmt(precioBase)}
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'right' }}>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Valor de Avalúo</span>
+                                    <span style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                                        {fmt(valAvaluo)}
+                                    </span>
+                                </div>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'right' }}>
-                                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Valor de Avalúo</span>
-                                <span style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-main)' }}>
-                                    {fmt(PRECIOS[manzana]?.find(r => r.modelo === modelo && r.version === version)?.avaluo || 0)}
-                                </span>
+                            <div style={{ borderTop: '1px solid rgba(34,197,94,0.2)', paddingTop: '12px' }}>
+                                <CheckboxOption label="Usar Valor de Avalúo para cálculo de la cotización" checked={usarAvaluo} onChange={setUsarAvaluo} />
                             </div>
                         </div>
                     )}
@@ -673,7 +687,7 @@ export default function Calculadora() {
                             3 · Datos del Crédito
                         </h2>
                         <div style={gridStyle}>
-                            <Field label="Costo Total de Vivienda" value={fmt(precioBase + (resultado?.extrasTotal || 0))} readOnly helperText="Precio Base + Extras" />
+                            <Field label="Costo Total de Operación" value={fmt(precioOperacion + (resultado?.extrasTotal || 0))} readOnly helperText={(usarAvaluo ? "Valor Avalúo" : "Precio Base") + " + Extras"} />
                             <Field label="Descuento (opcional)" value={descuento} onChange={setDescuento} />
 
                             {showGN && (
