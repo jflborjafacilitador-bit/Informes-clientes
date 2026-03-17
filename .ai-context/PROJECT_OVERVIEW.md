@@ -31,10 +31,17 @@ Existen distintos niveles de usuario que restringen el acceso a vistas (Sidebar)
 - La ruta de Clientes permite generar contratos de compra-venta usando `jspdf` y `jspdf-autotable`.
 - Estos documentos incorporan marcas de agua dinámicas e incluyen textos jurídicos con saltos de línea y cláusulas formales pre-programadas.
 
-### D. Tracking de Sesiones de Usuario
+### D. Tracking de Sesiones y Notificaciones
 - El sistema utiliza `Supabase Realtime Presence` para saber quién está "En Línea".
-- Se realiza un *heartbeat* cada minuto en `App.tsx` para actualizar el `last_seen`.
 - Las acciones críticas interactúan con la tabla `profiles` grabando el `last_action` del usuario.
+- **Notificaciones en Tiempo Real:** La campana superior lee de la tabla `notifications` agrupada mediante Websockets. Actualmente se disparan alertas automáticas (`auth.users`) al ser asignado como asesor de un prospecto desde `Clientes.tsx` o al haber un cambio de inventario.
+
+### E. Mapeo URL y Calculadora (Integration Map -> Calc)
+- Los tooltips del mapa pasan parámetros contextuales por la query URL (`?manzana=2&modelo=QUETZAL...`) que `Calculadora.tsx` parsea automáticamente para prellenar los selects.
+- **Normalización de Texto:** La base de datos del mapa y la de los precios base no siempre coinciden ortográficamente (Ej. 'QUETZAL ROOF' vs 'QUETZAL C/ROOF GARDEN'). La calculadora posee una capa de *fuzzy matching* básico o limpieza de substrings para remapear estos valores al inicializar la visa.
+
+### F. Motor Unificado de Estatus de Inventario
+- Existen tres flujos de la verdad para conocer si una casa está libre: lo que dice el CSV importado de Google Sheets, lo que sobreescribió un humano, y el contador estadístico del Dashboard. Todos ellos **deben** resolverse usando el serivicio `inventarioEstatusService.ts -> resolveEstatus()`, que es la única fuente de la verdad para transformar strings como "Entregada", "Apartada" en los flags canónicos (`DISPONIBLE`, `EN_PROCESO`, `VENDIDA`).
 
 ## 4. Notas para Agentes IA
 - Si tienes que tocar infraestructura de Despliegue, revisa OBLIGATORIAMENTE el `DEPLOYMENT_GUIDE.md` en la raíz primero.
