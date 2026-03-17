@@ -1,7 +1,8 @@
-import { Bell, User, Menu, Download, Sun, Moon } from 'lucide-react';
+import { User, Menu, Download, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useState, useEffect } from 'react';
+import NotificationDropdown from './NotificationDropdown';
 
 interface HeaderProps {
     onMenuClick: () => void;
@@ -91,25 +92,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                         <span className="header-user-info">Instalar app</span>
                     </button>
                 )}
-                <button style={{
-                    background: 'var(--ghost-bg)',
-                    border: 'none', borderRadius: '50%',
-                    width: '40px', height: '40px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: 'var(--text-main)', cursor: 'pointer', position: 'relative',
-                    transition: 'background 0.2s', flexShrink: 0,
-                }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--ghost-bg-hover)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'var(--ghost-bg)'}
-                >
-                    <Bell size={18} />
-                    <span style={{
-                        position: 'absolute', top: '8px', right: '8px',
-                        width: '8px', height: '8px',
-                        background: 'var(--primary-accent)', borderRadius: '50%',
-                        boxShadow: '0 0 8px var(--primary-accent)'
-                    }}></span>
-                </button>
+                <NotificationDropdown />
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
                     {/* Nombre — oculto en pantallas muy pequeñas */}

@@ -122,6 +122,14 @@ export default function Clientes() {
                 { client_id: id, assigned_to: value, assigned_email: asesor?.email || '' },
                 { onConflict: 'client_id' }
             );
+            const clientName = clients.find(c => c.id === id)?.name ?? id;
+            await supabase.from('notifications').insert({
+                user_id: value,
+                title: 'Nuevo Prospecto Asignado',
+                message: `Se te ha asignado al cliente ${clientName}.`,
+                type: 'assigned_client',
+                read: false
+            }).then(() => {});
         }
         const clientName = clients.find(c => c.id === id)?.name ?? id;
         supabase.from('profiles').update({
