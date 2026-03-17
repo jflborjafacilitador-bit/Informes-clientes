@@ -179,9 +179,12 @@ export default function Calculadora() {
     const initialMza = mzParam ? (mzParam.toLowerCase().startsWith('manzana') ? mzParam : `Manzana ${mzParam}`) : '';
     
     // Convert 'QUETZA' to 'QUETZAL' if it comes misspelled from map data
-    const rawModelo = searchParams.get('modelo') || '';
-    const initialModelo = rawModelo.replace('QUETZA PLUS', 'QUETZAL PLUS');
-
+    const rawModelo = (searchParams.get('modelo') || '').toUpperCase();
+    let initialModelo = rawModelo;
+    if (rawModelo.includes('ROOF')) initialModelo = 'QUETZAL C/ROOF GARDEN';
+    else if (rawModelo.includes('PLUS') && rawModelo.includes('F.A')) initialModelo = 'QUETZAL PLUS F.A.';
+    else if (rawModelo.includes('PLUS')) initialModelo = 'QUETZAL PLUS';
+    else if (rawModelo.includes('QUETZ')) initialModelo = 'QUETZAL';
     const [manzana, setManzana] = useState(initialMza);
     const [modelo, setModelo] = useState(initialModelo);
     const [version, setVersion] = useState(searchParams.get('version') || '');
