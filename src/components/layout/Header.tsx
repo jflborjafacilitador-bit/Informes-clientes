@@ -1,4 +1,4 @@
-import { Bell, Search, User, Menu, Download, Sun, Moon } from 'lucide-react';
+import { Bell, User, Menu, Download, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useState, useEffect } from 'react';
@@ -49,41 +49,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 >
                     <Menu size={20} />
                 </button>
-
-                <div style={{
-                    position: 'relative',
-                    width: '100%',
-                    maxWidth: '400px',
-                    display: 'flex',
-                    alignItems: 'center'
-                }}>
-                    <Search size={18} style={{ position: 'absolute', left: '16px', color: 'var(--text-muted)' }} />
-                    <input
-                        type="text"
-                        placeholder="Buscar clientes, registros..."
-                        style={{
-                            width: '100%',
-                            padding: '10px 16px 10px 44px',
-                            borderRadius: '20px',
-                            background: 'var(--panel-item-bg)',
-                            border: '1px solid var(--border-glass)',
-                            color: 'var(--text-main)',
-                            outline: 'none',
-                            fontFamily: 'inherit',
-                            transition: 'all 0.3s'
-                        }}
-                        onFocus={(e) => {
-                            e.currentTarget.style.background = 'rgba(34, 197, 94, 0.05)';
-                            e.currentTarget.style.borderColor = 'rgba(34, 197, 94, 0.4)';
-                            e.currentTarget.style.boxShadow = '0 0 15px rgba(34, 197, 94, 0.1)';
-                        }}
-                        onBlur={(e) => {
-                            e.currentTarget.style.background = 'var(--panel-item-bg)';
-                            e.currentTarget.style.borderColor = 'var(--border-glass)';
-                            e.currentTarget.style.boxShadow = 'none';
-                        }}
-                    />
-                </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
