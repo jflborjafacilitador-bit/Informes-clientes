@@ -1,4 +1,4 @@
-import Papa from 'papaparse';
+import * as xlsx from 'xlsx';
 
 export interface InventarioItem {
     mza: string;
@@ -17,55 +17,50 @@ export interface InventarioItem {
     fechaEscrituracion: string;
 }
 
-// La hoja exportada como CSV tiene filas decorativas al inicio.
-// Los datos reales comienzan cuando la columna B (índice 1) tiene un número de manzana.
-const CSV_URL =
-    'https://docs.google.com/spreadsheets/d/1R6Qx34NT-_An1gs5qjMCcxPRmc5Ns1gp/export?format=csv';
+const EXCEL_URL = '/Inventario/INVENTARIO 18-03-26.xlsx';
 
-export const fetchInventario = (): Promise<InventarioItem[]> => {
-    return new Promise((resolve, reject) => {
-        Papa.parse(CSV_URL, {
-            download: true,
-            header: false,
-            skipEmptyLines: true,
-            complete: (results) => {
-                const rows = results.data as string[][];
+export const fetchInventario = async (): Promise<InventarioItem[]> => {
+    try {
+        const response = await fetch(EXCEL_URL);
+        const arrayBuffer = await response.arrayBuffer();
+        const workbook = xlsx.read(arrayBuffer, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        
+        // Obtenemos los datos de la hoja como un arreglo 2D
+        const rows = xlsx.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
 
-                const items: InventarioItem[] = rows
-                    .filter(row => {
-                        // La fila válida tiene un número en col B (índice 1) y un nombre de condominio en col D (índice 3)
-                        const mza = (row[1] || '').trim();
-                        const cond = (row[3] || '').trim().toUpperCase();
-                        return (
-                            mza !== '' &&
-                            !isNaN(Number(mza)) &&
-                            (cond.includes('TUCAN') || cond.includes('AVE') || cond.includes('PARAISO'))
-                        );
-                    })
-                    .map(row => ({
-                        mza: (row[1] || '').trim(),
-                        casa: (row[2] || '').trim(),
-                        condominio: (row[3] || '').trim(),
-                        prototipo: (row[4] || '').trim(),
-                        dtu: (row[5] || '').trim(),
-                        fechaDtu: (row[6] || '').trim(),
-                        m2Construccion: (row[7] || '').trim(),
-                        m2Terreno: (row[8] || '').trim(),
-                        m2Adicional: (row[9] || '').trim(),
-                        excedente: (row[10] || '').trim(),
-                        esquina: (row[11] || '').trim(),
-                        esquemaVenta: (row[12] || '').trim(),
-                        estatus: (row[13] || '').trim().toUpperCase(),
-                        fechaEscrituracion: (row[14] || '').trim(),
-                    }));
+        const items: InventarioItem[] = rows
+            .filter(row => {
+                const mza = String(row[1] || '').trim();
+                const cond = String(row[3] || '').trim().toUpperCase();
+                return (
+                    mza !== '' &&
+                    !isNaN(Number(mza)) &&
+                    (cond.includes('TUCAN') || cond.includes('AVE') || cond.includes('PARAISO'))
+                );
+            })
+            .map(row => ({
+                mza: String(row[1] || '').trim(),
+                casa: String(row[2] || '').trim(),
+                condominio: String(row[3] || '').trim(),
+                prototipo: String(row[4] || '').trim(),
+                dtu: String(row[5] || '').trim(),
+                fechaDtu: String(row[6] || '').trim(),
+                m2Construccion: String(row[7] || '').trim(),
+                m2Terreno: String(row[8] || '').trim(),
+                m2Adicional: String(row[9] || '').trim(),
+                excedente: String(row[10] || '').trim(),
+                esquina: String(row[11] || '').trim(),
+                esquemaVenta: String(row[12] || '').trim(),
+                estatus: String(row[13] || '').trim().toUpperCase(),
+                fechaEscrituracion: String(row[14] || '').trim(),
+            }));
 
-                console.log(`Inventario cargado: ${items.length} casas encontradas.`);
-                resolve(items);
-            },
-            error: (error) => {
-                console.error('Error al cargar inventario:', error);
-                reject(error);
-            },
-        });
-    });
+        console.log(`Inventario cargado: ${items.length} casas encontradas desde Excel.`);
+        return items;
+    } catch (error) {
+        console.error('Error al cargar inventario:', error);
+        throw error;
+    }
 };
