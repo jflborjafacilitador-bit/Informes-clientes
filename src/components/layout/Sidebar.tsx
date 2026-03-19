@@ -1,6 +1,7 @@
 import { Home, Users, BarChart2, Settings, LogOut, UserCog, X, Building2, UtensilsCrossed, CalendarDays, Calculator, FileSignature, Tag } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import pkg from '../../../package.json';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -116,7 +117,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 border: '1px solid rgba(34,197,94,0.25)',
                 borderRadius: '4px',
                 padding: '0px 5px',
-              }}>v1.6.18</span>
+              }}>v{pkg.version}</span>
             </div>
           </div>
         </div>
