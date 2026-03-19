@@ -3,38 +3,7 @@ import { Calculator, ChevronDown, Download, CheckSquare, Square } from 'lucide-r
 import { useSearchParams } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-
-// ─── Datos de precios ────────────────────────────────────────────
-const PRECIOS: Record<string, { modelo: string; version: string; precio: number; avaluo?: number }[]> = {
-    'Manzana 2': [
-        { modelo: 'QUETZAL', version: 'EQUIPADA', precio: 1587000, avaluo: 1660000 },
-        { modelo: 'QUETZAL', version: 'EQUIPADA ELITE', precio: 1676000, avaluo: 1660000 },
-        { modelo: 'QUETZAL', version: 'AUSTERA', precio: 1456000, avaluo: 1660000 },
-        { modelo: 'QUETZAL', version: 'AUSTERA ELITE', precio: 1545000, avaluo: 1660000 },
-        { modelo: 'QUETZAL PLUS', version: 'EQUIPADA', precio: 1943000, avaluo: 2018000 },
-        { modelo: 'QUETZAL PLUS', version: 'EQUIPADA ELITE', precio: 2032000, avaluo: 2018000 },
-        { modelo: 'QUETZAL PLUS', version: 'AUSTERA', precio: 1768000, avaluo: 2018000 },
-        { modelo: 'QUETZAL PLUS', version: 'AUSTERA ELITE', precio: 1857000, avaluo: 2018000 },
-    ],
-    'Manzana 3': [
-        { modelo: 'QUETZAL C/ROOF GARDEN', version: 'EQUIPADA', precio: 1752000, avaluo: 1870000 },
-        { modelo: 'QUETZAL C/ROOF GARDEN', version: 'EQUIPADA ELITE', precio: 1839000, avaluo: 1870000 },
-        { modelo: 'QUETZAL C/ROOF GARDEN', version: 'AUSTERA', precio: 1687000, avaluo: 1870000 },
-        { modelo: 'QUETZAL C/ROOF GARDEN', version: 'AUSTERA ELITE', precio: 1774000, avaluo: 1870000 },
-        { modelo: 'QUETZAL', version: 'EQUIPADA', precio: 1620000, avaluo: 1770000 },
-        { modelo: 'QUETZAL', version: 'EQUIPADA ELITE', precio: 1689000, avaluo: 1770000 },
-        { modelo: 'QUETZAL', version: 'AUSTERA', precio: 1503000, avaluo: 1770000 },
-        { modelo: 'QUETZAL', version: 'AUSTERA ELITE', precio: 1590000, avaluo: 1770000 },
-        { modelo: 'QUETZAL PLUS', version: 'EQUIPADA', precio: 1966000, avaluo: 2120000 },
-        { modelo: 'QUETZAL PLUS', version: 'EQUIPADA ELITE', precio: 2053000, avaluo: 2120000 },
-        { modelo: 'QUETZAL PLUS', version: 'AUSTERA', precio: 1807000, avaluo: 2120000 },
-        { modelo: 'QUETZAL PLUS', version: 'AUSTERA ELITE', precio: 1895000, avaluo: 2120000 },
-        { modelo: 'QUETZAL PLUS F.A.', version: 'EQUIPADA', precio: 1976000, avaluo: 2150000 },
-        { modelo: 'QUETZAL PLUS F.A.', version: 'EQUIPADA ELITE', precio: 2083000, avaluo: 2150000 },
-        { modelo: 'QUETZAL PLUS F.A.', version: 'AUSTERA', precio: 1837000, avaluo: 2150000 },
-        { modelo: 'QUETZAL PLUS F.A.', version: 'AUSTERA ELITE', precio: 1925000, avaluo: 2150000 },
-    ],
-};
+import { PRECIOS } from '../data/precios';
 
 type TipoCredito =
     | 'INFONAVIT'
