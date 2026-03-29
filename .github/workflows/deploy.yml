@@ -32,6 +32,11 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_EVOLUTION_API_URL: ${{ secrets.VITE_EVOLUTION_API_URL }}
+          VITE_EVOLUTION_API_KEY: ${{ secrets.VITE_EVOLUTION_API_KEY }}
+          VITE_N8N_BASE_URL: ${{ secrets.VITE_N8N_BASE_URL }}
+          VITE_N8N_API_KEY: ${{ secrets.VITE_N8N_API_KEY }}
+          VITE_DEEPSEEK_API_KEY: ${{ secrets.VITE_DEEPSEEK_API_KEY }}
 
       # 5. Instalar lftp
       - name: Instalar lftp
