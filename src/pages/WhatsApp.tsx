@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   MessageCircle, Plus, Wifi, WifiOff, QrCode, Trash2, Settings,
-  ChevronRight, Bot, RefreshCw, Send, Copy, CheckCircle,
-  AlertCircle, Loader2, Phone, Clock, User, X, Save,
+  Bot, RefreshCw, Copy, CheckCircle,
+  AlertCircle, Loader2, Phone, User, X, Save,
   ToggleLeft, ToggleRight, Zap, MessageSquare, Activity
 } from 'lucide-react';
 import {
@@ -466,7 +466,7 @@ function InfoRow({ label, value, mono = false, small = false }: { label: string;
 }
 
 // ─── Card de Instancia ────────────────────────────────────────────────────────
-function InstanceCard({ instance, onRefresh, onConfig, onShowQR, onDelete }: {
+function InstanceCard({ instance, onRefresh, onConfig, onShowQR, onDelete: _onDelete }: {
   instance: WhatsappInstance;
   onRefresh: () => void;
   onConfig: () => void;
