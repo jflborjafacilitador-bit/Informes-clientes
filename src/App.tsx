@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import Dashboard from './pages/Dashboard';
@@ -14,6 +14,8 @@ import Calendario from './pages/Calendario';
 import Calculadora from './pages/Calculadora';
 import Precios from './pages/Precios';
 import InicioRecepcion from './pages/InicioRecepcion';
+import WhatsApp from './pages/WhatsApp';
+import UserLanding from './pages/UserLanding';
 import UpdateBanner from './components/UpdateBanner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -71,6 +73,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       supabase.removeChannel(channel);
     };
   }, [session?.user?.id]);
+
+  const location = useLocation();
+  // Las landings públicas se renderizan fuera del panel completamente
+  if (location.pathname.startsWith('/registro/')) return <>{children}</>;
 
   if (!session) return <>{children}</>;
 
@@ -147,6 +153,7 @@ function App() {
           <AppLayout>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/registro/:slug" element={<UserLanding />} />
               <Route path="/" element={
                 <ProtectedRoute>
                   <RoleRedirect recepcionPath="/inicio-recepcion" escrituracionPath="/inventario">
@@ -164,6 +171,7 @@ function App() {
               <Route path="/calculadora" element={<ProtectedRoute><Calculadora /></ProtectedRoute>} />
               <Route path="/precios" element={<ProtectedRoute><Precios /></ProtectedRoute>} />
               <Route path="/usuarios" element={<ProtectedRoute><Usuarios /></ProtectedRoute>} />
+              <Route path="/whatsapp" element={<ProtectedRoute><WhatsApp /></ProtectedRoute>} />
             </Routes>
           </AppLayout>
         </Router>

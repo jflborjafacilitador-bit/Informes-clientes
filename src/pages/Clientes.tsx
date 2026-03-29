@@ -9,10 +9,11 @@ export default function Clientes() {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [assignFilter, setAssignFilter] = useState('');
+    const [originFilter, setOriginFilter] = useState<'todos' | 'asignado' | 'landing_propia'>('todos');
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState(25);
-    const [clients, setClients] = useState<ClientData[]>([]);
+    const [clients, setClients] = useState<(ClientData & { origen?: string; created_at?: string })[]>([]);
     const [asesores, setAsesores] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -33,7 +34,7 @@ export default function Clientes() {
     const loadData = async () => {
         setLoading(true);
         try {
-            // 1. Google Sheets es la fuente de verdad para los datos base
+            // 1. Google Sheets es la fuente de verdad para los datos base (Asignados)
             const sheetData = await fetchClientsFromSheet();
 
             // 2. Supabase guarda solo las modificaciones (estado y asignación)
@@ -41,8 +42,32 @@ export default function Clientes() {
                 .from('client_overrides')
                 .select('client_id, status, assigned_to, assigned_email, budget_range');
 
-            // 3. Mezclamos: el override de Supabase sobreescribe el dato de Sheets
-            const merged = sheetData.map(client => {
+            // 3. Obtener clientes propios de la Landing
+            const { data: ownClients } = await supabase
+                .from('clients')
+                .select('*')
+                .eq('origen', 'landing_propia');
+
+            // 4. Mapear clientes propios a ClientData
+            const mappedOwnClients: (ClientData & { origen?: string; created_at?: string })[] = (ownClients || []).map(c => ({
+                id: c.id,
+                name: c.name,
+                phone: c.phone || '',
+                segment: c.tipo_financiamiento || '',
+                budget: c.presupuesto || '',
+                date: c.created_at || '',
+                created_at: c.created_at,
+                rowIndex: new Date(c.created_at || Date.now()).getTime(), // Usar timestamp para ordenar
+                status: c.status || 'Nuevo',
+                origen: c.origen,
+                assigned_to: c.asesor_id,
+                budget_range: c.presupuesto || '',
+                sheet_assigned: undefined,
+                assigned_email: undefined
+            }));
+
+            // 5. Mezclamos SheetData con Overrides
+            const mergedSheets = sheetData.map(client => {
                 const override = overrides?.find(o => o.client_id === client.id);
                 if (override) {
                     return {
@@ -51,19 +76,25 @@ export default function Clientes() {
                         assigned_to: override.assigned_to || undefined,
                         assigned_email: override.assigned_email || undefined,
                         budget_range: override.budget_range || undefined,
+                        origen: 'asignado',
+                        created_at: client.date || ''
                     };
                 }
-                return client;
+                return { ...client, origen: 'asignado', created_at: client.date || '' };
             });
 
-            // Asesor ve clientes asignados por app (assigned_to) O por el Excel (sheet_assigned)
+            // 6. Unimos ambos origenes
+            const allClients = [...mappedOwnClients, ...mergedSheets];
+
+            // Asesor ve clientes asignados por app (assigned_to) O por el Excel (sheet_assigned) O los suyos propios (origen = landing)
             const emailPrefix = session?.user?.email?.split('@')[0]?.toLowerCase() || '';
             const visible = role === 'asesor'
-                ? merged.filter(c =>
+                ? allClients.filter(c =>
                     c.assigned_to === session?.user?.id ||
-                    (c.sheet_assigned && c.sheet_assigned.toLowerCase().includes(emailPrefix))
+                    (c.sheet_assigned && c.sheet_assigned.toLowerCase().includes(emailPrefix)) ||
+                    (c.origen === 'landing_propia' && c.assigned_to === session?.user?.id)
                 )
-                : merged;
+                : allClients;
             setClients(visible);
         } catch (error) {
             console.error('Error cargando clientes:', error);
@@ -153,7 +184,9 @@ export default function Clientes() {
                     ? client.assigned_email === 'pendiente'
                     // Filtrar por asesor específico (email)
                     : (client.assigned_email === assignFilter);
-        return matchSearch && matchStatus && matchAssign;
+        const matchOrigin = originFilter === 'todos' || client.origen === originFilter;
+
+        return matchSearch && matchStatus && matchAssign && matchOrigin;
     });
 
     const totalPages = Math.ceil(filteredClients.length / pageSize);
@@ -184,7 +217,43 @@ export default function Clientes() {
                         <span style={{ marginLeft: '10px', color: 'var(--text-main)', fontWeight: 'bold' }}>Total: {clients.length} / Activos: {clients.filter(c => c.status === 'Activo').length}</span>
                     </p>
                 </div>
+            </div>
 
+            {/* Pestañas de Origen */}
+            <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', borderBottom: '1px solid var(--border-glass)' }}>
+                <button
+                    onClick={() => { setOriginFilter('todos'); setPage(0); }}
+                    style={{
+                        background: 'transparent', border: 'none', cursor: 'pointer',
+                        padding: '10px 16px', fontSize: '1rem', fontWeight: originFilter === 'todos' ? 'bold' : 'normal',
+                        color: originFilter === 'todos' ? 'var(--primary-accent)' : 'var(--text-muted)',
+                        borderBottom: originFilter === 'todos' ? '2px solid var(--primary-accent)' : '2px solid transparent'
+                    }}
+                >
+                    Todos
+                </button>
+                <button
+                    onClick={() => { setOriginFilter('asignado'); setPage(0); }}
+                    style={{
+                        background: 'transparent', border: 'none', cursor: 'pointer',
+                        padding: '10px 16px', fontSize: '1rem', fontWeight: originFilter === 'asignado' ? 'bold' : 'normal',
+                        color: originFilter === 'asignado' ? 'var(--primary-accent)' : 'var(--text-muted)',
+                        borderBottom: originFilter === 'asignado' ? '2px solid var(--primary-accent)' : '2px solid transparent'
+                    }}
+                >
+                    Asignados (CRM)
+                </button>
+                <button
+                    onClick={() => { setOriginFilter('landing_propia'); setPage(0); }}
+                    style={{
+                        background: 'transparent', border: 'none', cursor: 'pointer',
+                        padding: '10px 16px', fontSize: '1rem', fontWeight: originFilter === 'landing_propia' ? 'bold' : 'normal',
+                        color: originFilter === 'landing_propia' ? 'var(--primary-accent)' : 'var(--text-muted)',
+                        borderBottom: originFilter === 'landing_propia' ? '2px solid var(--primary-accent)' : '2px solid transparent'
+                    }}
+                >
+                    Propios (Landing)
+                </button>
             </div>
 
             <div className="glass-panel" style={{ padding: '24px' }}>
@@ -289,6 +358,7 @@ export default function Clientes() {
                                 <tr style={{ borderBottom: '1px solid var(--border-glass)' }}>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500', width: '50px', textAlign: 'center' }}>#</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Nombre del Cliente</th>
+                                    <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Origen</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Teléfono</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Asignación</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Presupuesto</th>
@@ -309,6 +379,15 @@ export default function Clientes() {
                                     >
                                         <td style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{index + 1}</td>
                                         <td style={{ padding: '16px', fontWeight: '500' }}>{client.name}</td>
+                                        <td style={{ padding: '16px' }}>
+                                            <span style={{
+                                                fontSize: '0.75rem', padding: '4px 10px', borderRadius: '12px',
+                                                background: client.origen === 'landing_propia' ? 'rgba(56, 189, 248, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                                                color: client.origen === 'landing_propia' ? '#38bdf8' : 'var(--text-muted)'
+                                            }}>
+                                                {client.origen === 'landing_propia' ? 'Propio' : 'Asignado'}
+                                            </span>
+                                        </td>
                                         <td style={{ padding: '16px' }}>
                                             {client.phone ? (
                                                 <a

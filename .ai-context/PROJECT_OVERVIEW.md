@@ -1,6 +1,33 @@
 # Registro Web - Los Quetzales: AI Context Document
+**Última actualización:** 2026-03-29 | **Versión actual:** `1.6.22`
 
 Este documento sirve como "memoria técnica" para cualquier asistente IA que interactúe con el código fuente de este proyecto en el futuro. Léelo antes de sugerir cambios estructurales.
+
+---
+
+## 🔴 SESIÓN ACTIVA — Leer Primero
+
+### Estado al 29/03/2026 (~03:20 CST)
+- El servidor local **`npm run dev`** está corriendo en `http://localhost:5173/`
+- Se acaba de configurar el **MCP de n8n** en Antigravity (`mcp_config.json`)
+- El usuario va a **reiniciar Antigravity** para activar el MCP de n8n
+- La siguiente fase es: **integrar automatizaciones n8n** en el flujo del proyecto
+
+### MCP n8n Configurado
+- **Server URL:** `https://n8n-prueba1-n8n.exigs1.easypanel.host/mcp-server/http`
+- **API Key (Public API):** `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` (ver mcp_config.json)
+- **Instancia n8n:** versión 1.123.21 en EasyPanel
+- **Nombre del API Key:** "Residencial los quetzales"
+- El MCP usa `supergateway` con `--streamableHttp` para conectarse
+- Archivo de config: `C:\Users\Dynabook\.gemini\antigravity\mcp_config.json`
+
+### Próximos pasos acordados (por definir con el usuario)
+- [ ] Confirmar qué automatizaciones se van a construir (notificaciones, reportes, sync, etc.)
+- [ ] Ver los workflows existentes en n8n vía MCP
+- [ ] Integrar triggers/webhooks entre Supabase y n8n
+- [ ] Posibles integraciones: WhatsApp, Gmail, Telegram, Google Sheets
+
+---
 
 ## 1. Stack Tecnológico
 - **Frontend / Core:** React 19 (Hooks, Functional Components), TypeScript.
@@ -8,6 +35,7 @@ Este documento sirve como "memoria técnica" para cualquier asistente IA que int
 - **Backend / BaaS:** Supabase (PostgreSQL para Base de Datos, Auth para manejo de sesiones, Storage para imágenes).
 - **Estilos:** CSS Modules y variables CSS puras (`index.css`). Diseños basados en Glassmorphism (paneles translúcidos) y estética Cyberpunk/Tech (colores neón, acentos cyan/verde/naranja).
 - **Despliegue:** Hostinger vía GitHub Actions (SFTP).
+- **Automatizaciones:** n8n (self-hosted en EasyPanel) — **NUEVO, integrado en sesión 2026-03-29**
 
 ## 2. Modelos de Roles y Permisos (`AuthContext.tsx`)
 Existen distintos niveles de usuario que restringen el acceso a vistas (Sidebar) y funcionalidades:
@@ -47,3 +75,4 @@ Existen distintos niveles de usuario que restringen el acceso a vistas (Sidebar)
 - Si tienes que tocar infraestructura de Despliegue, revisa OBLIGATORIAMENTE el `DEPLOYMENT_GUIDE.md` en la raíz primero.
 - Mantén siempre el estilo de UI prémium: al crear modales o alertas, usa `backdrop-filter: blur()`, acentos brillantes, layouts flex/grid estrictos, y prioriza la legibilidad en fondos oscuros (`#07090E`).
 - **No inventes rutas backend:** Todas las operaciones de Base de Datos usan el cliente SSR de `@supabase/supabase-js`. Preferir métodos asíncronos en carpetas abstractas (ej. `services/`).
+- **MCP de n8n disponible:** Al iniciar una sesión nueva, el MCP `n8n-mcp` debería estar activo en Antigravity. Úsalo para ver y crear workflows de automatización. Si no aparece, revisa `C:\Users\Dynabook\.gemini\antigravity\mcp_config.json`.

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { UserPlus, Shield, Trash2 } from 'lucide-react';
+import { UserPlus, Shield, Trash2, Globe } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import LandingConfigModal from '../components/landing/LandingConfigModal';
 
 const ROLES = ['super_admin', 'gerente', 'asesor', 'recepcion', 'escrituracion', 'readonly'];
 
@@ -46,6 +47,7 @@ export default function Usuarios() {
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [landingUser, setLandingUser] = useState<any>(null);
 
     useEffect(() => { loadUsers(); }, []);
 
@@ -268,7 +270,15 @@ export default function Usuarios() {
                                         </td>
 
                                         {/* Acciones */}
-                                        <td style={{ padding: '14px 12px', textAlign: 'center' }}>
+                                        <td style={{ padding: '14px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                            <button
+                                                title="Configurar Landing Webhook"
+                                                onClick={() => setLandingUser({ id: user.id, email: user.email, full_name: user.full_name || user.email.split('@')[0] })}
+                                                style={{ background: 'transparent', border: 'none', color: '#10b981', cursor: 'pointer', opacity: 0.8, marginRight: '10px' }}
+                                                onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.opacity = '1'}
+                                                onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.opacity = '0.8'}>
+                                                <Globe size={16} />
+                                            </button>
                                             <button
                                                 title="Eliminar usuario"
                                                 onClick={() => handleDelete(user.id, user.email)}
@@ -293,6 +303,12 @@ export default function Usuarios() {
                     50% { opacity: 0.4; }
                 }
             `}</style>
+            {landingUser && (
+                <LandingConfigModal 
+                    user={landingUser} 
+                    onClose={() => setLandingUser(null)} 
+                />
+            )}
         </div>
     );
 }
