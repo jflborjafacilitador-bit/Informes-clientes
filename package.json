@@ -1,7 +1,7 @@
-{
+﻿{
   "name": "registro-app-los-quetzales",
   "private": true,
-  "version": "1.6.24",
+  "version": "1.6.25",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -41,3 +41,4 @@
     "xlsx": "^0.18.5"
   }
 }
+
