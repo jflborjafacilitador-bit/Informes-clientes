@@ -1099,19 +1099,20 @@ function AdvisorView() {
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
         <button onClick={load} style={{ 
           display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: '10px', 
-          background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', 
+          background: 'var(--ghost-bg)', border: '1px solid var(--border-glass)', 
           color: 'var(--text-muted)', fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.2s' 
-        }}>
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'var(--ghost-bg-hover)'; e.currentTarget.style.color = 'var(--text-main)'; }} 
+        onMouseLeave={e => { e.currentTarget.style.background = 'var(--ghost-bg)'; e.currentTarget.style.color = 'var(--text-muted)'; }}>
           <RefreshCw size={14}/> Refrescar Estado
         </button>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
         {/* Card 1: Estado de WhatsApp (Hardware) */}
-        <div style={{ 
+        <div className="glass-panel" style={{ 
           padding: '1.5rem', borderRadius: '16px', 
-          background: 'linear-gradient(135deg, rgba(7,9,14,0.95) 0%, rgba(15,20,30,0.95) 100%)', 
-          border: `1px solid ${sc?.color ?? '#6b7280'}30`, 
+          border: `1px solid ${sc?.color ?? 'var(--border-glass)'}30`, 
           boxShadow: `0 0 40px ${sc?.color ?? '#6b7280'}10`, 
           position: 'relative', overflow: 'hidden' 
         }}>
@@ -1139,10 +1140,9 @@ function AdvisorView() {
         </div>
 
         {/* Card 2: Inteligencia Artificial */}
-        <div style={{ 
+        <div className="glass-panel" style={{ 
           padding: '1.5rem', borderRadius: '16px', 
-          background: 'linear-gradient(135deg, rgba(7,9,14,0.95) 0%, rgba(15,20,30,0.95) 100%)', 
-          border: `1px solid ${instance.ai_enabled ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.08)'}`, 
+          border: `1px solid ${instance.ai_enabled ? 'rgba(34,197,94,0.3)' : 'var(--border-glass)'}`, 
           boxShadow: instance.ai_enabled ? '0 0 40px rgba(34,197,94,0.1)' : 'none', 
           transition: 'all 0.3s ease' 
         }}>
@@ -1150,8 +1150,8 @@ function AdvisorView() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ 
                 width: 40, height: 40, borderRadius: '10px', 
-                background: instance.ai_enabled ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)', 
-                border: `1px solid ${instance.ai_enabled ? 'rgba(34,197,94,0.25)' : 'rgba(255,255,255,0.1)'}`, 
+                background: instance.ai_enabled ? 'rgba(34,197,94,0.15)' : 'var(--ghost-bg)', 
+                border: `1px solid ${instance.ai_enabled ? 'rgba(34,197,94,0.25)' : 'var(--border-glass)'}`, 
                 display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.3s' 
               }}>
                 <Bot size={20} color={instance.ai_enabled ? '#22c55e' : '#6b7280'} />
