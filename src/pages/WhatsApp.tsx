@@ -1027,6 +1027,20 @@ function AdvisorView() {
   const [loading, setLoading] = useState(true);
   const [showQR, setShowQR] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [toggling, setToggling] = useState(false);
+
+  const handleToggleAI = async () => {
+    if (!instance) return;
+    setToggling(true);
+    try {
+      await whatsappService.updateInstance(instance.id, { ai_enabled: !instance.ai_enabled });
+      setInstance({ ...instance, ai_enabled: !instance.ai_enabled });
+    } catch {
+      // Ignorar error de red si falla
+    } finally {
+      setToggling(false);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1081,45 +1095,89 @@ function AdvisorView() {
         </div>
       </div>
 
-      {/* Card de estado */}
-      <div style={{
-        padding: '1.5rem', borderRadius: '16px',
-        background: 'linear-gradient(135deg, rgba(7,9,14,0.95) 0%, rgba(15,20,30,0.95) 100%)',
-        border: `1px solid ${sc?.color ?? '#6b7280'}30`,
-        boxShadow: `0 0 40px ${sc?.color ?? '#6b7280'}10`,
-        marginBottom: '1rem',
-      }}>
-        {/* Status badge */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.2rem' }}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: '20px', background: sc?.bg, border: `1px solid ${sc?.color}30` }}>
-              <span style={{ color: sc?.color }}>{sc?.icon}</span>
-              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: sc?.color }}>{sc?.label}</span>
+      {/* Botón superior de Refresh */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+        <button onClick={load} style={{ 
+          display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: '10px', 
+          background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', 
+          color: 'var(--text-muted)', fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.2s' 
+        }}>
+          <RefreshCw size={14}/> Refrescar Estado
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+        {/* Card 1: Estado de WhatsApp (Hardware) */}
+        <div style={{ 
+          padding: '1.5rem', borderRadius: '16px', 
+          background: 'linear-gradient(135deg, rgba(7,9,14,0.95) 0%, rgba(15,20,30,0.95) 100%)', 
+          border: `1px solid ${sc?.color ?? '#6b7280'}30`, 
+          boxShadow: `0 0 40px ${sc?.color ?? '#6b7280'}10`, 
+          position: 'relative', overflow: 'hidden' 
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Phone size={18} color="var(--text-muted)"/>
+              <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)' }}>Conexión WhatsApp</h3>
             </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: '20px', background: instance.ai_enabled ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.03)', border: `1px solid ${instance.ai_enabled ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.05)'}` }}>
-              <Bot size={13} color={instance.ai_enabled ? '#22c55e' : '#6b7280'}/>
-              <span style={{ fontSize: '0.72rem', color: instance.ai_enabled ? '#22c55e' : 'var(--text-muted)', fontWeight: instance.ai_enabled ? 600 : 400 }}>
-                {instance.ai_enabled ? 'IA Activa' : 'IA Inactiva'}
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: '20px', background: sc?.bg, border: `1px solid ${sc?.color}30` }}>
+              <span style={{ color: sc?.color }}>{sc?.icon}</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: sc?.color }}>{sc?.label}</span>
             </div>
           </div>
-          <button onClick={load} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-            <RefreshCw size={15}/>
-          </button>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+             {instance.phone_number && (
+               <div style={{ fontSize: '0.95rem', fontFamily: 'monospace', color: 'var(--text-main)' }}>
+                 +{instance.phone_number}
+               </div>
+             )}
+             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+               Instancia ID: <span style={{ fontFamily: 'monospace', color: '#22c55e' }}>{instance.instance_name}</span>
+             </div>
+          </div>
         </div>
 
-        {/* Número si está conectado */}
-        {instance.phone_number && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '1rem' }}>
-            <Phone size={15} color="var(--text-muted)"/>
-            <span style={{ fontSize: '0.9rem', fontFamily: 'monospace' }}>{instance.phone_number}</span>
-          </div>
-        )}
+        {/* Card 2: Inteligencia Artificial */}
+        <div style={{ 
+          padding: '1.5rem', borderRadius: '16px', 
+          background: 'linear-gradient(135deg, rgba(7,9,14,0.95) 0%, rgba(15,20,30,0.95) 100%)', 
+          border: `1px solid ${instance.ai_enabled ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.08)'}`, 
+          boxShadow: instance.ai_enabled ? '0 0 40px rgba(34,197,94,0.1)' : 'none', 
+          transition: 'all 0.3s ease' 
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ 
+                width: 40, height: 40, borderRadius: '10px', 
+                background: instance.ai_enabled ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)', 
+                border: `1px solid ${instance.ai_enabled ? 'rgba(34,197,94,0.25)' : 'rgba(255,255,255,0.1)'}`, 
+                display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.3s' 
+              }}>
+                <Bot size={20} color={instance.ai_enabled ? '#22c55e' : '#6b7280'} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: instance.ai_enabled ? '#22c55e' : 'var(--text-muted)', transition: 'color 0.3s' }}>
+                  Agente IA (Bot)
+                </h3>
+                <p style={{ margin: 0, marginTop: 4, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  {instance.ai_enabled ? 'Respondiendo en automático' : 'Pausado (Intervención humana)'}
+                </p>
+              </div>
+            </div>
 
-        {/* Nombre de instancia */}
-        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-          Instancia: <span style={{ fontFamily: 'monospace', color: '#22c55e' }}>{instance.instance_name}</span>
+            <button 
+              onClick={handleToggleAI} 
+              disabled={toggling} 
+              style={{ 
+                background: 'transparent', border: 'none', cursor: 'pointer', 
+                color: instance.ai_enabled ? '#22c55e' : '#6b7280', padding: 5, 
+                transition: 'all 0.2s', transform: toggling ? 'scale(0.95)' : 'scale(1)' 
+              }}
+            >
+              {toggling ? <Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }}/> : instance.ai_enabled ? <ToggleRight size={32}/> : <ToggleLeft size={32}/>}
+            </button>
+          </div>
         </div>
       </div>
 
