@@ -16,6 +16,7 @@ import Precios from './pages/Precios';
 import InicioRecepcion from './pages/InicioRecepcion';
 import WhatsApp from './pages/WhatsApp';
 import UserLanding from './pages/UserLanding';
+import LandingManager from './pages/LandingManager';
 import UpdateBanner from './components/UpdateBanner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -171,6 +172,7 @@ function App() {
               <Route path="/calculadora" element={<ProtectedRoute><Calculadora /></ProtectedRoute>} />
               <Route path="/precios" element={<ProtectedRoute><Precios /></ProtectedRoute>} />
               <Route path="/usuarios" element={<ProtectedRoute><Usuarios /></ProtectedRoute>} />
+              <Route path="/landings" element={<ProtectedRoute><LandingManager /></ProtectedRoute>} />
               <Route path="/whatsapp" element={<ProtectedRoute><WhatsApp /></ProtectedRoute>} />
             </Routes>
           </AppLayout>

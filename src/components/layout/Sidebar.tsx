@@ -1,4 +1,4 @@
-import { Home, Users, BarChart2, Settings, LogOut, UserCog, X, Building2, UtensilsCrossed, CalendarDays, Calculator, FileSignature, Tag, MessageCircle } from 'lucide-react';
+import { Home, Users, BarChart2, Settings, LogOut, UserCog, X, Building2, UtensilsCrossed, CalendarDays, Calculator, FileSignature, Tag, MessageCircle, LayoutTemplate } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import pkg from '../../../package.json';
@@ -96,6 +96,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     ...(!isRecepcion ? [{ to: '/precios', icon: Tag, label: 'Precios' }] : []),
     { to: '/configuracion', icon: Settings, label: 'Configuración' },
     ...(role === 'super_admin' ? [{ to: '/usuarios', icon: UserCog, label: 'Usuarios' }] : []),
+    ...(role === 'super_admin' || role === 'master' || role === 'admin' || role === 'gerente' ? [{ to: '/landings', icon: LayoutTemplate, label: 'Landings' }] : []),
     ...(role === 'super_admin' || role === 'master' || role === 'admin' || role === 'asesor' ? [{ to: '/whatsapp', icon: MessageCircle, label: 'WhatsApp AI' }] : []),
   ];
 

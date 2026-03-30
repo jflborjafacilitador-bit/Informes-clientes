@@ -139,47 +139,47 @@ export default function UserLanding() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:wght@700;800&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { margin: 0; background: #0c1a14; }
+        body { margin: 0; background: #FCFAF7; }
 
         .lq-input {
           width: 100%; padding: 14px 16px 14px 44px;
-          border: 1.5px solid rgba(212,175,55,0.2);
-          border-radius: 14px; font-size: 0.95rem; font-family: 'Outfit', sans-serif;
-          background: rgba(255,255,255,0.04); color: #f7f3eb;
+          border: 1px solid rgba(212,175,55,0.3);
+          border-radius: 12px; font-size: 0.95rem; font-family: 'Outfit', sans-serif;
+          background: rgba(255,255,255,0.8); color: #0C1A14;
           outline: none; transition: all 0.25s; appearance: none; -webkit-appearance: none;
         }
-        .lq-input::placeholder { color: rgba(255,255,255,0.3); }
+        .lq-input::placeholder { color: rgba(12,26,20,0.4); }
         .lq-input:focus {
-          border-color: rgba(212,175,55,0.6);
-          background: rgba(255,255,255,0.07);
-          box-shadow: 0 0 0 3px rgba(212,175,55,0.12);
+          border-color: rgba(212,175,55,0.8);
+          background: #ffffff;
+          box-shadow: 0 0 0 4px rgba(212,175,55,0.1);
         }
         .lq-select {
           width: 100%; padding: 14px 16px;
-          border: 1.5px solid rgba(212,175,55,0.2);
-          border-radius: 14px; font-size: 0.95rem; font-family: 'Outfit', sans-serif;
-          background: rgba(255,255,255,0.04); color: #f7f3eb;
+          border: 1px solid rgba(212,175,55,0.3);
+          border-radius: 12px; font-size: 0.95rem; font-family: 'Outfit', sans-serif;
+          background: rgba(255,255,255,0.8); color: #0C1A14;
           outline: none; transition: all 0.25s; appearance: none; -webkit-appearance: none;
           cursor: pointer;
         }
         .lq-select:focus {
-          border-color: rgba(212,175,55,0.6);
-          background: rgba(255,255,255,0.07);
-          box-shadow: 0 0 0 3px rgba(212,175,55,0.12);
+          border-color: rgba(212,175,55,0.8);
+          background: #ffffff;
+          box-shadow: 0 0 0 4px rgba(212,175,55,0.1);
         }
-        .lq-select option { background: #152118; color: #f7f3eb; }
+        .lq-select option { background: #ffffff; color: #0C1A14; }
         .lq-btn {
           width: 100%; padding: 16px;
           background: linear-gradient(135deg, #d4af37 0%, #c9a227 50%, #b8911e 100%);
-          border: none; border-radius: 14px;
-          color: #0c1a14; font-family: 'Outfit', sans-serif;
-          font-size: 1rem; font-weight: 700; letter-spacing: 0.5px;
-          cursor: pointer; transition: all 0.25s;
-          box-shadow: 0 4px 20px rgba(212,175,55,0.35);
+          border: 1px solid rgba(255,255,255,0.2); border-radius: 12px;
+          color: #ffffff; font-family: 'Outfit', sans-serif;
+          font-size: 1.05rem; font-weight: 700; letter-spacing: 0.5px;
+          cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 8px 24px rgba(212,175,55,0.3);
         }
         .lq-btn:hover:not(:disabled) {
           transform: translateY(-2px);
-          box-shadow: 0 8px 30px rgba(212,175,55,0.5);
+          box-shadow: 0 12px 32px rgba(212,175,55,0.4);
           background: linear-gradient(135deg, #e8c94a 0%, #d4af37 50%, #c9a227 100%);
         }
         .lq-btn:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -383,7 +383,7 @@ function Field({ icon, label, children }: { icon: string; label: string; childre
 const styles: Record<string, React.CSSProperties> = {
   pageRoot: {
     minHeight: '100dvh',
-    background: 'linear-gradient(160deg, #0c1a14 0%, #0e2218 40%, #152118 70%, #0c1a14 100%)',
+    background: 'linear-gradient(160deg, #FFFFFF 0%, #FCFAF7 60%, #F5F0E6 100%)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     padding: '1.5rem 1rem', position: 'relative', overflow: 'hidden',
     fontFamily: "'Outfit', sans-serif",
@@ -391,13 +391,13 @@ const styles: Record<string, React.CSSProperties> = {
   orb1: {
     position: 'fixed', top: '-120px', right: '-120px',
     width: '400px', height: '400px', borderRadius: '50%',
-    background: 'radial-gradient(circle, rgba(212,175,55,0.12) 0%, transparent 70%)',
+    background: 'radial-gradient(circle, rgba(212,175,55,0.08) 0%, transparent 70%)',
     pointerEvents: 'none',
   },
   orb2: {
     position: 'fixed', bottom: '-80px', left: '-80px',
     width: '320px', height: '320px', borderRadius: '50%',
-    background: 'radial-gradient(circle, rgba(34,197,94,0.08) 0%, transparent 70%)',
+    background: 'radial-gradient(circle, rgba(12,26,20,0.03) 0%, transparent 70%)',
     pointerEvents: 'none',
   },
   contentWrap: {
@@ -411,60 +411,62 @@ const styles: Record<string, React.CSSProperties> = {
   },
   logoCircle: {
     width: 56, height: 56, borderRadius: '16px',
-    background: 'linear-gradient(135deg, rgba(212,175,55,0.2) 0%, rgba(212,175,55,0.08) 100%)',
-    border: '1px solid rgba(212,175,55,0.35)',
+    background: '#ffffff',
+    border: '1px solid rgba(212,175,55,0.3)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    boxShadow: '0 4px 20px rgba(212,175,55,0.15)',
+    boxShadow: '0 8px 24px rgba(212,175,55,0.1)',
   },
   brandName: {
     fontFamily: "'Playfair Display', Georgia, serif",
     fontSize: 'clamp(1.15rem, 4vw, 1.35rem)',
-    fontWeight: 800, color: '#f7f3eb', lineHeight: 1.2,
+    fontWeight: 800, color: '#0C1A14', lineHeight: 1.2,
   },
   brandTagline: {
-    fontSize: '0.7rem', color: '#d4af37',
+    fontSize: '0.7rem', color: '#B8911E',
     letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: '3px',
+    fontWeight: 600
   },
   card: {
     width: '100%',
-    background: 'linear-gradient(160deg, rgba(21,33,24,0.95) 0%, rgba(12,26,20,0.97) 100%)',
-    border: '1px solid rgba(212,175,55,0.18)',
+    background: 'rgba(255, 255, 255, 0.85)',
+    border: '1px solid rgba(255, 255, 255, 0.6)',
     borderRadius: '24px', padding: '2rem',
-    boxShadow: '0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(212,175,55,0.06) inset',
-    backdropFilter: 'blur(20px)',
+    boxShadow: '0 24px 60px rgba(12,26,20,0.05), 0 0 0 1px rgba(212,175,55,0.15) inset',
+    backdropFilter: 'blur(24px)',
   },
   advisorBadge: {
     display: 'flex', alignItems: 'center', gap: '1rem',
-    background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.15)',
+    background: '#ffffff', border: '1px solid rgba(212,175,55,0.2)',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.02)',
     borderRadius: '16px', padding: '1rem 1.2rem', marginBottom: '1.25rem',
   },
   advisorAvatar: {
     width: 48, height: 48, borderRadius: '14px',
-    background: 'linear-gradient(135deg, #2c5c3e 0%, #1e4530 100%)',
+    background: 'linear-gradient(135deg, #0C1A14 0%, #173628 100%)',
     border: '2px solid rgba(212,175,55,0.4)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     fontSize: '1.3rem', fontWeight: 700, color: '#d4af37',
-    flexShrink: 0, boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+    flexShrink: 0, boxShadow: '0 4px 12px rgba(12,26,20,0.15)',
   },
-  advisorLabel: { fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginBottom: '2px' },
-  advisorName: { fontSize: '0.97rem', fontWeight: 700, color: '#f7f3eb' },
-  advisorRole: { fontSize: '0.72rem', color: '#d4af37', marginTop: '2px' },
+  advisorLabel: { fontSize: '0.72rem', color: 'rgba(12,26,20,0.5)', marginBottom: '2px', fontWeight: 500 },
+  advisorName: { fontSize: '0.97rem', fontWeight: 700, color: '#0C1A14' },
+  advisorRole: { fontSize: '0.72rem', color: '#B8911E', marginTop: '2px', fontWeight: 600 },
   divider: {
     height: '1px',
-    background: 'linear-gradient(90deg, transparent, rgba(212,175,55,0.2), transparent)',
+    background: 'linear-gradient(90deg, transparent, rgba(212,175,55,0.3), transparent)',
     marginBottom: '1.25rem',
   },
   formTitle: {
     fontFamily: "'Playfair Display', serif", fontSize: '1.45rem',
-    fontWeight: 700, color: '#f7f3eb', marginBottom: '4px',
+    fontWeight: 800, color: '#0C1A14', marginBottom: '4px',
   },
   formSubtitle: {
-    fontSize: '0.85rem', color: 'rgba(255,255,255,0.45)',
+    fontSize: '0.85rem', color: 'rgba(12,26,20,0.6)',
     marginBottom: '1.5rem', lineHeight: 1.5,
   },
   label: {
-    fontSize: '0.82rem', fontWeight: 500,
-    color: 'rgba(247,243,235,0.75)', fontFamily: "'Outfit', sans-serif",
+    fontSize: '0.82rem', fontWeight: 600,
+    color: '#0C1A14', fontFamily: "'Outfit', sans-serif",
   },
   fieldIcon: {
     position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)',
@@ -472,43 +474,44 @@ const styles: Record<string, React.CSSProperties> = {
   },
   selectArrow: {
     position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)',
-    color: 'rgba(212,175,55,0.7)', fontSize: '0.9rem', pointerEvents: 'none',
+    color: '#D4AF37', fontSize: '0.9rem', pointerEvents: 'none',
   },
   privacy: {
     textAlign: 'center', fontSize: '0.72rem',
-    color: 'rgba(255,255,255,0.3)', marginTop: '0.25rem',
+    color: 'rgba(12,26,20,0.4)', marginTop: '0.25rem',
   },
   successIcon: {
     width: 72, height: 72, borderRadius: '50%',
     background: 'linear-gradient(135deg, #22c55e, #16a34a)',
     color: '#fff', fontSize: '2rem', fontWeight: 700,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    margin: '0 auto 1.25rem', boxShadow: '0 8px 32px rgba(34,197,94,0.4)',
+    margin: '0 auto 1.25rem', boxShadow: '0 8px 32px rgba(34,197,94,0.3)',
   },
   successTitle: {
     fontFamily: "'Playfair Display', serif", fontSize: '1.7rem',
-    fontWeight: 800, color: '#f7f3eb', marginBottom: '0.75rem',
+    fontWeight: 800, color: '#0C1A14', marginBottom: '0.75rem',
   },
   successText: {
-    fontSize: '0.92rem', color: 'rgba(255,255,255,0.65)',
+    fontSize: '0.92rem', color: 'rgba(12,26,20,0.7)',
     lineHeight: 1.6, marginBottom: '1.5rem',
   },
   successBadge: {
     display: 'inline-flex', alignItems: 'center', gap: '8px',
     background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)',
     borderRadius: '100px', padding: '8px 18px',
-    fontSize: '0.82rem', color: '#22c55e',
+    fontSize: '0.82rem', color: '#16a34a', fontWeight: 600
   },
   trustRow: {
     display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center',
   },
   trustBadge: {
-    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+    background: '#ffffff', border: '1px solid rgba(212,175,55,0.2)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
     borderRadius: '100px', padding: '6px 14px',
-    fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)',
+    fontSize: '0.72rem', color: 'rgba(12,26,20,0.6)', fontWeight: 500
   },
   footer: {
-    fontSize: '0.68rem', color: 'rgba(255,255,255,0.2)',
+    fontSize: '0.68rem', color: 'rgba(12,26,20,0.3)',
     textAlign: 'center', paddingTop: '0.5rem',
   },
   loadingWrap: {
