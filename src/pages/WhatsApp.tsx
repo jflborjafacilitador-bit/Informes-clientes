@@ -422,14 +422,21 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
   onClose: () => void;
   onUpdate: () => void;
 }) {
-  const [tab, setTab] = useState<'general' | 'context'>('general');
+  const [tab, setTab] = useState<'general' | 'context' | 'advisor'>('general');
   const [context, setContext] = useState(instance.llms_context ?? DEFAULT_LLMS_CONTEXT);
   const [savingCtx, setSavingCtx] = useState(false);
   const [ctxSaved, setCtxSaved] = useState(false);
+  // Asesor
+  const [advisorName, setAdvisorName] = useState(instance.advisor_name ?? '');
+  const [advisorEmail, setAdvisorEmail] = useState('');
+  const [savingAdvisor, setSavingAdvisor] = useState(false);
+  const [advisorSaved, setAdvisorSaved] = useState(false);
+  const [advisorError, setAdvisorError] = useState('');
 
   useEffect(() => {
     setContext(instance.llms_context ?? DEFAULT_LLMS_CONTEXT);
-  }, [instance.llms_context]);
+    setAdvisorName(instance.advisor_name ?? '');
+  }, [instance.llms_context, instance.advisor_name]);
 
   const saveContext = async () => {
     setSavingCtx(true);
@@ -441,9 +448,23 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
     } finally { setSavingCtx(false); }
   };
 
+  const saveAdvisor = async () => {
+    setSavingAdvisor(true);
+    setAdvisorError('');
+    try {
+      await whatsappService.assignAdvisor(instance.id, advisorEmail.trim() || null, advisorName.trim() || null);
+      setAdvisorSaved(true);
+      setTimeout(() => setAdvisorSaved(false), 2500);
+      onUpdate();
+    } catch (e: any) {
+      setAdvisorError(e?.message ?? 'Error al guardar');
+    } finally { setSavingAdvisor(false); }
+  };
+
   const sc = statusConfig[instance.status];
   const tabs = [
     { key: 'general', label: 'General', icon: <Settings size={13}/> },
+    { key: 'advisor', label: 'Asesor', icon: <User size={13}/> },
     { key: 'context', label: 'Contexto IA', icon: <Bot size={13}/> },
   ] as const;
 
@@ -527,6 +548,98 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
             </div>
           </div>
         )}
+
+        {/* Asesor */}
+        {tab === 'advisor' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+
+            {/* Estado actual */}
+            <div style={{ padding: '1rem', borderRadius: '12px', background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.12)' }}>
+              <div style={{ fontSize: '0.72rem', color: '#22c55e', fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Asignación actual</div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-main)' }}>
+                {instance.advisor_name
+                  ? <span>👤 <strong>{instance.advisor_name}</strong></span>
+                  : <span style={{ color: 'var(--text-muted)' }}>Sin asesor asignado — la IA usa el prompt base</span>
+                }
+              </div>
+              {instance.assigned_user_id && (
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: 4 }}>
+                  user_id: {instance.assigned_user_id}
+                </div>
+              )}
+            </div>
+
+            {/* Nombre del asesor */}
+            <div>
+              <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
+                Nombre del asesor <span style={{ color: '#22c55e' }}>*</span>
+              </label>
+              <input
+                value={advisorName}
+                onChange={e => setAdvisorName(e.target.value)}
+                placeholder='Ej: Joseph Borja'
+                style={{ width: '100%', padding: '9px 13px', borderRadius: '10px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-main)', outline: 'none', boxSizing: 'border-box' }}
+              />
+              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                Este nombre aparecerá en el prompt de la IA como su identidad
+              </div>
+            </div>
+
+            {/* Email del asesor */}
+            <div>
+              <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
+                Email del asesor (para acceso)
+              </label>
+              <input
+                value={advisorEmail}
+                onChange={e => setAdvisorEmail(e.target.value)}
+                placeholder='ej: joseph@quetzalez.com'
+                style={{ width: '100%', padding: '9px 13px', borderRadius: '10px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-main)', outline: 'none', boxSizing: 'border-box' }}
+              />
+              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                El asesor verá solo esta instancia. Déjalo vacío para guardar solo el nombre.
+              </div>
+            </div>
+
+            {/* Error */}
+            {advisorError && (
+              <div style={{ padding: '8px 12px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171', fontSize: '0.78rem' }}>
+                ⚠️ {advisorError}
+              </div>
+            )}
+
+            {/* Botones */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={saveAdvisor} disabled={savingAdvisor} style={{
+                flex: 1, padding: '10px 0', borderRadius: '10px', fontSize: '0.83rem', fontWeight: 600,
+                background: advisorSaved ? 'rgba(34,197,94,0.15)' : 'rgba(34,197,94,0.1)',
+                border: `1px solid ${advisorSaved ? '#22c55e' : 'rgba(34,197,94,0.2)'}`,
+                color: advisorSaved ? '#22c55e' : '#86efac',
+                cursor: savingAdvisor ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all 0.2s',
+              }}>
+                {savingAdvisor ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }}/> Guardando...</>
+                 : advisorSaved ? <>✓ Guardado</>
+                 : <><User size={14}/> Guardar asignación</>}
+              </button>
+              {instance.assigned_user_id && (
+                <button onClick={() => {
+                  setAdvisorEmail('');
+                  setAdvisorName('');
+                  whatsappService.assignAdvisor(instance.id, null, null).then(onUpdate);
+                }} style={{ padding: '10px 14px', borderRadius: '10px', fontSize: '0.78rem', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171', cursor: 'pointer' }}>
+                  Quitar
+                </button>
+              )}
+            </div>
+
+            <div style={{ padding: '10px 12px', borderRadius: '10px', background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.1)', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              <strong style={{ color: '#818cf8' }}>¿Cómo funciona?</strong><br/>
+              El asesor asignado puede iniciar sesión y solo verá esta instancia en su dashboard. No puede modificar el contexto de la IA ni otras configuraciones.
+            </div>
+          </div>
+        )}
+
 
         {/* Contexto IA */}
         {tab === 'context' && (

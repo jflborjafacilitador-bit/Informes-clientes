@@ -1,5 +1,5 @@
 # Registro Web - Los Quetzales: AI Context Document
-**Última actualización:** 2026-03-29 | **Versión actual:** `1.6.22`
+**Última actualización:** 2026-03-30 | **Versión actual:** `1.6.28`
 
 Este documento sirve como "memoria técnica" para cualquier asistente IA que interactúe con el código fuente de este proyecto en el futuro. Léelo antes de sugerir cambios estructurales.
 
@@ -7,25 +7,19 @@ Este documento sirve como "memoria técnica" para cualquier asistente IA que int
 
 ## 🔴 SESIÓN ACTIVA — Leer Primero
 
-### Estado al 29/03/2026 (~03:20 CST)
-- El servidor local **`npm run dev`** está corriendo en `http://localhost:5173/`
-- Se acaba de configurar el **MCP de n8n** en Antigravity (`mcp_config.json`)
-- El usuario va a **reiniciar Antigravity** para activar el MCP de n8n
-- La siguiente fase es: **integrar automatizaciones n8n** en el flujo del proyecto
+### Estado al 30/03/2026 (~00:30 CST)
+- El panel de **WhatsApp** (`WhatsApp.tsx`) fue rediseñado con un layout moderno de *Chat Bubbles* (`ChatMonitorDrawer`) separado de la configuración de instancia.
+- **Automatización**: Se resolvió el error de Webhook; los mensajes de n8n hacia Evolution API ya llevan el payload raw en el Formato correcto (validado a través de inyecciones a la Rest API).
+- **Despliegue**: Se corrigió `deploy.yml` para transferir los _Secrets_ de variables de entorno (`VITE_N8N_BASE_URL`, etc), habilitando el indicador de estado Conectado oficial y AI en producción en Hostinger.
+- **Knowledge Base (IA Context)**: El prompt predeterminado (`DEFAULT_LLMS_CONTEXT`) fue actualizado al compendio de Drive enfocado en *Transparencia Total* para el bot Deepseek.
 
 ### MCP n8n Configurado
 - **Server URL:** `https://n8n-prueba1-n8n.exigs1.easypanel.host/mcp-server/http`
-- **API Key (Public API):** `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` (ver mcp_config.json)
-- **Instancia n8n:** versión 1.123.21 en EasyPanel
-- **Nombre del API Key:** "Residencial los quetzales"
-- El MCP usa `supergateway` con `--streamableHttp` para conectarse
-- Archivo de config: `C:\Users\Dynabook\.gemini\antigravity\mcp_config.json`
+- **Workflow / Trigger Principal:** Webhooks de Evolution API v2 (`MESSAGES_UPSERT`).
 
-### Próximos pasos acordados (por definir con el usuario)
-- [ ] Confirmar qué automatizaciones se van a construir (notificaciones, reportes, sync, etc.)
-- [ ] Ver los workflows existentes en n8n vía MCP
-- [ ] Integrar triggers/webhooks entre Supabase y n8n
-- [ ] Posibles integraciones: WhatsApp, Gmail, Telegram, Google Sheets
+### Próximos pasos acordados
+- [ ] Afinar los _Nodes_ dentro de n8n (vía MCP o terminal) para mejorar el flujo condicional del chatbot.
+- [ ] Habilitar funcionalmente el envío manual desde el Input del `ChatMonitorDrawer` panel para la intervención humana táctica.
 
 ---
 
@@ -70,6 +64,11 @@ Existen distintos niveles de usuario que restringen el acceso a vistas (Sidebar)
 
 ### F. Motor Unificado de Estatus de Inventario
 - Existen tres flujos de la verdad para conocer si una casa está libre: lo que dice el CSV importado de Google Sheets, lo que sobreescribió un humano, y el contador estadístico del Dashboard. Todos ellos **deben** resolverse usando el serivicio `inventarioEstatusService.ts -> resolveEstatus()`, que es la única fuente de la verdad para transformar strings como "Entregada", "Apartada" en los flags canónicos (`DISPONIBLE`, `EN_PROCESO`, `VENDIDA`).
+
+### G. Integración de WhatsApp y Chatbot IA (Evolution API + n8n)
+- **Instancias Múltiples:** La app soporta múltiples teléfonos usando Evolution API. El Webhook principal está atado a n8n para procesamiento de DeepSeek.
+- **UI Distribuida:** En la pantalla web se maneja un `InstanceDrawer` para llaves de configuración, y un `ChatMonitorDrawer` moderno para leer los mensajes en tiempo real con diseño de burbujas (_auto-scroll_ implementado).
+- **Estado In-Sync:** Supabase Realtime detecta los Webhooks registrados por n8n y vuelve a pintar la UI sin refrescar.
 
 ## 4. Notas para Agentes IA
 - Si tienes que tocar infraestructura de Despliegue, revisa OBLIGATORIAMENTE el `DEPLOYMENT_GUIDE.md` en la raíz primero.

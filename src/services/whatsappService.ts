@@ -263,6 +263,32 @@ export const whatsappService = {
     await whatsappService.updateInstance(instanceId, updates as Partial<WhatsappInstance>);
   },
 
+  // Asignar asesor por email + nombre (busca el user_id en Supabase profiles)
+  async assignAdvisor(instanceId: string, email: string | null, advisorName: string | null): Promise<void> {
+    let userId: string | null = null;
+
+    if (email) {
+      // Buscar en profiles por email (tabla profiles que tiene user_id)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email.trim())
+        .maybeSingle();
+
+      if (!profile) {
+        // Intentar buscar en user_metadata via función RPC si existe
+        throw new Error(`No se encontró ningún usuario con email: ${email}. Verifica que esté registrado en el sistema.`);
+      }
+      userId = profile.id;
+    }
+
+    const updates: Record<string, unknown> = {
+      assigned_user_id: userId,
+      advisor_name: advisorName ?? null,
+    };
+    await whatsappService.updateInstance(instanceId, updates as Partial<WhatsappInstance>);
+  },
+
   // Obtener la instancia asignada al usuario autenticado actual
   async getMyInstance(): Promise<WhatsappInstance | null> {
     const { data: userData } = await supabase.auth.getUser();
