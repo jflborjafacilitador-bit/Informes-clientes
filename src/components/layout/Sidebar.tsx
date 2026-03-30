@@ -96,7 +96,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     ...(!isRecepcion ? [{ to: '/precios', icon: Tag, label: 'Precios' }] : []),
     { to: '/configuracion', icon: Settings, label: 'Configuración' },
     ...(role === 'super_admin' ? [{ to: '/usuarios', icon: UserCog, label: 'Usuarios' }] : []),
-    ...(role === 'super_admin' || role === 'master' || role === 'admin' ? [{ to: '/whatsapp', icon: MessageCircle, label: 'WhatsApp AI' }] : []),
+    ...(role === 'super_admin' || role === 'master' || role === 'admin' || role === 'asesor' ? [{ to: '/whatsapp', icon: MessageCircle, label: 'WhatsApp AI' }] : []),
   ];
 
   return (

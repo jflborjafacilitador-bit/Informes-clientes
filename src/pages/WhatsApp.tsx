@@ -1091,9 +1091,18 @@ function AdvisorView() {
       }}>
         {/* Status badge */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.2rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: '20px', background: sc?.bg, border: `1px solid ${sc?.color}30` }}>
-            <span style={{ color: sc?.color }}>{sc?.icon}</span>
-            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: sc?.color }}>{sc?.label}</span>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: '20px', background: sc?.bg, border: `1px solid ${sc?.color}30` }}>
+              <span style={{ color: sc?.color }}>{sc?.icon}</span>
+              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: sc?.color }}>{sc?.label}</span>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: '20px', background: instance.ai_enabled ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.03)', border: `1px solid ${instance.ai_enabled ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.05)'}` }}>
+              <Bot size={13} color={instance.ai_enabled ? '#22c55e' : '#6b7280'}/>
+              <span style={{ fontSize: '0.72rem', color: instance.ai_enabled ? '#22c55e' : 'var(--text-muted)', fontWeight: instance.ai_enabled ? 600 : 400 }}>
+                {instance.ai_enabled ? 'IA Activa' : 'IA Inactiva'}
+              </span>
+            </div>
           </div>
           <button onClick={load} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <RefreshCw size={15}/>
@@ -1127,14 +1136,27 @@ function AdvisorView() {
           </button>
         )}
 
-        <button onClick={() => setShowChat(true)} style={{
-          width: '100%', padding: '12px', borderRadius: '12px', fontSize: '0.88rem', fontWeight: 600,
-          background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)',
-          color: '#22c55e', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-        }}>
-          <MessageSquare size={16}/> Ver conversaciones
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={() => setShowChat(true)} style={{
+            flex: instance.status === 'connected' ? 1.5 : 1, padding: '12px', borderRadius: '12px', fontSize: '0.88rem', fontWeight: 600,
+            background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)',
+            color: '#22c55e', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}>
+            <MessageSquare size={16}/> Ver conversaciones
+          </button>
+
+          {instance.status === 'connected' && (
+            <button onClick={() => evolutionApi.logoutInstance(instance.instance_name).then(load)} style={{
+              flex: 1, padding: '12px', borderRadius: '12px', fontSize: '0.88rem', fontWeight: 600,
+              background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)',
+              color: '#ef4444', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}>
+              <WifiOff size={16}/> Desconectar
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Modales reutilizados */}
