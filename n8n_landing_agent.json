@@ -1,0 +1,146 @@
+{
+  "name": "Landing Page AI Agent (DeepSeek)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "landing-page-webhook",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "e6a1a1f4-3d04-4e2b-8a5e-6b8d9c2a3f12",
+      "name": "Webhook Landing Page",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=*INSTRUCCIÓN DEL SISTEMA DE ACTIVACIÓN*\n\nHola, tienes que dar el **primer saludo** a este nuevo prospecto.\n\nDatos del prospecto:\n- Nombre: {{ $json.body.nombre }}\n- Presupuesto: {{ $json.body.presupuesto }}\n- Financiamiento: {{ $json.body.financiamiento }}\n\nMensaje base del asesor que te creó: \"{{ $json.body.welcome_message }}\"\n\nInstrucción: Escribe el primer mensaje de bienvenida como tú mismo (el asesor). Sé muy natural, empático y menciona brevemente que tomaste nota de su presupuesto y financiamiento para comenzar a buscar opciones. Usa un tono humano y conversacional.",
+        "options": {
+          "systemMessage": "Eres un prestigioso y humano asesor inmobiliario de la Constructora Residencial Los Quetzales. Tu objetivo es contactar por primera vez a un prospecto que acaba de registrarse en tu Landing Page. Hablas en primera persona, eres cálido, muy empático y usas emojis de forma profesional."
+        }
+      },
+      "id": "fc2c5a2c-91bc-4c3e-b2d9-1c8a7f4e2d31",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.5,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "model": "deepseek-chat",
+        "options": {
+          "baseURL": "https://api.deepseek.com/v1"
+        }
+      },
+      "id": "8e3b9a1f-4c5d-4f6e-9a2b-3c8d7e6f5a4b",
+      "name": "DeepSeek API",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [440, 520],
+      "credentials": {
+        "openAiApi": {
+          "id": "tu-credencial-id-aqui",
+          "name": "DeepSeek API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionId": "={{ $('Webhook Landing Page').item.json.body.telefono }}@s.whatsapp.net"
+      },
+      "id": "b7a8d5e4-2c3f-4e1b-8a6d-9c8b7a6f5e4d",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.1,
+      "position": [580, 520]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://TU-URL-EVOLUTION-API/message/sendText/' + $('Webhook Landing Page').item.json.body.whatsapp_instance_name }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "TU-GLOBAL-API-KEY-EVOLUTION"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $('Webhook Landing Page').item.json.body.telefono }}"
+            },
+            {
+              "name": "options",
+              "value": "{\"delay\": 2500}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9d8e7f6a-5b4c-3d2e-1f0a-8b9c7d6e5f4a",
+      "name": "Send WhatsApp via Evolution API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [780, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Landing Page": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp via Evolution API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek API": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}

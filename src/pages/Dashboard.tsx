@@ -82,6 +82,8 @@ export default function Dashboard() {
     const [customEnd, setCustomEnd] = useState('');
     const startRef = useRef<HTMLInputElement>(null);
     const endRef = useRef<HTMLInputElement>(null);
+    // origin filter
+    const [originFilter, setOriginFilter] = useState<'todos' | 'asignado' | 'landing_propia'>('todos');
     // overrideMap: client_id -> created_at
     const [overrideDate, setOverrideDate] = useState<Record<string, string>>({});
 
@@ -145,7 +147,29 @@ export default function Dashboard() {
                 .from('client_overrides')
                 .select('client_id, status, assigned_to, assigned_email, budget_range, created_at');
 
-            const merged = sheetData.map(client => {
+            // 3. Obtener clientes propios de la Landing
+            const { data: ownClients } = await supabase
+                .from('clients')
+                .select('*')
+                .eq('origen', 'landing_propia');
+
+            const mappedOwnClients = (ownClients || []).map(c => ({
+                id: c.id,
+                name: c.name,
+                email: c.email || '',
+                phone: c.phone || '',
+                status: c.status || 'Nuevo',
+                date: c.created_at ? new Date(c.created_at).toISOString().split('T')[0] : '1970-01-01',
+                segment: c.tipo_financiamiento || 'Landing Page',
+                assigned_to: c.asesor_id,
+                assigned_email: '', // Requires lookup if needed 
+                origen: 'landing_propia',
+                created_at: c.created_at,
+                rowIndex: new Date(c.created_at || Date.now()).getTime(), // Use timestamp for sort
+                sheet_assigned: undefined
+            }));
+
+            const mergedSheets = sheetData.map(client => {
                 const override = overrides?.find(o => o.client_id === client.id);
                 if (override) {
                     return {
@@ -153,19 +177,25 @@ export default function Dashboard() {
                         status: override.status || client.status,
                         assigned_to: override.assigned_to || undefined,
                         assigned_email: override.assigned_email || undefined,
+                        origen: 'asignado',
+                        created_at: client.date || ''
                     };
                 }
-                return client;
+                return { ...client, origen: 'asignado', created_at: client.date || '' };
             });
 
-            // Asesor ve clientes asignados por app O por el Excel (sheet_assigned)
+            // Une todos
+            const allClients = [...mappedOwnClients, ...mergedSheets];
+
+            // Asesor ve clientes asignados por app O por el Excel (sheet_assigned) O los suyos propios
             const emailPrefix = session?.user?.email?.split('@')[0]?.toLowerCase() || '';
             const visible = role === 'asesor'
-                ? merged.filter(c =>
+                ? allClients.filter(c =>
                     c.assigned_to === session?.user?.id ||
-                    (c.sheet_assigned && c.sheet_assigned.toLowerCase().includes(emailPrefix))
+                    (c.sheet_assigned && c.sheet_assigned.toLowerCase().includes(emailPrefix)) ||
+                    (c.origen === 'landing_propia' && c.assigned_to === session?.user?.id)
                 )
-                : merged;
+                : allClients;
             setClients(visible);
             // Guardar mapa de fechas de overrides
             const dateMap: Record<string, string> = {};
@@ -188,14 +218,19 @@ export default function Dashboard() {
         return [null, null];
     };
     const [rangeStart, rangeEnd] = getRange();
-    const filteredClients = (rangeStart && rangeEnd)
+    let filteredClients = (rangeStart && rangeEnd)
         ? clients.filter(c => {
-            const oDate = overrideDate[c.id];
-            if (!oDate) return false;
-            const d = new Date(oDate);
+            const dateStr = overrideDate[c.id] || c.created_at || c.date;
+            if (!dateStr) return false;
+            const d = new Date(dateStr);
             return d >= rangeStart && d <= rangeEnd;
         })
         : clients;
+
+    // Apply origin filter
+    if (originFilter !== 'todos') {
+        filteredClients = filteredClients.filter(c => c.origen === originFilter);
+    }
 
     // --- Métricas (sobre filteredClients) ---
     const total = filteredClients.length;
@@ -272,11 +307,21 @@ export default function Dashboard() {
                         </div>
                     </div>
                 )}
-                {dateFilter !== 'all' && (
+                
+                <div style={{ width: '1px', height: '24px', background: 'var(--border-glass)', margin: '0 8px' }} />
+
+                <select value={originFilter} onChange={e => setOriginFilter(e.target.value as any)}
+                    style={{ padding: '6px 14px', borderRadius: '8px', background: 'var(--bg-panel)', border: '1px solid var(--border-glass)', color: 'var(--text-main)', fontFamily: 'inherit', outline: 'none', fontSize: '0.82rem' }}>
+                    <option value="todos">Todos los Orígenes</option>
+                    <option value="asignado">Base General (Excel)</option>
+                    <option value="landing_propia">Landing Pages Propias</option>
+                </select>
+
+                {dateFilter !== 'all' || originFilter !== 'todos' ? (
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginLeft: '4px' }}>
-                        {filteredClients.length === 0 ? '⚠️ Sin datos con override en este rango' : `Mostrando ${filteredClients.length} de ${clients.length} clientes`}
+                        {filteredClients.length === 0 ? '⚠️ Sin datos en este filtro' : `Mostrando ${filteredClients.length} de ${clients.length} clientes`}
                     </span>
-                )}
+                ) : null}
             </div>
 
             {/* Tarjetas */}
