@@ -428,6 +428,7 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
     } finally { setSavingCtx(false); }
   };
 
+  const sc = statusConfig[instance.status];
   const tabs = [
     { key: 'general', label: 'General', icon: <Settings size={13}/> },
     { key: 'context', label: 'Contexto IA', icon: <Bot size={13}/> },
