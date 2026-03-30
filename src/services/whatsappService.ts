@@ -22,6 +22,8 @@ export interface WhatsappInstance {
   llms_context: string | null;
   ai_enabled: boolean;
   ai_model: string;
+  advisor_name: string | null;      // Nombre del asesor que usa esta instancia
+  assigned_user_id: string | null;  // UUID del asesor asignado
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -253,6 +255,26 @@ export const whatsappService = {
       .subscribe();
     return () => supabase.removeChannel(channel);
   },
+
+  // Asignar asesor a una instancia (solo admin)
+  async assignUser(instanceId: string, userId: string | null, advisorName?: string): Promise<void> {
+    const updates: Record<string, unknown> = { assigned_user_id: userId };
+    if (advisorName !== undefined) updates.advisor_name = advisorName;
+    await whatsappService.updateInstance(instanceId, updates as Partial<WhatsappInstance>);
+  },
+
+  // Obtener la instancia asignada al usuario autenticado actual
+  async getMyInstance(): Promise<WhatsappInstance | null> {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) return null;
+    const { data, error } = await supabase
+      .from('whatsapp_instances')
+      .select('*')
+      .eq('assigned_user_id', userData.user.id)
+      .maybeSingle();
+    if (error) return null;
+    return data as WhatsappInstance | null;
+  },
 };
 
 // ─── Contexto LLMS por defecto ────────────────────────────────────────────────
@@ -298,7 +320,7 @@ Vende la experiencia de vivir en Ayala: Aire limpio, seguridad y vistas a los vo
 
 [RECURSOS Y ENLACES]
 - Ubicación: https://maps.app.goo.gl/UyYBgGzc6p6HkLch6 
-- Catálogo: https://marea.pro/joseph-borja-asesor
+- Catálogo: https://marea.pro/{ADVISOR_CATALOG}
 - Tour Virtual Quetzal: https://my.matterport.com/show/?m=gmCEbVbLvKr
 - Tour Virtual Plus: https://my.matterport.com/show/?m=Z7yHuZ1yPye
 
