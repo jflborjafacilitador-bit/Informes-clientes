@@ -3,13 +3,15 @@ import {
   MessageCircle, Plus, Wifi, WifiOff, QrCode, Trash2, Settings,
   Bot, RefreshCw, Copy, CheckCircle, Send,
   AlertCircle, Loader2, Phone, User, X, Save,
-  ToggleLeft, ToggleRight, Zap, MessageSquare, Activity
+  ToggleLeft, ToggleRight, Zap, MessageSquare, Activity, Lock, Pencil
 } from 'lucide-react';
 import {
-  whatsappService, evolutionApi,
+  whatsappService, evolutionApi, slugifyAdvisor,
   DEFAULT_LLMS_CONTEXT,
   type WhatsappInstance, type WhatsappMessage, type WhatsappStatus
 } from '../services/whatsappService';
+import { useAuth } from '../contexts/AuthContext';
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const statusConfig: Record<WhatsappStatus, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
@@ -32,19 +34,45 @@ function CreateInstanceModal({ onClose, onCreated }: {
   onClose: () => void;
   onCreated: () => void;
 }) {
+  type UserOption = { id: string; name: string; email: string };
+
+  const [users, setUsers] = useState<UserOption[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [selectedUser, setSelectedUser] = useState<UserOption | null>(null);
   const [label, setLabel] = useState('');
   const [name, setName] = useState('');
+  const [nameEditable, setNameEditable] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    whatsappService.getUsers().then(u => { setUsers(u); setLoadingUsers(false); });
+  }, []);
+
+  const selectUser = (user: UserOption | null) => {
+    setSelectedUser(user);
+    setDropdownOpen(false);
+    if (user) {
+      setLabel(user.name);
+      setName(slugifyAdvisor(user.name));
+      setNameEditable(false);
+    } else {
+      setLabel('');
+      setName('');
+    }
+  };
 
   const handleCreate = async () => {
-    if (!label.trim() || !name.trim()) { setError('Completa todos los campos'); return; }
+    if (!label.trim() || !name.trim()) { setError('Completa el nombre visible'); return; }
     setLoading(true); setError('');
     try {
       await whatsappService.createInstance({
         instance_name: name,
         phone_label: label,
         llms_context: DEFAULT_LLMS_CONTEXT,
+        assigned_user_id: selectedUser?.id ?? null,
+        advisor_name: selectedUser?.name ?? label,
       });
       onCreated();
       onClose();
@@ -55,70 +83,151 @@ function CreateInstanceModal({ onClose, onCreated }: {
     }
   };
 
+  const getInitials = (name: string) =>
+    name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+  const inputStyle = {
+    width: '100%', padding: '10px 14px', borderRadius: '10px',
+    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+    color: 'var(--text-main)', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' as const,
+  };
+
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 1000,
-      background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
-      <div style={{
-        background: 'linear-gradient(135deg, rgba(7,9,14,0.98) 0%, rgba(15,20,30,0.98) 100%)',
-        border: '1px solid rgba(34,197,94,0.25)', borderRadius: '20px',
-        padding: '2rem', width: '420px', maxWidth: '95vw',
-        boxShadow: '0 0 60px rgba(34,197,94,0.08)',
-      }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: 'linear-gradient(135deg, rgba(7,9,14,0.98) 0%, rgba(15,20,30,0.98) 100%)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: '20px', padding: '2rem', width: '440px', maxWidth: '95vw', boxShadow: '0 0 60px rgba(34,197,94,0.08)' }}>
+
+        {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: 36, height: 36, borderRadius: '10px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <MessageCircle size={18} color="#22c55e" />
+              <MessageCircle size={18} color="#22c55e"/>
             </div>
             <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Nueva Instancia</h3>
           </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}>
-            <X size={20} />
-          </button>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}><X size={20}/></button>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+
+          {/* Dropdown de asesor */}
           <div>
             <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
-              Nombre visible *
+              Asignar asesor
             </label>
-            <input
-              value={label} onChange={e => setLabel(e.target.value)}
-              placeholder="Ej: Línea de Ventas"
-              style={{
-                width: '100%', padding: '10px 14px', borderRadius: '10px',
-                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-                color: 'var(--text-main)', fontSize: '0.9rem', outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
+            <div style={{ position: 'relative' }}>
+              <button onClick={() => setDropdownOpen(o => !o)} style={{
+                width: '100%', padding: '10px 14px', borderRadius: '10px', textAlign: 'left',
+                background: 'rgba(255,255,255,0.04)', border: `1px solid ${selectedUser ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                color: 'var(--text-main)', fontSize: '0.9rem', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '10px', boxSizing: 'border-box',
+              }}>
+                {selectedUser ? (
+                  <>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, color: '#22c55e', flexShrink: 0 }}>
+                      {getInitials(selectedUser.name)}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{selectedUser.name}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{selectedUser.email}</div>
+                    </div>
+                  </>
+                ) : (
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    {loadingUsers ? 'Cargando usuarios...' : 'Seleccionar asesor (opcional)'}
+                  </span>
+                )}
+                <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.7rem' }}>▼</span>
+              </button>
+
+              {dropdownOpen && (
+                <div style={{
+                  position: 'absolute', top: '110%', left: 0, right: 0, zIndex: 10,
+                  background: 'rgba(10,14,22,0.98)', border: '1px solid rgba(255,255,255,0.10)',
+                  borderRadius: '12px', overflow: 'hidden',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.5)', maxHeight: '220px', overflowY: 'auto',
+                }}>
+                  {/* Opción: sin asignar */}
+                  <button onClick={() => selectUser(null)} style={{ width: '100%', padding: '10px 14px', textAlign: 'left', background: !selectedUser ? 'rgba(34,197,94,0.06)' : 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(107,114,128,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={12} color="#6b7280"/></div>
+                    Sin asignar
+                  </button>
+                  {users.map(u => (
+                    <button key={u.id} onClick={() => selectUser(u)} style={{
+                      width: '100%', padding: '10px 14px', textAlign: 'left',
+                      background: selectedUser?.id === u.id ? 'rgba(34,197,94,0.08)' : 'transparent',
+                      border: 'none', color: 'var(--text-main)', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      borderTop: '1px solid rgba(255,255,255,0.04)',
+                    }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 700, color: '#818cf8', flexShrink: 0 }}>
+                        {getInitials(u.name)}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.83rem' }}>{u.name}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{u.email}</div>
+                      </div>
+                      {selectedUser?.id === u.id && <CheckCircle size={14} color="#22c55e" style={{ marginLeft: 'auto' }}/>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Nombre visible */}
           <div>
             <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
-              ID de instancia * <span style={{ color: 'rgba(255,255,255,0.3)' }}>(sin espacios, minúsculas)</span>
+              Nombre visible <span style={{ color: '#22c55e' }}>*</span>
             </label>
             <input
-              value={name}
-              onChange={e => setName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-              placeholder="Ej: ventas-quetzales"
-              style={{
-                width: '100%', padding: '10px 14px', borderRadius: '10px',
-                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-                color: 'var(--text-main)', fontSize: '0.9rem', fontFamily: 'monospace', outline: 'none',
-                boxSizing: 'border-box',
+              value={label}
+              onChange={e => {
+                setLabel(e.target.value);
+                if (!nameEditable) setName(slugifyAdvisor(e.target.value));
               }}
+              placeholder="Ej: Joseph Borja — Ventas"
+              style={inputStyle}
             />
           </div>
 
+          {/* ID de instancia (auto-generado) */}
+          <div>
+            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>ID de instancia <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>(auto-generado)</span></span>
+              <button onClick={() => setNameEditable(e => !e)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, fontSize: '0.72rem' }}>
+                {nameEditable ? <><Lock size={10}/> Bloquear</> : <><Pencil size={10}/> Editar</>}
+              </button>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                value={name}
+                onChange={e => nameEditable && setName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                readOnly={!nameEditable}
+                placeholder="auto-generado"
+                style={{
+                  ...inputStyle,
+                  color: nameEditable ? 'var(--text-main)' : '#22c55e',
+                  fontFamily: 'monospace', fontSize: '0.82rem',
+                  background: nameEditable ? 'rgba(255,255,255,0.04)' : 'rgba(34,197,94,0.04)',
+                  border: `1px solid ${nameEditable ? 'rgba(255,255,255,0.08)' : 'rgba(34,197,94,0.15)'}`,
+                  paddingLeft: nameEditable ? '14px' : '36px',
+                }}
+              />
+              {!nameEditable && (
+                <Lock size={12} color="rgba(34,197,94,0.5)" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)' }}/>
+              )}
+            </div>
+          </div>
+
+          {/* Error */}
           {error && (
             <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', fontSize: '0.85rem' }}>
               {error}
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: '10px', marginTop: '0.5rem' }}>
+          {/* Buttons */}
+          <div style={{ display: 'flex', gap: '10px', marginTop: '0.25rem' }}>
             <button onClick={onClose} style={{ flex: 1, padding: '11px', borderRadius: '10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.9rem' }}>
               Cancelar
             </button>
@@ -137,7 +246,9 @@ function CreateInstanceModal({ onClose, onCreated }: {
   );
 }
 
+
 // ─── Modal: QR Code ──────────────────────────────────────────────────────────
+
 function QRModal({ instance, onClose, onConnected }: {
   instance: WhatsappInstance;
   onClose: () => void;
@@ -866,9 +977,140 @@ function InstanceCard({ instance, onRefresh, onConfig, onChat, onShowQR, onDelet
   );
 }
 
+// ─── Vista Asesor (panel simplificado) ───────────────────────────────────────
+function AdvisorView() {
+  const { user } = useAuth();
+  const [instance, setInstance] = useState<WhatsappInstance | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showQR, setShowQR] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const inst = await whatsappService.getMyInstance();
+    if (inst && inst.status !== 'connected') {
+      try {
+        const state = await evolutionApi.getConnectionState(inst.instance_name);
+        const mapped: WhatsappStatus =
+          state === 'open' ? 'connected' : state === 'connecting' ? 'qr_ready' : 'disconnected';
+        if (mapped !== inst.status) {
+          await whatsappService.updateInstance(inst.id, { status: mapped });
+          inst.status = mapped;
+        }
+      } catch { /* silenciar */ }
+    }
+    setInstance(inst);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const advisorName = instance?.advisor_name ?? user?.email ?? 'Asesor';
+  const sc = instance ? statusConfig[instance.status] : null;
+
+  if (loading) return (
+    <div style={{ height: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Loader2 size={32} color="#22c55e" style={{ animation: 'spin 1s linear infinite' }}/>
+    </div>
+  );
+
+  if (!instance) return (
+    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+      <MessageCircle size={40} color="#6b7280" style={{ marginBottom: 16 }}/>
+      <p>No tienes ninguna instancia de WhatsApp asignada.</p>
+      <p style={{ fontSize: '0.8rem' }}>Contacta al administrador para que te asigne una.</p>
+    </div>
+  );
+
+  return (
+    <div style={{ padding: '1.5rem', maxWidth: '560px', margin: '0 auto' }}>
+
+      {/* Header personalizado */}
+      <div style={{ marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+          <div style={{ width: 44, height: 44, borderRadius: '13px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <MessageCircle size={24} color="#22c55e"/>
+          </div>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>Hola, {advisorName} 👋</h1>
+            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>Tu línea de WhatsApp</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Card de estado */}
+      <div style={{
+        padding: '1.5rem', borderRadius: '16px',
+        background: 'linear-gradient(135deg, rgba(7,9,14,0.95) 0%, rgba(15,20,30,0.95) 100%)',
+        border: `1px solid ${sc?.color ?? '#6b7280'}30`,
+        boxShadow: `0 0 40px ${sc?.color ?? '#6b7280'}10`,
+        marginBottom: '1rem',
+      }}>
+        {/* Status badge */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: '20px', background: sc?.bg, border: `1px solid ${sc?.color}30` }}>
+            <span style={{ color: sc?.color }}>{sc?.icon}</span>
+            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: sc?.color }}>{sc?.label}</span>
+          </div>
+          <button onClick={load} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+            <RefreshCw size={15}/>
+          </button>
+        </div>
+
+        {/* Número si está conectado */}
+        {instance.phone_number && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '1rem' }}>
+            <Phone size={15} color="var(--text-muted)"/>
+            <span style={{ fontSize: '0.9rem', fontFamily: 'monospace' }}>{instance.phone_number}</span>
+          </div>
+        )}
+
+        {/* Nombre de instancia */}
+        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+          Instancia: <span style={{ fontFamily: 'monospace', color: '#22c55e' }}>{instance.instance_name}</span>
+        </div>
+      </div>
+
+      {/* Acciones */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {instance.status !== 'connected' && (
+          <button onClick={() => setShowQR(true)} style={{
+            width: '100%', padding: '14px', borderRadius: '12px', fontSize: '0.95rem', fontWeight: 700,
+            background: 'rgba(34,197,94,0.9)', border: 'none', color: '#000', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            boxShadow: '0 4px 20px rgba(34,197,94,0.25)',
+          }}>
+            <QrCode size={18}/> Conectar WhatsApp
+          </button>
+        )}
+
+        <button onClick={() => setShowChat(true)} style={{
+          width: '100%', padding: '12px', borderRadius: '12px', fontSize: '0.88rem', fontWeight: 600,
+          background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)',
+          color: '#22c55e', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        }}>
+          <MessageSquare size={16}/> Ver conversaciones
+        </button>
+      </div>
+
+      {/* Modales reutilizados */}
+      {showQR && <QRModal instance={instance} onClose={() => setShowQR(false)} onConnected={() => { setShowQR(false); load(); }}/>}
+      {showChat && <ChatMonitorDrawer instance={instance} onClose={() => setShowChat(false)}/>}
+    </div>
+  );
+}
+
 // ─── Página Principal ─────────────────────────────────────────────────────────
 export default function WhatsApp() {
+  const { role } = useAuth();
+  const isAdmin = role === 'admin' || role === 'master';
+
+  // Asesores ven su propia vista simplificada
+  if (!isAdmin) return <AdvisorView/>;
+
   const [instances, setInstances] = useState<WhatsappInstance[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [showQR, setShowQR] = useState<WhatsappInstance | null>(null);

@@ -47,7 +47,20 @@ export interface CreateInstanceData {
   phone_label: string;
   llms_context?: string;
   ai_model?: string;
+  assigned_user_id?: string | null;
+  advisor_name?: string | null;
 }
+
+// Helper: convierte nombre de asesor a slug valido para Evolution API
+export function slugifyAdvisor(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')  // elimina acentos
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 
 // ─── Headers de Evolution API ────────────────────────────────────────────────
 const evolutionHeaders = () => ({
@@ -287,6 +300,19 @@ export const whatsappService = {
       advisor_name: advisorName ?? null,
     };
     await whatsappService.updateInstance(instanceId, updates as Partial<WhatsappInstance>);
+  },
+
+  // Obtener lista de usuarios para dropdown de asignacion
+  async getUsers(): Promise<{ id: string; name: string; email: string }[]> {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, email, display_name, role')
+      .order('display_name');
+    return (data ?? []).map((u: { id: string; email: string; display_name?: string; role?: string }) => ({
+      id: u.id,
+      name: u.display_name ?? u.email ?? u.id,
+      email: u.email ?? '',
+    }));
   },
 
   // Obtener la instancia asignada al usuario autenticado actual
