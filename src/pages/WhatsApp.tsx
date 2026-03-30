@@ -3,7 +3,7 @@ import {
   MessageCircle, Plus, Wifi, WifiOff, QrCode, Trash2, Settings,
   Bot, RefreshCw, Copy, CheckCircle, Send,
   AlertCircle, Loader2, Phone, User, X, Save,
-  ToggleLeft, ToggleRight, Zap, MessageSquare, Activity, Lock, Pencil
+  ToggleLeft, ToggleRight, Zap, MessageSquare, Activity
 } from 'lucide-react';
 import {
   whatsappService, evolutionApi, slugifyAdvisor,
@@ -30,18 +30,15 @@ function timeAgo(dateStr: string): string {
 }
 
 // ─── Modal: Crear Instancia ───────────────────────────────────────────────────
+export type UserOption = { id: string; name: string; email: string };
+
 function CreateInstanceModal({ onClose, onCreated }: {
   onClose: () => void;
   onCreated: () => void;
 }) {
-  type UserOption = { id: string; name: string; email: string };
-
   const [users, setUsers] = useState<UserOption[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [selectedUser, setSelectedUser] = useState<UserOption | null>(null);
-  const [label, setLabel] = useState('');
-  const [name, setName] = useState('');
-  const [nameEditable, setNameEditable] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -53,26 +50,20 @@ function CreateInstanceModal({ onClose, onCreated }: {
   const selectUser = (user: UserOption | null) => {
     setSelectedUser(user);
     setDropdownOpen(false);
-    if (user) {
-      setLabel(user.name);
-      setName(slugifyAdvisor(user.name));
-      setNameEditable(false);
-    } else {
-      setLabel('');
-      setName('');
-    }
   };
 
   const handleCreate = async () => {
-    if (!label.trim() || !name.trim()) { setError('Completa el nombre visible'); return; }
     setLoading(true); setError('');
     try {
+      const finalLabel = selectedUser ? selectedUser.name : 'Nueva Instancia';
+      const finalName = selectedUser ? slugifyAdvisor(selectedUser.name) : `nueva-instancia-${Math.floor(Math.random() * 10000)}`;
+
       await whatsappService.createInstance({
-        instance_name: name,
-        phone_label: label,
+        instance_name: finalName,
+        phone_label: finalLabel,
         llms_context: DEFAULT_LLMS_CONTEXT,
         assigned_user_id: selectedUser?.id ?? null,
-        advisor_name: selectedUser?.name ?? label,
+        advisor_name: selectedUser?.name ?? finalLabel,
       });
       onCreated();
       onClose();
@@ -85,12 +76,6 @@ function CreateInstanceModal({ onClose, onCreated }: {
 
   const getInitials = (name: string) =>
     name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-
-  const inputStyle = {
-    width: '100%', padding: '10px 14px', borderRadius: '10px',
-    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-    color: 'var(--text-main)', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' as const,
-  };
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -107,33 +92,38 @@ function CreateInstanceModal({ onClose, onCreated }: {
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}><X size={20}/></button>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
 
           {/* Dropdown de asesor */}
           <div>
-            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
-              Asignar asesor
+            <label style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '8px', display: 'block', fontWeight: 500 }}>
+              Asignar Asesor <span style={{ color: '#22c55e' }}>*</span>
             </label>
             <div style={{ position: 'relative' }}>
               <button onClick={() => setDropdownOpen(o => !o)} style={{
-                width: '100%', padding: '10px 14px', borderRadius: '10px', textAlign: 'left',
+                width: '100%', padding: '12px 16px', borderRadius: '12px', textAlign: 'left',
                 background: 'rgba(255,255,255,0.04)', border: `1px solid ${selectedUser ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.08)'}`,
-                color: 'var(--text-main)', fontSize: '0.9rem', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: '10px', boxSizing: 'border-box',
-              }}>
+                color: 'var(--text-main)', fontSize: '0.95rem', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '12px', boxSizing: 'border-box',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+              >
                 {selectedUser ? (
                   <>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, color: '#22c55e', flexShrink: 0 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: '#22c55e', flexShrink: 0 }}>
                       {getInitials(selectedUser.name)}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{selectedUser.name}</div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{selectedUser.email}</div>
+                       <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{selectedUser.name}</div>
+                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{selectedUser.email}</div>
                     </div>
                   </>
                 ) : (
-                  <span style={{ color: 'var(--text-muted)' }}>
-                    {loadingUsers ? 'Cargando usuarios...' : 'Seleccionar asesor (opcional)'}
+                  <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <User size={18}/>
+                    {loadingUsers ? 'Cargando usuarios...' : 'Selecciona un usuario de la lista'}
                   </span>
                 )}
                 <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.7rem' }}>▼</span>
@@ -144,79 +134,42 @@ function CreateInstanceModal({ onClose, onCreated }: {
                   position: 'absolute', top: '110%', left: 0, right: 0, zIndex: 10,
                   background: 'rgba(10,14,22,0.98)', border: '1px solid rgba(255,255,255,0.10)',
                   borderRadius: '12px', overflow: 'hidden',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.5)', maxHeight: '220px', overflowY: 'auto',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.5)', maxHeight: '240px', overflowY: 'auto',
                 }}>
                   {/* Opción: sin asignar */}
-                  <button onClick={() => selectUser(null)} style={{ width: '100%', padding: '10px 14px', textAlign: 'left', background: !selectedUser ? 'rgba(34,197,94,0.06)' : 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(107,114,128,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={12} color="#6b7280"/></div>
-                    Sin asignar
+                  <button onClick={() => selectUser(null)} style={{ width: '100%', padding: '12px 16px', textAlign: 'left', background: !selectedUser ? 'rgba(34,197,94,0.06)' : 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 10, transition: 'background 0.2s' }}
+                  onMouseEnter={e => { if(selectedUser) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+                  onMouseLeave={e => { if(selectedUser) e.currentTarget.style.background = 'transparent'; }}>
+                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(107,114,128,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={14} color="#6b7280"/></div>
+                    Sin asignar <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>(Instancia genérica)</span>
                   </button>
                   {users.map(u => (
                     <button key={u.id} onClick={() => selectUser(u)} style={{
-                      width: '100%', padding: '10px 14px', textAlign: 'left',
+                      width: '100%', padding: '12px 16px', textAlign: 'left',
                       background: selectedUser?.id === u.id ? 'rgba(34,197,94,0.08)' : 'transparent',
                       border: 'none', color: 'var(--text-main)', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', gap: 10,
+                      display: 'flex', alignItems: 'center', gap: 12,
                       borderTop: '1px solid rgba(255,255,255,0.04)',
-                    }}>
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 700, color: '#818cf8', flexShrink: 0 }}>
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={e => { if (selectedUser?.id !== u.id) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+                    onMouseLeave={e => { if (selectedUser?.id !== u.id) e.currentTarget.style.background = 'transparent'; }}>
+                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, color: '#818cf8', flexShrink: 0 }}>
                         {getInitials(u.name)}
                       </div>
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: '0.83rem' }}>{u.name}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{u.email}</div>
+                        <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{u.name}</div>
+                        <div style={{ fontSize: '0.70rem', color: 'var(--text-muted)' }}>{u.email}</div>
                       </div>
-                      {selectedUser?.id === u.id && <CheckCircle size={14} color="#22c55e" style={{ marginLeft: 'auto' }}/>}
+                      {selectedUser?.id === u.id && <CheckCircle size={16} color="#22c55e" style={{ marginLeft: 'auto' }}/>}
                     </button>
                   ))}
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Nombre visible */}
-          <div>
-            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
-              Nombre visible <span style={{ color: '#22c55e' }}>*</span>
-            </label>
-            <input
-              value={label}
-              onChange={e => {
-                setLabel(e.target.value);
-                if (!nameEditable) setName(slugifyAdvisor(e.target.value));
-              }}
-              placeholder="Ej: Joseph Borja — Ventas"
-              style={inputStyle}
-            />
-          </div>
-
-          {/* ID de instancia (auto-generado) */}
-          <div>
-            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>ID de instancia <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>(auto-generado)</span></span>
-              <button onClick={() => setNameEditable(e => !e)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, fontSize: '0.72rem' }}>
-                {nameEditable ? <><Lock size={10}/> Bloquear</> : <><Pencil size={10}/> Editar</>}
-              </button>
-            </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                value={name}
-                onChange={e => nameEditable && setName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                readOnly={!nameEditable}
-                placeholder="auto-generado"
-                style={{
-                  ...inputStyle,
-                  color: nameEditable ? 'var(--text-main)' : '#22c55e',
-                  fontFamily: 'monospace', fontSize: '0.82rem',
-                  background: nameEditable ? 'rgba(255,255,255,0.04)' : 'rgba(34,197,94,0.04)',
-                  border: `1px solid ${nameEditable ? 'rgba(255,255,255,0.08)' : 'rgba(34,197,94,0.15)'}`,
-                  paddingLeft: nameEditable ? '14px' : '36px',
-                }}
-              />
-              {!nameEditable && (
-                <Lock size={12} color="rgba(34,197,94,0.5)" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)' }}/>
-              )}
-            </div>
+            <p style={{ margin: '8px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              Al asignar un usuario, el sistema configurará automáticamente la identidad de la IA y el identificador de conexión para este asesor.
+            </p>
           </div>
 
           {/* Error */}
@@ -227,17 +180,23 @@ function CreateInstanceModal({ onClose, onCreated }: {
           )}
 
           {/* Buttons */}
-          <div style={{ display: 'flex', gap: '10px', marginTop: '0.25rem' }}>
-            <button onClick={onClose} style={{ flex: 1, padding: '11px', borderRadius: '10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.9rem' }}>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '0.5rem' }}>
+            <button onClick={onClose} style={{ flex: 1, padding: '12px', borderRadius: '12px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, transition: 'background 0.2s' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
               Cancelar
             </button>
             <button onClick={handleCreate} disabled={loading} style={{
-              flex: 1, padding: '11px', borderRadius: '10px',
+              flex: 1, padding: '12px', borderRadius: '12px',
               background: loading ? 'rgba(34,197,94,0.15)' : 'rgba(34,197,94,0.9)',
               border: 'none', color: '#000', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
-              fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            }}>
-              {loading ? <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }}/> Creando...</> : <><Plus size={15}/> Crear</>}
+              fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              boxShadow: loading ? 'none' : '0 4px 15px rgba(34,197,94,0.25)',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={e => { if(!loading) e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={e => { if(!loading) e.currentTarget.style.transform = 'translateY(0)'; }}>
+              {loading ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }}/> Creando...</> : <><Plus size={16}/> Crear Instancia</>}
             </button>
           </div>
         </div>
@@ -538,16 +497,46 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
   const [savingCtx, setSavingCtx] = useState(false);
   const [ctxSaved, setCtxSaved] = useState(false);
   // Asesor
-  const [advisorName, setAdvisorName] = useState(instance.advisor_name ?? '');
-  const [advisorEmail, setAdvisorEmail] = useState('');
+  const [users, setUsers] = useState<UserOption[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [selectedUser, setSelectedUser] = useState<UserOption | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
   const [savingAdvisor, setSavingAdvisor] = useState(false);
   const [advisorSaved, setAdvisorSaved] = useState(false);
   const [advisorError, setAdvisorError] = useState('');
 
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    whatsappService.getUsers().then(u => {
+      setUsers(u);
+      setLoadingUsers(false);
+      if (instance.assigned_user_id) {
+        const found = u.find(user => user.id === instance.assigned_user_id);
+        if (found) setSelectedUser(found);
+      }
+    });
+  }, [instance.assigned_user_id]);
+
+  const selectUser = (u: UserOption | null) => {
+    setSelectedUser(u);
+    setDropdownOpen(false);
+  };
+
   useEffect(() => {
     setContext(instance.llms_context ?? DEFAULT_LLMS_CONTEXT);
-    setAdvisorName(instance.advisor_name ?? '');
-  }, [instance.llms_context, instance.advisor_name]);
+  }, [instance.llms_context]);
 
   const saveContext = async () => {
     setSavingCtx(true);
@@ -563,7 +552,11 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
     setSavingAdvisor(true);
     setAdvisorError('');
     try {
-      await whatsappService.assignAdvisor(instance.id, advisorEmail.trim() || null, advisorName.trim() || null);
+      if (!selectedUser) {
+        await whatsappService.assignAdvisor(instance.id, null, null);
+      } else {
+        await whatsappService.assignAdvisor(instance.id, selectedUser.email, selectedUser.name);
+      }
       setAdvisorSaved(true);
       setTimeout(() => setAdvisorSaved(false), 2500);
       onUpdate();
@@ -680,35 +673,77 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
               )}
             </div>
 
-            {/* Nombre del asesor */}
+            {/* Asignar asesor */}
             <div>
-              <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
-                Nombre del asesor <span style={{ color: '#22c55e' }}>*</span>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '8px', display: 'block', fontWeight: 500 }}>
+                Asignar Asesor <span style={{ color: '#22c55e' }}>*</span>
               </label>
-              <input
-                value={advisorName}
-                onChange={e => setAdvisorName(e.target.value)}
-                placeholder='Ej: Joseph Borja'
-                style={{ width: '100%', padding: '9px 13px', borderRadius: '10px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-main)', outline: 'none', boxSizing: 'border-box' }}
-              />
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                Este nombre aparecerá en el prompt de la IA como su identidad
-              </div>
-            </div>
+              <div style={{ position: 'relative' }} ref={dropdownRef}>
+                <button onClick={() => setDropdownOpen(o => !o)} style={{
+                  width: '100%', padding: '12px 16px', borderRadius: '12px', textAlign: 'left',
+                  background: 'rgba(255,255,255,0.04)', border: `1px solid ${selectedUser ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                  color: 'var(--text-main)', fontSize: '0.95rem', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '12px', boxSizing: 'border-box',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}>
+                  {selectedUser ? (
+                    <>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: '#818cf8', flexShrink: 0 }}>
+                        {selectedUser.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                      </div>
+                      <div>
+                         <div style={{ fontWeight: 600 }}>{selectedUser.name}</div>
+                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{selectedUser.email}</div>
+                      </div>
+                    </>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <User size={18}/>
+                      {loadingUsers ? 'Cargando usuarios...' : 'Selecciona un usuario de la lista'}
+                    </span>
+                  )}
+                  <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.7rem' }}>▼</span>
+                </button>
 
-            {/* Email del asesor */}
-            <div>
-              <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
-                Email del asesor (para acceso)
-              </label>
-              <input
-                value={advisorEmail}
-                onChange={e => setAdvisorEmail(e.target.value)}
-                placeholder='ej: joseph@quetzalez.com'
-                style={{ width: '100%', padding: '9px 13px', borderRadius: '10px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-main)', outline: 'none', boxSizing: 'border-box' }}
-              />
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                El asesor verá solo esta instancia. Déjalo vacío para guardar solo el nombre.
+                {dropdownOpen && (
+                  <div style={{
+                    position: 'absolute', top: '110%', left: 0, right: 0, zIndex: 10,
+                    background: 'rgba(10,14,22,0.98)', border: '1px solid rgba(255,255,255,0.10)',
+                    borderRadius: '12px', overflow: 'hidden',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.5)', maxHeight: '240px', overflowY: 'auto',
+                  }}>
+                    {/* Opción: sin asignar */}
+                    <button onClick={() => selectUser(null)} style={{ width: '100%', padding: '12px 16px', textAlign: 'left', background: !selectedUser ? 'rgba(34,197,94,0.06)' : 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 10, transition: 'background 0.2s' }}
+                    onMouseEnter={e => { if(selectedUser) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+                    onMouseLeave={e => { if(selectedUser) e.currentTarget.style.background = 'transparent'; }}>
+                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(107,114,128,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={14} color="#6b7280"/></div>
+                      Sin asignar <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>(Instancia genérica)</span>
+                    </button>
+                    {users.map(u => (
+                      <button key={u.id} onClick={() => selectUser(u)} style={{
+                        width: '100%', padding: '12px 16px', textAlign: 'left',
+                        background: selectedUser?.id === u.id ? 'rgba(34,197,94,0.08)' : 'transparent',
+                        border: 'none', color: 'var(--text-main)', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        borderTop: '1px solid rgba(255,255,255,0.04)',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={e => { if (selectedUser?.id !== u.id) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+                      onMouseLeave={e => { if (selectedUser?.id !== u.id) e.currentTarget.style.background = 'transparent'; }}>
+                        <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, color: '#818cf8', flexShrink: 0 }}>
+                          {u.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{u.name}</div>
+                          <div style={{ fontSize: '0.70rem', color: 'var(--text-muted)' }}>{u.email}</div>
+                        </div>
+                        {selectedUser?.id === u.id && <CheckCircle size={16} color="#22c55e" style={{ marginLeft: 'auto' }}/>}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -735,8 +770,7 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
               </button>
               {instance.assigned_user_id && (
                 <button onClick={() => {
-                  setAdvisorEmail('');
-                  setAdvisorName('');
+                  setSelectedUser(null);
                   whatsappService.assignAdvisor(instance.id, null, null).then(onUpdate);
                 }} style={{ padding: '10px 14px', borderRadius: '10px', fontSize: '0.78rem', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171', cursor: 'pointer' }}>
                   Quitar
@@ -788,7 +822,16 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
             />
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
               <span>{context.length} caracteres</span>
-              <button onClick={() => setContext(DEFAULT_LLMS_CONTEXT)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.72rem', textDecoration: 'underline' }}>
+              <button onClick={() => {
+                const finalContext = DEFAULT_LLMS_CONTEXT.replace(
+                  '{ADVISOR_CATALOG}', 
+                  instance.advisor_name ? slugifyAdvisor(instance.advisor_name) : 'catalogo'
+                ).replace(
+                  '{ADVISOR_NAME}',
+                  instance.advisor_name ?? 'Asesor'
+                );
+                setContext(finalContext);
+              }} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.72rem', textDecoration: 'underline' }}>
                 Restaurar default
               </button>
             </div>
@@ -1104,7 +1147,7 @@ function AdvisorView() {
 // ─── Página Principal ─────────────────────────────────────────────────────────
 export default function WhatsApp() {
   const { role } = useAuth();
-  const isAdmin = role === 'admin' || role === 'master';
+  const isAdmin = role === 'admin' || role === 'master' || role === 'super_admin';
 
   // Asesores ven su propia vista simplificada
   if (!isAdmin) return <AdvisorView/>;

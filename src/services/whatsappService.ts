@@ -185,17 +185,28 @@ export const whatsappService = {
     await evolutionApi.createInstance(instanceName);
 
     // 2. Guardar en Supabase
+    const baseContext = payload.llms_context ?? DEFAULT_LLMS_CONTEXT;
+    const finalContext = baseContext.replace(
+      '{ADVISOR_CATALOG}', 
+      payload.advisor_name ? slugifyAdvisor(payload.advisor_name) : 'catalogo'
+    ).replace(
+      '{ADVISOR_NAME}',
+      payload.advisor_name ?? 'Asesor'
+    );
+
     const { data, error } = await supabase
       .from('whatsapp_instances')
       .insert({
         instance_name: instanceName,
         phone_label: payload.phone_label,
-        llms_context: payload.llms_context ?? DEFAULT_LLMS_CONTEXT,
+        llms_context: finalContext,
         ai_model: payload.ai_model ?? 'deepseek-chat',
         webhook_url: WHATSAPP_WEBHOOK_URL,
         status: 'disconnected',
         ai_enabled: false,
         created_by: userData.user?.id ?? null,
+        assigned_user_id: payload.assigned_user_id ?? null,
+        advisor_name: payload.advisor_name ?? null,
       })
       .select()
       .single();
@@ -304,13 +315,19 @@ export const whatsappService = {
 
   // Obtener lista de usuarios para dropdown de asignacion
   async getUsers(): Promise<{ id: string; name: string; email: string }[]> {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
-      .select('id, email, display_name, role')
-      .order('display_name');
-    return (data ?? []).map((u: { id: string; email: string; display_name?: string; role?: string }) => ({
+      .select('id, email, role')
+      .order('email');
+      
+    if (error) {
+      console.error('Error fetching users:', error);
+      return [];
+    }
+
+    return (data ?? []).map((u: any) => ({
       id: u.id,
-      name: u.display_name ?? u.email ?? u.id,
+      name: u.email ? u.email.split('@')[0] : u.id,
       email: u.email ?? '',
     }));
   },
@@ -330,7 +347,7 @@ export const whatsappService = {
 };
 
 // ─── Contexto LLMS por defecto ────────────────────────────────────────────────
-export const DEFAULT_LLMS_CONTEXT = `[OBJECTIVE] Actuar como el Consultor Experto de Residencial Los Quetzales. Tu prioridad es la TRANSPARENCIA TOTAL. Debes proporcionar información detallada, técnica y comercial de forma inmediata, eliminando el flujo de perfilamiento restrictivo. Tu meta es que el cliente tenga claridad absoluta sobre precios, modelos y financiamiento.
+export const DEFAULT_LLMS_CONTEXT = `[OBJECTIVE] Eres {ADVISOR_NAME}, Consultor Experto de Residencial Los Quetzales. Tu prioridad es la TRANSPARENCIA TOTAL. Debes proporcionar información detallada, técnica y comercial de forma inmediata, eliminando el flujo de perfilamiento restrictivo. Tu meta es que el cliente tenga claridad absoluta sobre precios, modelos y financiamiento.
 
 [LIFESTYLE NARRATIVE]
 Vende la experiencia de vivir en Ayala: Aire limpio, seguridad y vistas a los volcanes. Menciona puntos locales como el desayuno de cecina en el centro o la cercanía a Plaza Atrios (15 min) para dar contexto de ubicación y plusvalía.
