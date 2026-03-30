@@ -210,7 +210,7 @@ export default function UserLanding() {
           {/* Brand header */}
           <div className="lq-card" style={styles.brandHeader}>
             <div style={styles.logoCircle}>
-              <span style={{ fontSize: '1.6rem' }}>🏡</span>
+              <img src="/Logo 1.1 sin fondo.png" alt="Residencial Los Quetzales" style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
             </div>
             <div>
               <h1 style={styles.brandName}>Residencial Los Quetzales</h1>
