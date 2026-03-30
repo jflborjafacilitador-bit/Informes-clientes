@@ -383,7 +383,10 @@ function Field({ icon, label, children }: { icon: string; label: string; childre
 const styles: Record<string, React.CSSProperties> = {
   pageRoot: {
     minHeight: '100dvh',
-    background: 'linear-gradient(160deg, #FFFFFF 0%, #FCFAF7 60%, #F5F0E6 100%)',
+    backgroundImage: 'linear-gradient(160deg, rgba(255, 255, 255, 0.55) 0%, rgba(252, 250, 247, 0.75) 100%), url("/Material/1.1.png")',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundAttachment: 'fixed',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     padding: '1.5rem 1rem', position: 'relative', overflow: 'hidden',
     fontFamily: "'Outfit', sans-serif",
@@ -391,13 +394,13 @@ const styles: Record<string, React.CSSProperties> = {
   orb1: {
     position: 'fixed', top: '-120px', right: '-120px',
     width: '400px', height: '400px', borderRadius: '50%',
-    background: 'radial-gradient(circle, rgba(212,175,55,0.08) 0%, transparent 70%)',
+    background: 'radial-gradient(circle, rgba(212,175,55,0.15) 0%, transparent 70%)',
     pointerEvents: 'none',
   },
   orb2: {
     position: 'fixed', bottom: '-80px', left: '-80px',
     width: '320px', height: '320px', borderRadius: '50%',
-    background: 'radial-gradient(circle, rgba(12,26,20,0.03) 0%, transparent 70%)',
+    background: 'radial-gradient(circle, rgba(12,26,20,0.06) 0%, transparent 70%)',
     pointerEvents: 'none',
   },
   contentWrap: {
@@ -412,9 +415,9 @@ const styles: Record<string, React.CSSProperties> = {
   logoCircle: {
     width: 56, height: 56, borderRadius: '16px',
     background: '#ffffff',
-    border: '1px solid rgba(212,175,55,0.3)',
+    border: '1px solid rgba(212,175,55,0.4)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    boxShadow: '0 8px 24px rgba(212,175,55,0.1)',
+    boxShadow: '0 8px 24px rgba(212,175,55,0.15)',
   },
   brandName: {
     fontFamily: "'Playfair Display', Georgia, serif",
@@ -428,16 +431,16 @@ const styles: Record<string, React.CSSProperties> = {
   },
   card: {
     width: '100%',
-    background: 'rgba(255, 255, 255, 0.85)',
-    border: '1px solid rgba(255, 255, 255, 0.6)',
+    background: 'rgba(255, 255, 255, 0.75)',
+    border: '1px solid rgba(255, 255, 255, 0.8)',
     borderRadius: '24px', padding: '2rem',
-    boxShadow: '0 24px 60px rgba(12,26,20,0.05), 0 0 0 1px rgba(212,175,55,0.15) inset',
-    backdropFilter: 'blur(24px)',
+    boxShadow: '0 24px 60px rgba(12,26,20,0.1), 0 0 0 1px rgba(212,175,55,0.2) inset',
+    backdropFilter: 'blur(30px)',
   },
   advisorBadge: {
     display: 'flex', alignItems: 'center', gap: '1rem',
-    background: '#ffffff', border: '1px solid rgba(212,175,55,0.2)',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.02)',
+    background: 'rgba(255, 255, 255, 0.9)', border: '1px solid rgba(212,175,55,0.2)',
+    boxShadow: '0 4px 12px rgba(12,26,20,0.03)',
     borderRadius: '16px', padding: '1rem 1.2rem', marginBottom: '1.25rem',
   },
   advisorAvatar: {
@@ -478,7 +481,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   privacy: {
     textAlign: 'center', fontSize: '0.72rem',
-    color: 'rgba(12,26,20,0.4)', marginTop: '0.25rem',
+    color: 'rgba(12,26,20,0.5)', marginTop: '0.25rem',
+    fontWeight: 500
   },
   successIcon: {
     width: 72, height: 72, borderRadius: '50%',
@@ -505,14 +509,15 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center',
   },
   trustBadge: {
-    background: '#ffffff', border: '1px solid rgba(212,175,55,0.2)',
+    background: 'rgba(255, 255, 255, 0.8)', border: '1px solid rgba(212,175,55,0.2)',
     boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
     borderRadius: '100px', padding: '6px 14px',
     fontSize: '0.72rem', color: 'rgba(12,26,20,0.6)', fontWeight: 500
   },
   footer: {
-    fontSize: '0.68rem', color: 'rgba(12,26,20,0.3)',
+    fontSize: '0.68rem', color: 'rgba(12,26,20,0.4)',
     textAlign: 'center', paddingTop: '0.5rem',
+    fontWeight: 500
   },
   loadingWrap: {
     display: 'flex', flexDirection: 'column', alignItems: 'center',
