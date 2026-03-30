@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   MessageCircle, Plus, Wifi, WifiOff, QrCode, Trash2, Settings,
-  Bot, RefreshCw, Copy, CheckCircle,
+  Bot, RefreshCw, Copy, CheckCircle, Send,
   AlertCircle, Loader2, Phone, User, X, Save,
   ToggleLeft, ToggleRight, Zap, MessageSquare, Activity
 } from 'lucide-react';
@@ -229,31 +229,194 @@ function QRModal({ instance, onClose, onConnected }: {
   );
 }
 
+// ─── Drawer: Monitor de Chat ─────────────────────────────────────────────────
+function ChatMonitorDrawer({ instance, onClose }: {
+  instance: WhatsappInstance;
+  onClose: () => void;
+}) {
+  const [messages, setMessages] = useState<WhatsappMessage[]>([]);
+  const [loadingMsgs, setLoadingMsgs] = useState(true);
+  const [replyText, setReplyText] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [sending, setSending] = useState(false);
+
+  const fetchMessages = useCallback(async () => {
+    try {
+      const msgs = await whatsappService.getMessages(instance.id);
+      setMessages(msgs);
+    } catch (e) {
+      console.error("Error loading chat:", e);
+    } finally {
+      setLoadingMsgs(false);
+    }
+  }, [instance.id]);
+
+  useEffect(() => {
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 5000); // Poll every 5 seconds for new messages
+    return () => clearInterval(interval);
+  }, [fetchMessages]);
+
+  useEffect(() => {
+    // Auto scroll
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!replyText.trim() || sending) return;
+    setSending(true);
+    try {
+      // Por ahora simulamos o guardamos en Supabase si tuviéramos tabla separada de envíos manuales
+      // alert('Esta función de envío manual puede integrarse con Evolution API.');
+      setReplyText('');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, right: 0, bottom: 0,
+      width: '450px', maxWidth: '100vw', zIndex: 900,
+      background: 'linear-gradient(180deg, rgba(7,9,14,0.99) 0%, rgba(10,14,22,0.99) 100%)',
+      borderLeft: '1px solid rgba(255,255,255,0.07)',
+      display: 'flex', flexDirection: 'column',
+      boxShadow: '-20px 0 60px rgba(0,0,0,0.5)',
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: 'rgba(255,255,255,0.02)', backdropFilter: 'blur(10px)', zIndex: 2
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4, borderRadius: 6, display: 'flex', alignItems: 'center' }}>
+            <X size={22}/>
+          </button>
+          <div style={{ width: 40, height: 40, borderRadius: '12px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <MessageSquare size={18} color="#22c55e"/>
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>Monitor de Chat</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 5px #22c55e' }}/>
+              En vivo · {instance.phone_label}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Messages Area */}
+      <div style={{
+        flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem',
+        background: 'radial-gradient(circle at center, rgba(34,197,94,0.02) 0%, transparent 70%)'
+      }}>
+        {loadingMsgs ? (
+          <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+            <Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }}/>
+          </div>
+        ) : messages.length === 0 ? (
+          <div style={{ display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+            <MessageSquare size={48} style={{ opacity: 0.1, marginBottom: 16 }}/>
+            <p style={{ margin: 0, fontSize: '0.9rem' }}>El historial de chat está vacío.</p>
+            <p style={{ margin: '4px 0 0', fontSize: '0.75rem', opacity: 0.5 }}>Los mensajes entrantes aparecerán aquí.</p>
+          </div>
+        ) : (
+          messages.map(msg => (
+            <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              
+              {/* Lead Message (Left) */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth: '85%' }}>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px', marginLeft: '4px' }}>
+                  {msg.phone_name ?? msg.phone_from} • {timeAgo(msg.created_at)}
+                </span>
+                <div style={{
+                  padding: '10px 14px', borderRadius: '16px', borderBottomLeftRadius: '4px',
+                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
+                  color: 'var(--text-main)', fontSize: '0.85rem', lineHeight: 1.4,
+                  boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                }}>
+                  {msg.message_in}
+                </div>
+              </div>
+
+              {/* Bot/Agent Reply (Right) */}
+              {msg.message_out && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', maxWidth: '85%', alignSelf: 'flex-end', marginTop: 4 }}>
+                  <span style={{ fontSize: '0.65rem', color: msg.responded_by === 'ai' ? '#22c55e' : '#818cf8', marginBottom: '4px', marginRight: '4px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {msg.responded_by === 'ai' ? <><Bot size={10}/> IA Assistant</> : <><User size={10}/> Manual</>}
+                    <span style={{ color: 'var(--text-muted)' }}> • {timeAgo(msg.created_at)}</span>
+                  </span>
+                  <div style={{
+                    padding: '10px 14px', borderRadius: '16px', borderBottomRightRadius: '4px',
+                    background: msg.responded_by === 'ai' ? 'linear-gradient(135deg, rgba(34,197,94,0.15) 0%, rgba(21,128,61,0.2) 100%)' : 'rgba(99,102,241,0.15)',
+                    border: msg.responded_by === 'ai' ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(99,102,241,0.3)',
+                    color: 'var(--text-main)', fontSize: '0.85rem', lineHeight: 1.4,
+                    boxShadow: msg.responded_by === 'ai' ? '0 4px 20px rgba(34,197,94,0.08)' : '0 4px 20px rgba(99,102,241,0.08)'
+                  }}>
+                    {msg.message_out}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          ))
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input Area (Placeholder) */}
+      <div style={{
+        padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.06)',
+        background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(10px)'
+      }}>
+        <div style={{
+          display: 'flex', alignItems: 'flex-end', gap: '8px',
+          background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: '16px', padding: '6px'
+        }}>
+          <textarea
+            value={replyText}
+            onChange={e => setReplyText(e.target.value)}
+            placeholder="Intervenir en la conversación (Próximamente)..."
+            disabled
+            rows={1}
+            style={{
+              flex: 1, background: 'transparent', border: 'none', color: 'var(--text-main)',
+              fontSize: '0.85rem', padding: '8px 10px', resize: 'none', outline: 'none',
+              maxHeight: '120px', minHeight: '36px',
+            }}
+          />
+          <button onClick={handleSend} disabled={!replyText.trim() || sending} style={{
+            width: 36, height: 36, borderRadius: '12px',
+            background: replyText.trim() ? '#22c55e' : 'rgba(255,255,255,0.05)',
+            border: 'none', color: replyText.trim() ? '#000' : 'var(--text-muted)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: replyText.trim() ? 'pointer' : 'not-allowed', flexShrink: 0,
+            transition: 'all 0.2s',
+          }}>
+            {sending ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }}/> : <Send size={16}/>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Drawer: Config de Instancia ─────────────────────────────────────────────
 function InstanceDrawer({ instance, onClose, onUpdate }: {
   instance: WhatsappInstance;
   onClose: () => void;
   onUpdate: () => void;
 }) {
-  const [tab, setTab] = useState<'general' | 'context' | 'messages'>('general');
+  const [tab, setTab] = useState<'general' | 'context'>('general');
   const [context, setContext] = useState(instance.llms_context ?? DEFAULT_LLMS_CONTEXT);
-  const [messages, setMessages] = useState<WhatsappMessage[]>([]);
   const [savingCtx, setSavingCtx] = useState(false);
   const [ctxSaved, setCtxSaved] = useState(false);
-  const [loadingMsgs, setLoadingMsgs] = useState(false);
 
   useEffect(() => {
     setContext(instance.llms_context ?? DEFAULT_LLMS_CONTEXT);
   }, [instance.llms_context]);
-
-  useEffect(() => {
-    if (tab === 'messages') {
-      setLoadingMsgs(true);
-      whatsappService.getMessages(instance.id)
-        .then(setMessages)
-        .finally(() => setLoadingMsgs(false));
-    }
-  }, [tab, instance.id]);
 
   const saveContext = async () => {
     setSavingCtx(true);
@@ -265,11 +428,9 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
     } finally { setSavingCtx(false); }
   };
 
-  const sc = statusConfig[instance.status];
   const tabs = [
     { key: 'general', label: 'General', icon: <Settings size={13}/> },
     { key: 'context', label: 'Contexto IA', icon: <Bot size={13}/> },
-    { key: 'messages', label: 'Mensajes', icon: <MessageSquare size={13}/> },
   ] as const;
 
   return (
@@ -395,56 +556,6 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
             </div>
           </div>
         )}
-
-        {/* Mensajes */}
-        {tab === 'messages' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {loadingMsgs ? (
-              <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                <Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }}/>
-              </div>
-            ) : messages.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                <MessageSquare size={40} style={{ opacity: 0.2, marginBottom: 12 }}/>
-                <p style={{ margin: 0 }}>Sin mensajes aún</p>
-              </div>
-            ) : messages.map(msg => (
-              <div key={msg.id} style={{
-                padding: '12px', borderRadius: '10px',
-                background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem' }}>
-                    <User size={12} color="#22c55e"/>
-                    <span style={{ color: '#22c55e', fontWeight: 500 }}>{msg.phone_name ?? msg.phone_from}</span>
-                    <span style={{ color: 'var(--text-muted)' }}>{msg.phone_from}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{
-                      fontSize: '0.68rem', padding: '1px 7px', borderRadius: '10px',
-                      background: msg.responded_by === 'ai' ? 'rgba(34,197,94,0.1)' : 'rgba(99,102,241,0.1)',
-                      color: msg.responded_by === 'ai' ? '#22c55e' : '#818cf8',
-                      border: `1px solid ${msg.responded_by === 'ai' ? 'rgba(34,197,94,0.2)' : 'rgba(99,102,241,0.2)'}`,
-                    }}>
-                      {msg.responded_by === 'ai' ? '🤖 IA' : '👤 Manual'}
-                    </span>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                      {timeAgo(msg.created_at)}
-                    </span>
-                  </div>
-                </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', marginBottom: '4px' }}>
-                  📥 {msg.message_in}
-                </div>
-                {msg.message_out && (
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '4px', marginTop: '4px' }}>
-                    📤 {msg.message_out}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -466,10 +577,11 @@ function InfoRow({ label, value, mono = false, small = false }: { label: string;
 }
 
 // ─── Card de Instancia ────────────────────────────────────────────────────────
-function InstanceCard({ instance, onRefresh, onConfig, onShowQR, onDelete: _onDelete }: {
+function InstanceCard({ instance, onRefresh, onConfig, onChat, onShowQR, onDelete: _onDelete }: {
   instance: WhatsappInstance;
   onRefresh: () => void;
   onConfig: () => void;
+  onChat: () => void;
   onShowQR: () => void;
   onDelete: () => void;
 }) {
@@ -568,6 +680,18 @@ function InstanceCard({ instance, onRefresh, onConfig, onShowQR, onDelete: _onDe
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: '8px' }}>
+        <button onClick={onChat} style={{
+          flex: 1.5, padding: '8px', borderRadius: '9px',
+          background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)',
+          color: '#22c55e', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          transition: 'all 0.2s',
+        }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(34,197,94,0.15)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(34,197,94,0.1)'; }}>
+          <MessageSquare size={14}/> Mensajes
+        </button>
+
         <button onClick={onConfig} style={{
           flex: 1, padding: '8px', borderRadius: '9px',
           background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
@@ -622,6 +746,7 @@ export default function WhatsApp() {
   const [showCreate, setShowCreate] = useState(false);
   const [showQR, setShowQR] = useState<WhatsappInstance | null>(null);
   const [activeConfig, setActiveConfig] = useState<WhatsappInstance | null>(null);
+  const [activeChat, setActiveChat] = useState<WhatsappInstance | null>(null);
 
   const loadInstances = useCallback(async () => {
     try {
@@ -764,6 +889,7 @@ export default function WhatsApp() {
               instance={instance}
               onRefresh={loadInstances}
               onConfig={() => setActiveConfig(instance)}
+              onChat={() => setActiveChat(instance)}
               onShowQR={() => setShowQR(instance)}
               onDelete={loadInstances}
             />
@@ -790,6 +916,16 @@ export default function WhatsApp() {
               loadInstances();
               whatsappService.getInstance(activeConfig.id).then(i => i && setActiveConfig(i));
             }}
+          />
+        </>
+      )}
+
+      {activeChat && (
+        <>
+          <div onClick={() => setActiveChat(null)} style={{ position: 'fixed', inset: 0, zIndex: 850, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)' }}/>
+          <ChatMonitorDrawer
+            instance={activeChat}
+            onClose={() => setActiveChat(null)}
           />
         </>
       )}
