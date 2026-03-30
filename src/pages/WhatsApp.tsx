@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   MessageCircle, Plus, Wifi, WifiOff, QrCode, Trash2, Settings,
-  Bot, RefreshCw, Copy, CheckCircle, Send,
+  Bot, RefreshCw, Copy, CheckCircle,
   AlertCircle, Loader2, Phone, User, X, Save,
-  ToggleLeft, ToggleRight, Zap, MessageSquare, Activity
+  ToggleLeft, ToggleRight, Zap, Activity
 } from 'lucide-react';
 import {
   whatsappService, evolutionApi, slugifyAdvisor,
   DEFAULT_LLMS_CONTEXT,
-  type WhatsappInstance, type WhatsappMessage, type WhatsappStatus
+  type WhatsappInstance, type WhatsappStatus
 } from '../services/whatsappService';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -677,7 +677,6 @@ function InstanceCard({ instance, onRefresh, onConfig, onShowQR, onDelete: _onDe
   instance: WhatsappInstance;
   onRefresh: () => void;
   onConfig: () => void;
-  onChat: () => void;
   onShowQR: () => void;
   onDelete: () => void;
 }) {
