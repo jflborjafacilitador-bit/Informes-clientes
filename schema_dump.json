@@ -1,0 +1,2 @@
+﻿STATUS: 200
+BODY: {"additionalProperties":false,"type":"object","properties":{"apiKey":{"type":"string"},"organizationId":{"type":"string"},"url":{"type":"string"},"header":{"type":"boolean"},"headerName":{"type":"string"},"headerValue":{"type":"string"}},"allOf":[{"if":{"properties":{"header":{"enum":[true]}}},"then":{"allOf":[{"required":["headerName"]},{"required":["headerValue"]}]},"else":{"allOf":[{"not":{"required":["headerName"]}},{"not":{"required":["headerValue"]}}]}}],"required":["apiKey"]}

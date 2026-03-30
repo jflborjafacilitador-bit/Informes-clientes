@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Copy, Link, Bot, Webhook, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Save, Copy, Link, Bot, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 
 interface Props {
@@ -182,30 +182,6 @@ export default function LandingConfigModal({ user, onClose }: Props) {
                     <option key={inst.id} value={inst.id}>{inst.instance_name} ({inst.phone_number || 'Sin número configurado'})</option>
                   ))}
                 </select>
-              </div>
-
-              <div>
-                <label style={labelStyle}><Webhook size={16}/> Webhook Integración (N8N → Google Sheets)</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input 
-                    type="url" 
-                    placeholder="https://n8n-prueba1-n8n.exigs1.easypanel.host/webhook/landing-quetzales-leads" 
-                    value={config.n8n_webhook_url || ''} 
-                    onChange={e => setConfig(c => ({...c, n8n_webhook_url: e.target.value}))}
-                    style={{ ...inputStyle, flex: 1 }} 
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setConfig(c => ({...c, n8n_webhook_url: 'https://n8n-prueba1-n8n.exigs1.easypanel.host/webhook/landing-quetzales-leads'}))}
-                    title="Usar URL predeterminada de n8n"
-                    style={{ background: 'var(--primary-accent)', border: 'none', color: '#000', padding: '10px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}
-                  >
-                    Usar URL n8n
-                  </button>
-                </div>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', marginBottom: 0 }}>
-                  URL del workflow N8N "Landing Quetzales - Captura de Leads" (ya configurado y activo).
-                </p>
               </div>
 
 

@@ -75,21 +75,22 @@ export default function UserLanding() {
 
       if (dbError) throw new Error('No se pudo guardar la información, intenta de nuevo.');
 
-      if (config.n8n_webhook_url) {
-        try {
-          await fetch(config.n8n_webhook_url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ...formData,
-              asesor_id: config.user_id,
-              asesor_name: config.asesor_display_name,
-              whatsapp_instance_id: config.whatsapp_instance_id,
-              whatsapp_instance_name: config._wa_instance_name || null,
-              welcome_message: config.welcome_message
-            }),
-          });
-        } catch {}
+      const globalWebhookUrl = `${import.meta.env.VITE_N8N_BASE_URL}/webhook/landing-agent`;
+      try {
+        await fetch(globalWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...formData,
+            asesor_id: config.user_id,
+            asesor_name: config.asesor_display_name,
+            whatsapp_instance_id: config.whatsapp_instance_id,
+            whatsapp_instance_name: config._wa_instance_name || null,
+            welcome_message: config.welcome_message
+          }),
+        });
+      } catch (e) {
+        console.error("Error al disparar webhook AI", e);
       }
       setSubmitted(true);
     } catch (err: any) {
