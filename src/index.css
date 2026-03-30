@@ -17,22 +17,28 @@
   --ghost-bg-hover: rgba(255, 255, 255, 0.1);
   --panel-item-bg: rgba(255, 255, 255, 0.02);
   --tooltip-bg: rgba(7, 9, 14, 0.95);
+  --grad-primary: rgba(34, 197, 94, 0.08);
+  --grad-secondary: rgba(249, 115, 22, 0.08);
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
 [data-theme='light'] {
-  --bg-dark: #f0fdf4;
-  --bg-panel: rgba(255, 255, 255, 0.85);
-  --border-glass: rgba(34, 197, 94, 0.3);
-  --primary-accent: #16a34a; /* Darker green for contrast */
-  --secondary-accent: #ea580c; /* Darker orange */
-  --text-main: #1f2937; /* Dark gray */
-  --text-muted: #4b5563;
-  --sidebar-bg: rgba(240, 253, 244, 0.97);
-  --header-bg: rgba(240, 253, 244, 0.85);
-  --ghost-bg: rgba(0, 0, 0, 0.05);
-  --ghost-bg-hover: rgba(0, 0, 0, 0.1);
-  --panel-item-bg: rgba(0, 0, 0, 0.03);
-  --tooltip-bg: rgba(255, 255, 255, 0.95);
+  --bg-dark: #f8fafc;
+  --bg-panel: rgba(255, 255, 255, 0.95);
+  --border-glass: rgba(148, 163, 184, 0.2);
+  --primary-accent: #16a34a;
+  --secondary-accent: #ea580c;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --sidebar-bg: rgba(255, 255, 255, 0.98);
+  --header-bg: rgba(255, 255, 255, 0.90);
+  --ghost-bg: rgba(15, 23, 42, 0.04);
+  --ghost-bg-hover: rgba(15, 23, 42, 0.08);
+  --panel-item-bg: rgba(15, 23, 42, 0.02);
+  --tooltip-bg: rgba(15, 23, 42, 0.95);
+  --grad-primary: rgba(34, 197, 94, 0.04);
+  --grad-secondary: rgba(249, 115, 22, 0.04);
+  --shadow-glass: 0 8px 30px rgba(0, 0, 0, 0.06);
 }
 
 * {
@@ -45,8 +51,8 @@ body {
   font-family: 'Outfit', sans-serif;
   background-color: var(--bg-dark);
   background-image:
-    radial-gradient(circle at 15% 50%, rgba(34, 197, 94, 0.08), transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(249, 115, 22, 0.08), transparent 25%);
+    radial-gradient(circle at 15% 50%, var(--grad-primary), transparent 25%),
+    radial-gradient(circle at 85% 30%, var(--grad-secondary), transparent 25%);
   color: var(--text-main);
   min-height: 100vh;
   overflow-x: hidden;
@@ -60,7 +66,7 @@ body {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-glass);
   border-radius: 16px;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37),
+  box-shadow: var(--shadow-glass),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
 }
 

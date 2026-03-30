@@ -1,0 +1,146 @@
+{
+  "name": "WhatsApp AI Agent con DeepSeek (Natural Conversation)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-evolution",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "e6a1a1f4-3d04-4e2b-8a5e-6b8d9c2a3f12",
+      "name": "Webhook Evolution API",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.data.message.conversation || $json.body.data.message.extendedTextMessage.text }}",
+        "options": {
+          "systemMessage": "Eres un asesor de ventas altamente calificado, humano y empático. Trabajas para la constructora Quetzales vendiendo desarrollos inmobiliarios. Siempre respondes en primera persona y en un tono sumamente amable. Evita enlistar cosas como robot, en cambio utiliza prosa cálida y algún emoji ocasionalmente."
+        }
+      },
+      "id": "fc2c5a2c-91bc-4c3e-b2d9-1c8a7f4e2d31",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.5,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "model": "deepseek-chat",
+        "options": {
+          "baseURL": "https://api.deepseek.com/v1"
+        }
+      },
+      "id": "8e3b9a1f-4c5d-4f6e-9a2b-3c8d7e6f5a4b",
+      "name": "OpenAI Chat Model (Deepseek)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [440, 520],
+      "credentials": {
+        "openAiApi": {
+          "id": "tu-credencial-id-aqui",
+          "name": "DeepSeek API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionId": "={{ $('Webhook Evolution API').item.json.body.data.key.remoteJid }}"
+      },
+      "id": "b7a8d5e4-2c3f-4e1b-8a6d-9c8b7a6f5e4d",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.1,
+      "position": [580, 520]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://TU-URL-EVOLUTION-API/message/sendText/{{ $('Webhook Evolution API').item.json.instance }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "TU-GLOBAL-API-KEY-EVOLUTION"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $('Webhook Evolution API').item.json.body.data.key.remoteJid }}"
+            },
+            {
+              "name": "options",
+              "value": "{\"delay\": 2500}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9d8e7f6a-5b4c-3d2e-1f0a-8b9c7d6e5f4a",
+      "name": "Send Reply Evolution API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [840, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Evolution API": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send Reply Evolution API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model (Deepseek)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}

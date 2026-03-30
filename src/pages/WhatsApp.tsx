@@ -78,8 +78,8 @@ function CreateInstanceModal({ onClose, onCreated }: {
     name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: 'linear-gradient(135deg, rgba(7,9,14,0.98) 0%, rgba(15,20,30,0.98) 100%)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: '20px', padding: '2rem', width: '440px', maxWidth: '95vw', boxShadow: '0 0 60px rgba(34,197,94,0.08)' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="glass-panel" style={{ padding: '2rem', width: '440px', maxWidth: '95vw', boxShadow: '0 0 60px rgba(34,197,94,0.08)' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -102,13 +102,13 @@ function CreateInstanceModal({ onClose, onCreated }: {
             <div style={{ position: 'relative' }}>
               <button onClick={() => setDropdownOpen(o => !o)} style={{
                 width: '100%', padding: '12px 16px', borderRadius: '12px', textAlign: 'left',
-                background: 'rgba(255,255,255,0.04)', border: `1px solid ${selectedUser ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                background: 'var(--bg-panel)', border: `1px solid ${selectedUser ? 'rgba(34,197,94,0.3)' : 'var(--border-glass)'}`,
                 color: 'var(--text-main)', fontSize: '0.95rem', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: '12px', boxSizing: 'border-box',
-                transition: 'all 0.2s'
+                transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
               }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+              onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(34,197,94,0.5)'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = selectedUser ? 'rgba(34,197,94,0.3)' : 'var(--border-glass)'}
               >
                 {selectedUser ? (
                   <>
@@ -132,13 +132,13 @@ function CreateInstanceModal({ onClose, onCreated }: {
               {dropdownOpen && (
                 <div style={{
                   position: 'absolute', top: '110%', left: 0, right: 0, zIndex: 10,
-                  background: 'rgba(10,14,22,0.98)', border: '1px solid rgba(255,255,255,0.10)',
+                  background: 'var(--bg-panel)', border: '1px solid var(--border-glass)',
                   borderRadius: '12px', overflow: 'hidden',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.5)', maxHeight: '240px', overflowY: 'auto',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.15)', maxHeight: '240px', overflowY: 'auto',
                 }}>
                   {/* Opción: sin asignar */}
                   <button onClick={() => selectUser(null)} style={{ width: '100%', padding: '12px 16px', textAlign: 'left', background: !selectedUser ? 'rgba(34,197,94,0.06)' : 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 10, transition: 'background 0.2s' }}
-                  onMouseEnter={e => { if(selectedUser) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+                  onMouseEnter={e => { if(selectedUser) e.currentTarget.style.background = 'var(--bg-glass)'; }}
                   onMouseLeave={e => { if(selectedUser) e.currentTarget.style.background = 'transparent'; }}>
                     <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(107,114,128,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={14} color="#6b7280"/></div>
                     Sin asignar <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>(Instancia genérica)</span>
@@ -149,10 +149,10 @@ function CreateInstanceModal({ onClose, onCreated }: {
                       background: selectedUser?.id === u.id ? 'rgba(34,197,94,0.08)' : 'transparent',
                       border: 'none', color: 'var(--text-main)', cursor: 'pointer',
                       display: 'flex', alignItems: 'center', gap: 12,
-                      borderTop: '1px solid rgba(255,255,255,0.04)',
+                      borderTop: '1px solid var(--border-glass)',
                       transition: 'background 0.2s'
                     }}
-                    onMouseEnter={e => { if (selectedUser?.id !== u.id) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+                    onMouseEnter={e => { if (selectedUser?.id !== u.id) e.currentTarget.style.background = 'var(--bg-glass)'; }}
                     onMouseLeave={e => { if (selectedUser?.id !== u.id) e.currentTarget.style.background = 'transparent'; }}>
                       <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, color: '#818cf8', flexShrink: 0 }}>
                         {getInitials(u.name)}
@@ -181,8 +181,8 @@ function CreateInstanceModal({ onClose, onCreated }: {
 
           {/* Buttons */}
           <div style={{ display: 'flex', gap: '10px', marginTop: '0.5rem' }}>
-            <button onClick={onClose} style={{ flex: 1, padding: '12px', borderRadius: '12px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, transition: 'background 0.2s' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+            <button onClick={onClose} style={{ flex: 1, padding: '12px', borderRadius: '12px', background: 'transparent', border: '1px solid var(--border-glass)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, transition: 'background 0.2s' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-glass)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
               Cancelar
             </button>
@@ -299,192 +299,7 @@ function QRModal({ instance, onClose, onConnected }: {
   );
 }
 
-// --- Drawer: Monitor de Chat --------------------------------------------------
-function ChatMonitorDrawer({ instance, onClose }: {
-  instance: WhatsappInstance;
-  onClose: () => void;
-}) {
-  const [messages, setMessages] = useState<WhatsappMessage[]>([]);
-  const [loadingMsgs, setLoadingMsgs] = useState(true);
-  const [replyText, setReplyText] = useState('');
-  const [sending, setSending] = useState(false);
-  const [activeContact, setActiveContact] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const fetchMessages = useCallback(async () => {
-    try {
-      const msgs = await whatsappService.getMessages(instance.id, 200);
-      setMessages([...msgs].reverse());
-    } catch { /* silenciar */ }
-    finally { setLoadingMsgs(false); }
-  }, [instance.id]);
-
-  useEffect(() => {
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 5000);
-    return () => clearInterval(interval);
-  }, [fetchMessages]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, activeContact]);
-
-  const contactsMap = messages.reduce<Record<string, { name: string; msgs: WhatsappMessage[]; lastTime: string }>>((acc, msg) => {
-    const key = msg.phone_from;
-    if (!acc[key]) acc[key] = { name: msg.phone_name ?? msg.phone_from, msgs: [], lastTime: msg.created_at };
-    acc[key].msgs.push(msg);
-    if (msg.created_at > acc[key].lastTime) acc[key].lastTime = msg.created_at;
-    return acc;
-  }, {});
-  const contacts = Object.entries(contactsMap).sort((a, b) => b[1].lastTime.localeCompare(a[1].lastTime));
-  const currentContact = activeContact ?? contacts[0]?.[0] ?? null;
-  const currentMsgs = currentContact ? (contactsMap[currentContact]?.msgs ?? []) : [];
-
-  const handleSend = async () => {
-    if (!replyText.trim() || sending || !currentContact) return;
-    setSending(true);
-    try {
-      await evolutionApi.sendTextMessage(instance.instance_name, currentContact, replyText);
-      setReplyText('');
-      setTimeout(fetchMessages, 1000);
-    } finally { setSending(false); }
-  };
-
-  const fmtTime = (d: string) => new Date(d).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-
-  return (
-    <div style={{
-      position: 'fixed', top: 0, right: 0, bottom: 0,
-      width: '780px', maxWidth: '100vw', zIndex: 900,
-      background: 'linear-gradient(180deg, rgba(7,9,14,0.99) 0%, rgba(10,14,22,0.99) 100%)',
-      borderLeft: '1px solid rgba(255,255,255,0.07)',
-      display: 'flex', flexDirection: 'column',
-      boxShadow: '-20px 0 60px rgba(0,0,0,0.5)',
-    }}>
-      <div style={{
-        padding: '1rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'rgba(255,255,255,0.02)', backdropFilter: 'blur(10px)', flexShrink: 0,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4, borderRadius: 6 }}><X size={20}/></button>
-          <div style={{ width: 36, height: 36, borderRadius: '10px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MessageSquare size={16} color="#22c55e"/></div>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>Monitor de Chat</div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 5px #22c55e' }}/>
-              En vivo · {instance.phone_label} · {contacts.length} contacto{contacts.length !== 1 ? 's' : ''}
-            </div>
-          </div>
-        </div>
-        <button onClick={fetchMessages} style={{ padding: '6px 10px', borderRadius: '8px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.15)', color: '#22c55e', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem' }}>
-          <RefreshCw size={12}/> Actualizar
-        </button>
-      </div>
-
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <div style={{ width: '220px', flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', overflowY: 'auto', background: 'rgba(0,0,0,0.2)' }}>
-          <div style={{ padding: '10px 12px', fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-            Conversaciones
-          </div>
-          {loadingMsgs ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}><Loader2 size={20} style={{ animation: 'spin 1s linear infinite', color: '#22c55e' }}/></div>
-          ) : contacts.length === 0 ? (
-            <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.78rem' }}>Sin mensajes aun</div>
-          ) : contacts.map(([phone, contact]) => (
-            <button key={phone} onClick={() => setActiveContact(phone)} style={{
-              padding: '10px 14px', textAlign: 'left',
-              background: currentContact === phone ? 'rgba(34,197,94,0.08)' : 'transparent',
-              border: 'none', borderLeft: currentContact === phone ? '2px solid #22c55e' : '2px solid transparent',
-              cursor: 'pointer', transition: 'all 0.15s', width: '100%',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><User size={12} color="#818cf8"/></div>
-                <div style={{ overflow: 'hidden', flex: 1 }}>
-                  <div style={{ fontSize: '0.76rem', fontWeight: 600, color: currentContact === phone ? '#22c55e' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{contact.name}</div>
-                  <div style={{ fontSize: '0.63rem', color: 'var(--text-muted)', marginTop: 1 }}>{contact.msgs.length} msgs · {timeAgo(contact.lastTime)}</div>
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {currentContact ? (
-            <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={12} color="#22c55e"/></div>
-              <div>
-                <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>{contactsMap[currentContact]?.name ?? currentContact}</div>
-                <div style={{ fontSize: '0.63rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{currentContact}</div>
-              </div>
-            </div>
-          ) : (
-            <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.15)', flexShrink: 0 }}>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Selecciona una conversacion</span>
-            </div>
-          )}
-
-          <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '4px', background: 'radial-gradient(circle at center, rgba(34,197,94,0.015) 0%, transparent 70%)' }}>
-            {!currentContact ? (
-              <div style={{ display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-                <MessageSquare size={40} style={{ opacity: 0.1, marginBottom: 12 }}/>
-                <p style={{ margin: 0, fontSize: '0.85rem' }}>Selecciona un contacto</p>
-              </div>
-            ) : currentMsgs.map(msg => (
-              <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, maxWidth: '75%' }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(107,114,128,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><User size={10} color="#6b7280"/></div>
-                  <div>
-                    <div style={{ padding: '8px 12px', borderRadius: '14px', borderBottomLeftRadius: '3px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.09)', color: '#e2e8f0', fontSize: '0.83rem', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.message_in}</div>
-                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2, marginLeft: 3 }}>{fmtTime(msg.created_at)}</div>
-                  </div>
-                </div>
-                {msg.message_out && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', maxWidth: '75%', alignSelf: 'flex-end', marginTop: '3px' }}>
-                    <div style={{ padding: '8px 12px', borderRadius: '14px', borderBottomRightRadius: '3px',
-                      background: msg.responded_by === 'ai' ? 'linear-gradient(135deg, rgba(34,197,94,0.16) 0%, rgba(16,185,129,0.1) 100%)' : 'linear-gradient(135deg, rgba(99,102,241,0.16) 0%, rgba(79,70,229,0.1) 100%)',
-                      border: msg.responded_by === 'ai' ? '1px solid rgba(34,197,94,0.18)' : '1px solid rgba(99,102,241,0.18)',
-                      color: '#e2e8f0', fontSize: '0.83rem', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                      {msg.message_out}
-                    </div>
-                    <div style={{ fontSize: '0.6rem', marginTop: 2, marginRight: 3, color: msg.responded_by === 'ai' ? 'rgba(34,197,94,0.65)' : 'rgba(99,102,241,0.65)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                      {msg.responded_by === 'ai' ? <><Bot size={8}/> IA Agent</> : <><User size={8}/> Manual</>}
-                      <span style={{ color: 'var(--text-muted)' }}>· {fmtTime(msg.created_at)}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-            <div ref={messagesEndRef}/>
-          </div>
-
-          <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.2)', flexShrink: 0 }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input value={replyText} onChange={e => setReplyText(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                placeholder={currentContact ? 'Respuesta manual (bypass IA)...' : 'Selecciona un contacto primero'}
-                disabled={!currentContact}
-                style={{ flex: 1, padding: '9px 13px', borderRadius: '10px', fontSize: '0.83rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-main)', outline: 'none' }}
-              />
-              <button onClick={handleSend} disabled={!replyText.trim() || sending || !currentContact} style={{
-                width: 36, height: 36, borderRadius: '10px', flexShrink: 0,
-                background: replyText.trim() && currentContact ? '#22c55e' : 'rgba(255,255,255,0.05)',
-                border: 'none', color: replyText.trim() && currentContact ? '#000' : 'var(--text-muted)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: replyText.trim() && currentContact ? 'pointer' : 'not-allowed', transition: 'all 0.2s',
-              }}>
-                {sending ? <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }}/> : <Send size={15}/>}
-              </button>
-            </div>
-            <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 4 }}>
-              IA: {instance.ai_enabled ? 'Activa' : 'Desactivada'} · Respuesta manual via Evolution API
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── Drawer: Config de Instancia ─────────────────────────────────────────────
 function InstanceDrawer({ instance, onClose, onUpdate }: {
@@ -576,13 +391,13 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
     <div style={{
       position: 'fixed', top: 0, right: 0, bottom: 0,
       width: '520px', maxWidth: '95vw', zIndex: 900,
-      background: 'linear-gradient(180deg, rgba(7,9,14,0.99) 0%, rgba(10,14,22,0.99) 100%)',
-      borderLeft: '1px solid rgba(255,255,255,0.07)',
+      background: 'var(--bg-panel)',
+      borderLeft: '1px solid var(--border-glass)',
       display: 'flex', flexDirection: 'column',
-      boxShadow: '-20px 0 60px rgba(0,0,0,0.5)',
+      boxShadow: '-20px 0 60px rgba(0,0,0,0.15)',
     }}>
       {/* Header */}
-      <div style={{ padding: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-glass)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: 38, height: 38, borderRadius: '10px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -612,7 +427,7 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '0 1.5rem' }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-glass)', padding: '0 1.5rem' }}>
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{
             padding: '10px 14px', background: 'transparent',
@@ -638,7 +453,7 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
             <InfoRow label="Modelo IA" value={instance.ai_model}/>
             <InfoRow label="Creado" value={timeAgo(instance.created_at)}/>
 
-            <div style={{ padding: '1rem', borderRadius: '12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ padding: '1rem', borderRadius: '12px', background: 'var(--bg-glass)', border: '1px solid var(--border-glass)' }}>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px' }}>Webhook URL para Evolution API</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <code style={{ flex: 1, fontSize: '0.7rem', color: '#22c55e', wordBreak: 'break-all' }}>
@@ -681,13 +496,13 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
               <div style={{ position: 'relative' }} ref={dropdownRef}>
                 <button onClick={() => setDropdownOpen(o => !o)} style={{
                   width: '100%', padding: '12px 16px', borderRadius: '12px', textAlign: 'left',
-                  background: 'rgba(255,255,255,0.04)', border: `1px solid ${selectedUser ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                  background: 'var(--bg-panel)', border: `1px solid ${selectedUser ? 'rgba(34,197,94,0.3)' : 'var(--border-glass)'}`,
                   color: 'var(--text-main)', fontSize: '0.95rem', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: '12px', boxSizing: 'border-box',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}>
+                onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(34,197,94,0.5)'}
+                onMouseLeave={e => e.currentTarget.style.borderColor = selectedUser ? 'rgba(34,197,94,0.3)' : 'var(--border-glass)'}>
                   {selectedUser ? (
                     <>
                       <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: '#818cf8', flexShrink: 0 }}>
@@ -710,13 +525,13 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
                 {dropdownOpen && (
                   <div style={{
                     position: 'absolute', top: '110%', left: 0, right: 0, zIndex: 10,
-                    background: 'rgba(10,14,22,0.98)', border: '1px solid rgba(255,255,255,0.10)',
+                    background: 'var(--bg-panel)', border: '1px solid var(--border-glass)',
                     borderRadius: '12px', overflow: 'hidden',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.5)', maxHeight: '240px', overflowY: 'auto',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.15)', maxHeight: '240px', overflowY: 'auto',
                   }}>
                     {/* Opción: sin asignar */}
                     <button onClick={() => selectUser(null)} style={{ width: '100%', padding: '12px 16px', textAlign: 'left', background: !selectedUser ? 'rgba(34,197,94,0.06)' : 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 10, transition: 'background 0.2s' }}
-                    onMouseEnter={e => { if(selectedUser) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+                    onMouseEnter={e => { if(selectedUser) e.currentTarget.style.background = 'var(--bg-glass)'; }}
                     onMouseLeave={e => { if(selectedUser) e.currentTarget.style.background = 'transparent'; }}>
                       <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(107,114,128,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={14} color="#6b7280"/></div>
                       Sin asignar <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>(Instancia genérica)</span>
@@ -727,10 +542,10 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
                         background: selectedUser?.id === u.id ? 'rgba(34,197,94,0.08)' : 'transparent',
                         border: 'none', color: 'var(--text-main)', cursor: 'pointer',
                         display: 'flex', alignItems: 'center', gap: 12,
-                        borderTop: '1px solid rgba(255,255,255,0.04)',
+                        borderTop: '1px solid var(--border-glass)',
                         transition: 'background 0.2s'
                       }}
-                      onMouseEnter={e => { if (selectedUser?.id !== u.id) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+                      onMouseEnter={e => { if (selectedUser?.id !== u.id) e.currentTarget.style.background = 'var(--bg-glass)'; }}
                       onMouseLeave={e => { if (selectedUser?.id !== u.id) e.currentTarget.style.background = 'transparent'; }}>
                         <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, color: '#818cf8', flexShrink: 0 }}>
                           {u.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
@@ -778,7 +593,7 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
               )}
             </div>
 
-            <div style={{ padding: '10px 12px', borderRadius: '10px', background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.1)', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+            <div style={{ padding: '10px 12px', borderRadius: '10px', background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.15)', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
               <strong style={{ color: '#818cf8' }}>¿Cómo funciona?</strong><br/>
               El asesor asignado puede iniciar sesión y solo verá esta instancia en su dashboard. No puede modificar el contexto de la IA ni otras configuraciones.
             </div>
@@ -815,7 +630,7 @@ function InstanceDrawer({ instance, onClose, onUpdate }: {
               onChange={e => setContext(e.target.value)}
               style={{
                 flex: 1, minHeight: '60vh', padding: '14px', borderRadius: '12px',
-                background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)',
+                background: 'var(--bg-glass)', border: '1px solid var(--border-glass)',
                 color: 'var(--text-main)', fontSize: '0.78rem', resize: 'vertical',
                 outline: 'none', fontFamily: 'monospace', lineHeight: 1.6,
               }}
@@ -858,7 +673,7 @@ function InfoRow({ label, value, mono = false, small = false }: { label: string;
 }
 
 // ─── Card de Instancia ────────────────────────────────────────────────────────
-function InstanceCard({ instance, onRefresh, onConfig, onChat, onShowQR, onDelete: _onDelete }: {
+function InstanceCard({ instance, onRefresh, onConfig, onShowQR, onDelete: _onDelete }: {
   instance: WhatsappInstance;
   onRefresh: () => void;
   onConfig: () => void;
@@ -891,14 +706,14 @@ function InstanceCard({ instance, onRefresh, onConfig, onChat, onShowQR, onDelet
 
   return (
     <div style={{
-      background: 'linear-gradient(135deg, rgba(15,20,30,0.8) 0%, rgba(7,9,14,0.8) 100%)',
+      background: 'var(--bg-glass)',
       border: instance.status === 'connected'
-        ? '1px solid rgba(34,197,94,0.2)'
-        : '1px solid rgba(255,255,255,0.06)',
+        ? '1px solid rgba(34,197,94,0.3)'
+        : '1px solid var(--border-glass)',
       borderRadius: '16px', padding: '1.25rem',
       display: 'flex', flexDirection: 'column', gap: '0.9rem',
       backdropFilter: 'blur(10px)',
-      boxShadow: instance.status === 'connected' ? '0 0 20px rgba(34,197,94,0.04)' : 'none',
+      boxShadow: instance.status === 'connected' ? '0 0 20px rgba(34,197,94,0.08)' : '0 4px 6px rgba(0,0,0,0.02)',
       transition: 'all 0.3s ease',
       cursor: 'default',
     }}>
@@ -907,8 +722,8 @@ function InstanceCard({ instance, onRefresh, onConfig, onChat, onShowQR, onDelet
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{
             width: 40, height: 40, borderRadius: '11px',
-            background: instance.status === 'connected' ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.04)',
-            border: `1px solid ${instance.status === 'connected' ? 'rgba(34,197,94,0.25)' : 'rgba(255,255,255,0.08)'}`,
+            background: instance.status === 'connected' ? 'rgba(34,197,94,0.12)' : 'var(--bg-panel)',
+            border: `1px solid ${instance.status === 'connected' ? 'rgba(34,197,94,0.25)' : 'var(--border-glass)'}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <MessageCircle size={20} color={instance.status === 'connected' ? '#22c55e' : '#6b7280'}/>
@@ -943,8 +758,8 @@ function InstanceCard({ instance, onRefresh, onConfig, onChat, onShowQR, onDelet
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '10px 12px', borderRadius: '10px',
-        background: instance.ai_enabled ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.02)',
-        border: `1px solid ${instance.ai_enabled ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)'}`,
+        background: instance.ai_enabled ? 'rgba(34,197,94,0.06)' : 'var(--bg-panel)',
+        border: `1px solid ${instance.ai_enabled ? 'rgba(34,197,94,0.15)' : 'var(--border-glass)'}`,
         transition: 'all 0.3s',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
@@ -961,18 +776,6 @@ function InstanceCard({ instance, onRefresh, onConfig, onChat, onShowQR, onDelet
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: '8px' }}>
-        <button onClick={onChat} style={{
-          flex: 1.5, padding: '8px', borderRadius: '9px',
-          background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)',
-          color: '#22c55e', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          transition: 'all 0.2s',
-        }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(34,197,94,0.15)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(34,197,94,0.1)'; }}>
-          <MessageSquare size={14}/> Mensajes
-        </button>
-
         <button onClick={onConfig} style={{
           flex: 1, padding: '8px', borderRadius: '9px',
           background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
@@ -1026,7 +829,6 @@ function AdvisorView() {
   const [instance, setInstance] = useState<WhatsappInstance | null>(null);
   const [loading, setLoading] = useState(true);
   const [showQR, setShowQR] = useState(false);
-  const [showChat, setShowChat] = useState(false);
   const [toggling, setToggling] = useState(false);
 
   const handleToggleAI = async () => {
@@ -1195,15 +997,6 @@ function AdvisorView() {
         )}
 
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={() => setShowChat(true)} style={{
-            flex: instance.status === 'connected' ? 1.5 : 1, padding: '12px', borderRadius: '12px', fontSize: '0.88rem', fontWeight: 600,
-            background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)',
-            color: '#22c55e', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          }}>
-            <MessageSquare size={16}/> Ver conversaciones
-          </button>
-
           {instance.status === 'connected' && (
             <button onClick={() => evolutionApi.logoutInstance(instance.instance_name).then(load)} style={{
               flex: 1, padding: '12px', borderRadius: '12px', fontSize: '0.88rem', fontWeight: 600,
@@ -1219,7 +1012,6 @@ function AdvisorView() {
 
       {/* Modales reutilizados */}
       {showQR && <QRModal instance={instance} onClose={() => setShowQR(false)} onConnected={() => { setShowQR(false); load(); }}/>}
-      {showChat && <ChatMonitorDrawer instance={instance} onClose={() => setShowChat(false)}/>}
     </div>
   );
 }
@@ -1238,7 +1030,6 @@ export default function WhatsApp() {
   const [showCreate, setShowCreate] = useState(false);
   const [showQR, setShowQR] = useState<WhatsappInstance | null>(null);
   const [activeConfig, setActiveConfig] = useState<WhatsappInstance | null>(null);
-  const [activeChat, setActiveChat] = useState<WhatsappInstance | null>(null);
 
   const loadInstances = useCallback(async () => {
     try {
@@ -1381,7 +1172,6 @@ export default function WhatsApp() {
               instance={instance}
               onRefresh={loadInstances}
               onConfig={() => setActiveConfig(instance)}
-              onChat={() => setActiveChat(instance)}
               onShowQR={() => setShowQR(instance)}
               onDelete={loadInstances}
             />
@@ -1412,15 +1202,7 @@ export default function WhatsApp() {
         </>
       )}
 
-      {activeChat && (
-        <>
-          <div onClick={() => setActiveChat(null)} style={{ position: 'fixed', inset: 0, zIndex: 850, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)' }}/>
-          <ChatMonitorDrawer
-            instance={activeChat}
-            onClose={() => setActiveChat(null)}
-          />
-        </>
-      )}
+
 
       {/* Keyframes */}
       <style>{`
