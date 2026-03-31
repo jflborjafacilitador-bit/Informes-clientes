@@ -60,18 +60,16 @@ export default function UserLanding() {
     }
     setSubmitting(true);
     try {
-      const { error: dbError } = await supabase
-        .from('clients')
-        .insert([{
-          name: formData.nombre,
-          email: formData.correo,
-          phone: formData.telefono,
-          origen: 'landing_propia',
-          asesor_id: config.user_id,
-          presupuesto: formData.presupuesto,
-          tipo_financiamiento: formData.financiamiento,
-          status: 'Lead'
-        }]);
+      const { error: dbError } = await supabase.rpc('rpc_register_lead', {
+        p_name: formData.nombre,
+        p_email: formData.correo,
+        p_phone: formData.telefono,
+        p_origen: 'landing_propia',
+        p_asesor_id: config.user_id,
+        p_presupuesto: formData.presupuesto,
+        p_financiamiento: formData.financiamiento,
+        p_status: 'Lead'
+      });
 
       if (dbError) throw new Error('No se pudo guardar la información, intenta de nuevo.');
 
