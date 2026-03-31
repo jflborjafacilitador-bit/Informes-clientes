@@ -1030,6 +1030,29 @@ export default function WhatsApp() {
   const [showQR, setShowQR] = useState<WhatsappInstance | null>(null);
   const [activeConfig, setActiveConfig] = useState<WhatsappInstance | null>(null);
 
+  // MIGRACIÓN MÁGICA TEMPORAL PARA ACTUALIZAR INSTANCIAS EXISTENTES:
+  useEffect(() => {
+    if (isAdmin) {
+      whatsappService.getInstances().then(instances => {
+        instances.forEach(inst => {
+          // Reemplaza {ADVISOR_NAME} dynamically if missing
+          const context = DEFAULT_LLMS_CONTEXT.replace(
+            '{ADVISOR_NAME}', 
+            inst.advisor_name || 'Agente'
+          ).replace('{ADVISOR_CATALOG}', slugifyAdvisor(inst.advisor_name || 'Agente'));
+
+          if (inst.llms_context !== context) {
+             whatsappService.updateInstance(inst.id, { llms_context: context });
+             console.log('Contexto actualizado para:', inst.advisor_name);
+          }
+          
+          // FORCE UPDATE WH ATSAPP WEBHOOK TO BASE64
+          evolutionApi.updateWebhookBase64(inst.instance_name);
+        });
+      });
+    }
+  }, [isAdmin]);
+
   const loadInstances = useCallback(async () => {
     try {
       const data = await whatsappService.getInstances();

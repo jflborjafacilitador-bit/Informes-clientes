@@ -1,21 +1,23 @@
 import { useState, useEffect } from 'react';
-import { Search, Edit2, Trash2, RefreshCw } from 'lucide-react';
+import { Search, Edit2, Trash2, RefreshCw, UserPlus } from 'lucide-react';
 import { fetchClientsFromSheet, type ClientData } from '../services/googleSheets';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import NewClientModal from '../components/landing/NewClientModal';
 
 export default function Clientes() {
     const { role, session } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [assignFilter, setAssignFilter] = useState('');
-    const [originFilter, setOriginFilter] = useState<'todos' | 'asignado' | 'landing_propia'>('todos');
+    const [originFilter, setOriginFilter] = useState<'todos' | 'asignado' | 'landing_propia' | 'propio'>('todos');
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState(25);
     const [clients, setClients] = useState<(ClientData & { origen?: string; created_at?: string })[]>([]);
     const [asesores, setAsesores] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isNewClientOpen, setIsNewClientOpen] = useState(false);
 
     useEffect(() => {
         if (session) {
@@ -42,11 +44,11 @@ export default function Clientes() {
                 .from('client_overrides')
                 .select('client_id, status, assigned_to, assigned_email, budget_range');
 
-            // 3. Obtener clientes propios de la Landing
+            // 3. Obtener clientes propios de la Landing y Propios Manuales
             const { data: ownClients } = await supabase
                 .from('clients')
                 .select('*')
-                .eq('origen', 'landing_propia');
+                .in('origen', ['landing_propia', 'propio']);
 
             // 4. Mapear clientes propios a ClientData
             const mappedOwnClients: (ClientData & { origen?: string; created_at?: string })[] = (ownClients || []).map(c => ({
@@ -92,7 +94,7 @@ export default function Clientes() {
                 ? allClients.filter(c =>
                     c.assigned_to === session?.user?.id ||
                     (c.sheet_assigned && c.sheet_assigned.toLowerCase().includes(emailPrefix)) ||
-                    (c.origen === 'landing_propia' && c.assigned_to === session?.user?.id)
+                    ((c.origen === 'landing_propia' || c.origen === 'propio') && c.assigned_to === session?.user?.id)
                 )
                 : allClients;
             setClients(visible);
@@ -217,6 +219,13 @@ export default function Clientes() {
                         <span style={{ marginLeft: '10px', color: 'var(--text-main)', fontWeight: 'bold' }}>Total: {clients.length} / Activos: {clients.filter(c => c.status === 'Activo').length}</span>
                     </p>
                 </div>
+                {(role === 'asesor' || role === 'super_admin' || role === 'gerente') && (
+                    <button onClick={() => setIsNewClientOpen(true)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'var(--primary-accent)', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 12px rgba(0,240,255,0.2)' }}>
+                        <UserPlus size={18} />
+                        Nuevo Contacto
+                    </button>
+                )}
             </div>
 
             {/* Pestañas de Origen */}
@@ -253,6 +262,17 @@ export default function Clientes() {
                     }}
                 >
                     Propios (Landing)
+                </button>
+                <button
+                    onClick={() => { setOriginFilter('propio'); setPage(0); }}
+                    style={{
+                        background: 'transparent', border: 'none', cursor: 'pointer',
+                        padding: '10px 16px', fontSize: '1rem', fontWeight: originFilter === 'propio' ? 'bold' : 'normal',
+                        color: originFilter === 'propio' ? 'var(--primary-accent)' : 'var(--text-muted)',
+                        borderBottom: originFilter === 'propio' ? '2px solid var(--primary-accent)' : '2px solid transparent'
+                    }}
+                >
+                    Propios (Manuales)
                 </button>
             </div>
 
@@ -563,6 +583,13 @@ export default function Clientes() {
                     )}
                 </div>
             </div>
+
+            <NewClientModal
+                isOpen={isNewClientOpen}
+                onClose={() => setIsNewClientOpen(false)}
+                onSuccess={loadData}
+                existingPhones={clients.map(c => c.phone.replace(/\D/g, ''))}
+            />
         </div>
     );
 }

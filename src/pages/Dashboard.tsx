@@ -147,11 +147,11 @@ export default function Dashboard() {
                 .from('client_overrides')
                 .select('client_id, status, assigned_to, assigned_email, budget_range, created_at');
 
-            // 3. Obtener clientes propios de la Landing
+            // 3. Obtener clientes propios de la Landing y Propios Manuales
             const { data: ownClients } = await supabase
                 .from('clients')
                 .select('*')
-                .eq('origen', 'landing_propia');
+                .in('origen', ['landing_propia', 'propio']);
 
             const mappedOwnClients = (ownClients || []).map(c => ({
                 id: c.id,
@@ -163,7 +163,7 @@ export default function Dashboard() {
                 segment: c.tipo_financiamiento || 'Landing Page',
                 assigned_to: c.asesor_id,
                 assigned_email: '', // Requires lookup if needed 
-                origen: 'landing_propia',
+                origen: c.origen || 'landing_propia',
                 created_at: c.created_at,
                 rowIndex: new Date(c.created_at || Date.now()).getTime(), // Use timestamp for sort
                 sheet_assigned: undefined
@@ -193,7 +193,7 @@ export default function Dashboard() {
                 ? allClients.filter(c =>
                     c.assigned_to === session?.user?.id ||
                     (c.sheet_assigned && c.sheet_assigned.toLowerCase().includes(emailPrefix)) ||
-                    (c.origen === 'landing_propia' && c.assigned_to === session?.user?.id)
+                    ((c.origen === 'landing_propia' || c.origen === 'propio') && c.assigned_to === session?.user?.id)
                 )
                 : allClients;
             setClients(visible);

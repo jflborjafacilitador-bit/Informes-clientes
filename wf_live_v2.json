@@ -1,0 +1,606 @@
+{
+  "updatedAt": "2026-03-30T22:27:34.332Z",
+  "createdAt": "2026-03-30T22:23:58.625Z",
+  "id": "iJkJqQsNI6u4BXu6",
+  "name": "Quetzales AI Master Ecosystem",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "landing-agent",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "e6a1a1f4-3d04-4e2b-8a5e-6b8d9c2a3f12",
+      "name": "Webhook Landing Page",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        200
+      ],
+      "webhookId": "landing-agent"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-agent",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "1d3f9a74-a78b-4c22-921a-e64db801fa32",
+      "name": "Webhook Evolution WhatsApp",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        400
+      ],
+      "webhookId": "whatsapp-agent"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body?.data ? ($json.body.data.message.conversation || $json.body.data.message.extendedTextMessage?.text || \"\") : ($json.body?.nombre ? (\"*INSTRUCCIÓN DEL SISTEMA DE ACTIVACIÓN*\\n\\nHola, da el **primer saludo** a este nuevo prospecto.\\n\\nDatos del prospecto:\\n- Nombre: \" + $json.body.nombre + \"\\n- Presupuesto: \" + $json.body.presupuesto + \"\\n- Financiamiento: \" + $json.body.financiamiento + \"\\n\\nMensaje base del asesor que te crió: \\\"\" + $json.body.welcome_message + \"\\\"\\n\\nInstrucción: Escribe el primer mensaje de bienvenida de tu parte. Sé muy natural, empático y menciona brevemente que tomaste nota de su información.\") : ($json.text || $json.output)) }}",
+        "options": {
+          "systemMessage": "={{\n(() => {\n  const instanceName = $('Webhook Evolution WhatsApp').last()?.json?.body?.instance || $('Webhook Landing Page').last()?.json?.body?.whatsapp_instance_name || 'Desconocido';\n  \n  let miNombre = 'Asesor Profesional';\n  let miSitio = 'https://marea.pro/';\n  if (instanceName.toLowerCase().includes('joseph')) {\n    miNombre = 'Joseph Borja';\n    miSitio = 'https://marea.pro/joseph-borja-asesor';\n  } else if (instanceName.toLowerCase().includes('marlon')) {\n    miNombre = 'Marlon Brandon';\n    miSitio = 'https://marea.pro/asesor-inmobiliario-marlon-brandon';\n  } else {\n    miNombre = instanceName;\n  }\n\n  // Obtenemos el contexto (llms_context) desde la base de datos si existe en esta ejecución\n  const dbContext = $('Verificar IA Activada DB').last()?.json?.context;\n  \n  // Si el DB Context existe y no está vacío, lo preferimos, sino usamos el predeterminado\n  const kbReal = (dbContext && dbContext.trim() !== '') ? dbContext : `[OBJECTIVE]\nRepresentar a Residencial Los Quetzales como un Asesor Inmobiliario Senior. Tu meta es la conversión: perfila al lead estratégicamente (uso, presupuesto, crédito, tiempo) para agendar una cita presencial. No eres un recolector de datos; eres un consultor que vende una inversión y un estilo de vida exclusivo.\n\n[LIFESTYLE NARRATIVE - EL GANCHO]\n- El Despertar: Aire limpio, vista a los volcanes y paz absoluta en Ayala.\n- Planes Locales: Desayuno de cecina en el centro, tardes en Agua Hedionda o visitas al Museo Casa Zapata.\n- Conectividad: Plaza Atrios a 15 min, pero con el sabor local del tamal de bagre en \"La Curva\".\n\n[KNOWLEDGE BASE: INVENTARIO ACTUALIZADO 2026]\n\n📍 MANZANA 2 (Entrega Inmediata):\n- Quetzal (2 Niv): Austera $1.456M | Aust. Elite $1.545M | Equipada $1.587M | Eq. Elite $1.676M\n- Quetzal Plus (3 Niv): Austera $1.768M | Aust. Elite $1.857M | Equipada $1.943M | Eq. Elite $2.032M\n\n📍 MANZANA 3 (PREVENTA - Agosto 2026):\n- Quetzal: Austera $1.503M | Aust. Elite $1.590M | Equipada $1.620M | Eq. Elite $1.689M\n- Quetzal Roof Garden: Austera $1.687M | Aust. Elite $1.774M | Equipada $1.752M | Eq. Elite $1.839M\n- Quetzal Plus: Austera $1.807M | Aust. Elite $1.895M | Equipada $1.966M | Eq. Elite $2.053M\n- Quetzal Plus F.A. (Frente Alberca): Austera $1.837M | Aust. Elite $1.925M | Equipada $1.976M | Eq. Elite $2.083M\n\n[DEFINICIÓN DE EQUIPAMIENTO]\n- Austera: Tarja básica y ventiladores.\n- Equipada: Cocina con granito, closets, persianas, cancel en baño de recámara principal.\n- Elite: Incluye una recámara extra en Planta Baja (Total: hasta 4 recámaras).\n\n[CONVERSATION LOGIC & FLOW]\n- Interacción: REGLA DE ORO. Tus respuestas deben ser EXTREMADAMENTE BREVES Y CONCISAS (Máximo 2 o 3 oraciones cortas), conversacionales y directos (estilo WhatsApp).\n- Perfilamiento Secuencial: No satures. Haz 1 pregunta por mensaje siguiendo este orden: (¿Uso Habitacional o Inversión? -> ¿Presupuesto? -> ¿Esquema de Crédito? -> ¿Tiempo de compra?).\n- Disparadores de Recursos: Envía los links solo cuando el cliente pregunte por espacios, acabados o fotos para validar la calidad:\n  * Catálogo: https://marea.pro/joseph-borja-asesor\n  * Recorrido Quetzal: https://my.matterport.com/show/?m=gmCEbVbLvKr\n  * Recorrido Plus: https://my.matterport.com/show/?m=Z7yHuZ1yPye\n- Cierre de Cita: Al agendar, solicita confirmación de día y hora. Nota Obligatoria: \"Dime el día y la hora para dejar la nota en el sistema y que el asesor te reciba con la ubicación exacta\".\n\n[REGLAS DE NEGOCIO Y OBJECIONES]\n- Calificación: Si el presupuesto es < $1M, sugiere \"Unamos Créditos\" o créditos conyugales de forma profesional.\n- Filtro de Precio: Anclaje inicial sugerido en $1.6 MDP.\n- Escrituración: Informar siempre que es un gasto adicional del 5% al 7% del valor.\n- Financiamiento: Infonavit (Cofinavit, Unamos), Fovissste, Bancarios, Contado (10% apartado). \n- PROHIBIDO: Infonavit Tradicional.\n- Ubicación: https://maps.app.goo.gl/UyYBgGzc6p6HkLch6 (Enviar siempre que se hable de logística o visitas).\n\n[GUARDRAILS CRÍTICOS]\n1. NO PEDIR EL WHATSAPP NI TELÉFONO: Ya estás hablando con el cliente por ese canal. Pedirlo es redundante y poco profesional.\n2. NUNCA envíes bloques enormes de texto. Sé muy humano.\n3. NO vendemos departamentos. SOLO vendemos CASAS. Si te preguntan por departamentos, aclara que solo vendemos casas.\n4. NO manejamos precios en dólares (USD). Todos nuestros precios son en Pesos Mexicanos (MXN).\n5. NO tenemos desarrollos en otras ciudades, solo en Ayala, Morelos.\n6. No inventes precios ni condiciones. Si el dato es muy específico, deriva al \"compañero experto\".\n7. Horarios: Citas únicamente de 10:00 am a 4:00 pm, de lunes a domingo.\n8. Diferencia Técnica: Quetzal (2-3 rec.) vs Quetzal Plus (3-4 rec.). El Roof Garden es exclusivo de modelos Quetzal en Manzana 3.`;\n  \n  return `[IDENTIDAD DEL ASESOR]\nEres ${miNombre}, prestigioso y humano asesor inmobiliario de la Constructora Residencial Los Quetzales. Trabajas contactando prospectos y respondiendo dudas en WhatsApp. Hablas en primera persona, eres cálido, muy empático y usas emojis de forma profesional. Nunca dices que eres un bot.\n\nTu catálogo digital personal: ${miSitio}\n-----------------\n${kbReal}`;\n})()\n}}"
+        }
+      },
+      "id": "fc2c5a2c-91bc-4c3e-b2d9-1c8a7f4e2d31",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.5,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "model": "deepseek-chat",
+        "options": {
+          "baseURL": "https://api.deepseek.com/v1"
+        }
+      },
+      "id": "8e3b9a1f-4c5d-4f6e-9a2b-3c8d7e6f5a4b",
+      "name": "DeepSeek API",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        400
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "ewsfEs7DeKBOonKk",
+          "name": "DeepSeek API - Master"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionId": "={{ $json.body.data ? $json.body.data.key.remoteJid : ($json.body.telefono + '@s.whatsapp.net') }}",
+        "sessionKey": "={{ $('Webhook Evolution WhatsApp').first()?.json?.body?.data?.key?.remoteJid || $('Webhook Landing Page').first()?.json?.body?.telefono || 'default' }}"
+      },
+      "id": "b7a8d5e4-2c3f-4e1b-8a6d-9c8b7a6f5e4d",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.1,
+      "position": [
+        1250,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://n8n-prueba1-evolution-api.exigs1.easypanel.host/message/sendText/' + ($if($('Webhook Evolution WhatsApp').isExecuted, $('Webhook Evolution WhatsApp').first().json.body.instance, $('Webhook Landing Page').first().json.body.whatsapp_instance_name)) }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "429683C4C977415CAAFCCE10F7D57E11"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $if($('Webhook Evolution WhatsApp').isExecuted, $('Webhook Evolution WhatsApp').first().json.body.data.key.remoteJid.replace('@s.whatsapp.net', ''), $('Webhook Landing Page').first().json.body.telefono) }}"
+            },
+            {
+              "name": "options",
+              "value": "{\"delay\": 2500}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9d8e7f6a-5b4c-3d2e-1f0a-8b9c7d6e5f4a",
+      "name": "Send WhatsApp via Evolution API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.body.data.key.fromMe }}",
+              "value2": false
+            },
+            {
+              "value1": "={{ $json.body.data.key.remoteJid?.includes('@g.us') }}",
+              "operation": "equal",
+              "value2": false
+            }
+          ]
+        },
+        "combineOperation": "all"
+      },
+      "id": "node-if-webhook-source",
+      "name": "Ignorar Mensajes de IA",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mxucntphfihiyctxiffs.supabase.co/rest/v1/rpc/is_ai_enabled",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14dWNudHBoZmloaXljdHhpZmZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTI0NjgsImV4cCI6MjA4ODE2ODQ2OH0.O8laFOL5q-J5f5qIAN1TenRa2Ax2U53XIxR-VOw4LZY"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14dWNudHBoZmloaXljdHhpZmZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTI0NjgsImV4cCI6MjA4ODE2ODQ2OH0.O8laFOL5q-J5f5qIAN1TenRa2Ax2U53XIxR-VOw4LZY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_instance_name\": \"{{ $('Webhook Evolution WhatsApp').first()?.json?.body?.instance }}\"\n}",
+        "options": {}
+      },
+      "id": "node-check-ai",
+      "name": "Verificar IA Activada DB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        600,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.enabled }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-if-ai-active",
+      "name": "¿IA Encendida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        800,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mxucntphfihiyctxiffs.supabase.co/rest/v1/rpc/register_client_from_ai",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14dWNudHBoZmloaXljdHhpZmZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTI0NjgsImV4cCI6MjA4ODE2ODQ2OH0.O8laFOL5q-J5f5qIAN1TenRa2Ax2U53XIxR-VOw4LZY"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14dWNudHBoZmloaXljdHhpZmZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTI0NjgsImV4cCI6MjA4ODE2ODQ2OH0.O8laFOL5q-J5f5qIAN1TenRa2Ax2U53XIxR-VOw4LZY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_phone\": \"{{ $('Webhook Evolution WhatsApp').first()?.json?.body?.data?.key?.remoteJid?.split('@')[0] }}\",\n  \"p_name\": \"{{ $('Webhook Evolution WhatsApp').first()?.json?.body?.data?.pushName || 'Prospecto WhatsApp' }}\",\n  \"p_instance\": \"{{ $('Webhook Evolution WhatsApp').first()?.json?.body?.instance }}\"\n}",
+        "options": {}
+      },
+      "id": "node-register-crm",
+      "name": "Registrar Cliente CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        950,
+        380
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Landing Page": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Evolution WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Ignorar Mensajes de IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp via Evolution API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek API": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ignorar Mensajes de IA": {
+      "main": [
+        [
+          {
+            "node": "Verificar IA Activada DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar IA Activada DB": {
+      "main": [
+        [
+          {
+            "node": "¿IA Encendida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿IA Encendida?": {
+      "main": [
+        [
+          {
+            "node": "Registrar Cliente CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Cliente CRM": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "e1d6cfe6-64ac-431a-8b9e-5aeafe5e2614",
+  "activeVersionId": "e1d6cfe6-64ac-431a-8b9e-5aeafe5e2614",
+  "versionCounter": 3,
+  "triggerCount": 2,
+  "shared": [
+    {
+      "updatedAt": "2026-03-30T22:23:58.628Z",
+      "createdAt": "2026-03-30T22:23:58.628Z",
+      "role": "workflow:owner",
+      "workflowId": "iJkJqQsNI6u4BXu6",
+      "projectId": "lAx3kttLzx1cjwrk",
+      "project": {
+        "updatedAt": "2026-03-29T07:44:19.253Z",
+        "createdAt": "2026-03-29T07:41:38.033Z",
+        "id": "lAx3kttLzx1cjwrk",
+        "name": "Joseph Borja <jflborjafacilitador@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2026-03-29T07:41:38.033Z",
+            "createdAt": "2026-03-29T07:41:38.033Z",
+            "userId": "5cf1d758-a7af-4af7-8cbe-ab1708bf6b3d",
+            "projectId": "lAx3kttLzx1cjwrk",
+            "user": {
+              "updatedAt": "2026-03-30T17:26:42.855Z",
+              "createdAt": "2026-03-29T07:41:37.381Z",
+              "id": "5cf1d758-a7af-4af7-8cbe-ab1708bf6b3d",
+              "email": "jflborjafacilitador@gmail.com",
+              "firstName": "Joseph",
+              "lastName": "Borja",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2026-03-29T07:45:38.126Z",
+                "personalization_survey_n8n_version": "1.123.21",
+                "companySize": "<20",
+                "companyType": "systems-integrator",
+                "role": "business-owner",
+                "reportedSource": "youtube"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "TkSDtkPaTdE8CaKk",
+                "userActivatedAt": 1774819092315,
+                "easyAIWorkflowOnboarded": true
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2026-03-30",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-03-30T22:23:58.633Z",
+    "createdAt": "2026-03-30T22:23:58.633Z",
+    "versionId": "e1d6cfe6-64ac-431a-8b9e-5aeafe5e2614",
+    "workflowId": "iJkJqQsNI6u4BXu6",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "landing-agent",
+          "responseMode": "onReceived",
+          "options": {}
+        },
+        "id": "e6a1a1f4-3d04-4e2b-8a5e-6b8d9c2a3f12",
+        "name": "Webhook Landing Page",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1.1,
+        "position": [
+          200,
+          200
+        ]
+      },
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "whatsapp-agent",
+          "responseMode": "onReceived",
+          "options": {}
+        },
+        "id": "1d3f9a74-a78b-4c22-921a-e64db801fa32",
+        "name": "Webhook Evolution WhatsApp",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1.1,
+        "position": [
+          200,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "={{ $json.body?.data ? ($json.body.data.message.conversation || $json.body.data.message.extendedTextMessage?.text || \"\") : ($json.body?.nombre ? (\"*INSTRUCCIÓN DEL SISTEMA DE ACTIVACIÓN*\\n\\nHola, da el **primer saludo** a este nuevo prospecto.\\n\\nDatos del prospecto:\\n- Nombre: \" + $json.body.nombre + \"\\n- Presupuesto: \" + $json.body.presupuesto + \"\\n- Financiamiento: \" + $json.body.financiamiento + \"\\n\\nMensaje base del asesor que te crió: \\\"\" + $json.body.welcome_message + \"\\\"\\n\\nInstrucción: Escribe el primer mensaje de bienvenida de tu parte. Sé muy natural, empático y menciona brevemente que tomaste nota de su información.\") : ($json.text || $json.output)) }}",
+          "options": {
+            "systemMessage": "={{\n(() => {\n  const instanceName = $('Webhook Evolution WhatsApp').last()?.json?.body?.instance || $('Webhook Landing Page').last()?.json?.body?.whatsapp_instance_name || 'Desconocido';\n  \n  let miNombre = 'Asesor Profesional';\n  let miSitio = 'https://marea.pro/';\n  if (instanceName.toLowerCase().includes('joseph')) {\n    miNombre = 'Joseph Borja';\n    miSitio = 'https://marea.pro/joseph-borja-asesor';\n  } else if (instanceName.toLowerCase().includes('marlon')) {\n    miNombre = 'Marlon Brandon';\n    miSitio = 'https://marea.pro/asesor-inmobiliario-marlon-brandon';\n  } else {\n    miNombre = instanceName;\n  }\n\n  // Obtenemos el contexto (llms_context) desde la base de datos si existe en esta ejecución\n  const dbContext = $('Verificar IA Activada DB').last()?.json?.context;\n  \n  // Si el DB Context existe y no está vacío, lo preferimos, sino usamos el predeterminado\n  const kbReal = (dbContext && dbContext.trim() !== '') ? dbContext : `[OBJECTIVE]\nRepresentar a Residencial Los Quetzales como un Asesor Inmobiliario Senior. Tu meta es la conversión: perfila al lead estratégicamente (uso, presupuesto, crédito, tiempo) para agendar una cita presencial. No eres un recolector de datos; eres un consultor que vende una inversión y un estilo de vida exclusivo.\n\n[LIFESTYLE NARRATIVE - EL GANCHO]\n- El Despertar: Aire limpio, vista a los volcanes y paz absoluta en Ayala.\n- Planes Locales: Desayuno de cecina en el centro, tardes en Agua Hedionda o visitas al Museo Casa Zapata.\n- Conectividad: Plaza Atrios a 15 min, pero con el sabor local del tamal de bagre en \"La Curva\".\n\n[KNOWLEDGE BASE: INVENTARIO ACTUALIZADO 2026]\n\n📍 MANZANA 2 (Entrega Inmediata):\n- Quetzal (2 Niv): Austera $1.456M | Aust. Elite $1.545M | Equipada $1.587M | Eq. Elite $1.676M\n- Quetzal Plus (3 Niv): Austera $1.768M | Aust. Elite $1.857M | Equipada $1.943M | Eq. Elite $2.032M\n\n📍 MANZANA 3 (PREVENTA - Agosto 2026):\n- Quetzal: Austera $1.503M | Aust. Elite $1.590M | Equipada $1.620M | Eq. Elite $1.689M\n- Quetzal Roof Garden: Austera $1.687M | Aust. Elite $1.774M | Equipada $1.752M | Eq. Elite $1.839M\n- Quetzal Plus: Austera $1.807M | Aust. Elite $1.895M | Equipada $1.966M | Eq. Elite $2.053M\n- Quetzal Plus F.A. (Frente Alberca): Austera $1.837M | Aust. Elite $1.925M | Equipada $1.976M | Eq. Elite $2.083M\n\n[DEFINICIÓN DE EQUIPAMIENTO]\n- Austera: Tarja básica y ventiladores.\n- Equipada: Cocina con granito, closets, persianas, cancel en baño de recámara principal.\n- Elite: Incluye una recámara extra en Planta Baja (Total: hasta 4 recámaras).\n\n[CONVERSATION LOGIC & FLOW]\n- Interacción: REGLA DE ORO. Tus respuestas deben ser EXTREMADAMENTE BREVES Y CONCISAS (Máximo 2 o 3 oraciones cortas), conversacionales y directos (estilo WhatsApp).\n- Perfilamiento Secuencial: No satures. Haz 1 pregunta por mensaje siguiendo este orden: (¿Uso Habitacional o Inversión? -> ¿Presupuesto? -> ¿Esquema de Crédito? -> ¿Tiempo de compra?).\n- Disparadores de Recursos: Envía los links solo cuando el cliente pregunte por espacios, acabados o fotos para validar la calidad:\n  * Catálogo: https://marea.pro/joseph-borja-asesor\n  * Recorrido Quetzal: https://my.matterport.com/show/?m=gmCEbVbLvKr\n  * Recorrido Plus: https://my.matterport.com/show/?m=Z7yHuZ1yPye\n- Cierre de Cita: Al agendar, solicita confirmación de día y hora. Nota Obligatoria: \"Dime el día y la hora para dejar la nota en el sistema y que el asesor te reciba con la ubicación exacta\".\n\n[REGLAS DE NEGOCIO Y OBJECIONES]\n- Calificación: Si el presupuesto es < $1M, sugiere \"Unamos Créditos\" o créditos conyugales de forma profesional.\n- Filtro de Precio: Anclaje inicial sugerido en $1.6 MDP.\n- Escrituración: Informar siempre que es un gasto adicional del 5% al 7% del valor.\n- Financiamiento: Infonavit (Cofinavit, Unamos), Fovissste, Bancarios, Contado (10% apartado). \n- PROHIBIDO: Infonavit Tradicional.\n- Ubicación: https://maps.app.goo.gl/UyYBgGzc6p6HkLch6 (Enviar siempre que se hable de logística o visitas).\n\n[GUARDRAILS CRÍTICOS]\n1. NO PEDIR EL WHATSAPP NI TELÉFONO: Ya estás hablando con el cliente por ese canal. Pedirlo es redundante y poco profesional.\n2. NUNCA envíes bloques enormes de texto. Sé muy humano.\n3. NO vendemos departamentos. SOLO vendemos CASAS. Si te preguntan por departamentos, aclara que solo vendemos casas.\n4. NO manejamos precios en dólares (USD). Todos nuestros precios son en Pesos Mexicanos (MXN).\n5. NO tenemos desarrollos en otras ciudades, solo en Ayala, Morelos.\n6. No inventes precios ni condiciones. Si el dato es muy específico, deriva al \"compañero experto\".\n7. Horarios: Citas únicamente de 10:00 am a 4:00 pm, de lunes a domingo.\n8. Diferencia Técnica: Quetzal (2-3 rec.) vs Quetzal Plus (3-4 rec.). El Roof Garden es exclusivo de modelos Quetzal en Manzana 3.`;\n  \n  return `[IDENTIDAD DEL ASESOR]\nEres ${miNombre}, prestigioso y humano asesor inmobiliario de la Constructora Residencial Los Quetzales. Trabajas contactando prospectos y respondiendo dudas en WhatsApp. Hablas en primera persona, eres cálido, muy empático y usas emojis de forma profesional. Nunca dices que eres un bot.\n\nTu catálogo digital personal: ${miSitio}\n-----------------\n${kbReal}`;\n})()\n}}"
+          }
+        },
+        "id": "fc2c5a2c-91bc-4c3e-b2d9-1c8a7f4e2d31",
+        "name": "AI Agent",
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 1.5,
+        "position": [
+          440,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "model": "deepseek-chat",
+          "options": {
+            "baseURL": "https://api.deepseek.com/v1"
+          }
+        },
+        "id": "8e3b9a1f-4c5d-4f6e-9a2b-3c8d7e6f5a4b",
+        "name": "DeepSeek API",
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "typeVersion": 1,
+        "position": [
+          440,
+          520
+        ],
+        "credentials": {
+          "openAiApi": {
+            "id": "ewsfEs7DeKBOonKk",
+            "name": "DeepSeek API - Master"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "sessionId": "={{ $json.body.data ? $json.body.data.key.remoteJid : ($json.body.telefono + '@s.whatsapp.net') }}"
+        },
+        "id": "b7a8d5e4-2c3f-4e1b-8a6d-9c8b7a6f5e4d",
+        "name": "Window Buffer Memory",
+        "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "typeVersion": 1.1,
+        "position": [
+          580,
+          520
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{ 'https://n8n-prueba1-evolution-api.exigs1.easypanel.host/message/sendText/' + ($if($('Webhook Evolution WhatsApp').isExecuted, $('Webhook Evolution WhatsApp').first().json.body.instance, $('Webhook Landing Page').first().json.body.whatsapp_instance_name)) }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "apikey",
+                "value": "429683C4C977415CAAFCCE10F7D57E11"
+              }
+            ]
+          },
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "number",
+                "value": "={{ $if($('Webhook Evolution WhatsApp').isExecuted, $('Webhook Evolution WhatsApp').first().json.body.data.key.remoteJid.replace('@s.whatsapp.net', ''), $('Webhook Landing Page').first().json.body.telefono) }}"
+              },
+              {
+                "name": "options",
+                "value": "{\"delay\": 2500}"
+              },
+              {
+                "name": "text",
+                "value": "={{ $json.output }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "9d8e7f6a-5b4c-3d2e-1f0a-8b9c7d6e5f4a",
+        "name": "Send WhatsApp via Evolution API",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.1,
+        "position": [
+          780,
+          300
+        ]
+      }
+    ],
+    "connections": {
+      "Webhook Landing Page": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook Evolution WhatsApp": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Agent": {
+        "main": [
+          [
+            {
+              "node": "Send WhatsApp via Evolution API",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DeepSeek API": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Window Buffer Memory": {
+        "ai_memory": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Joseph Borja",
+    "name": null,
+    "description": null
+  }
+}

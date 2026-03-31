@@ -1,0 +1,112 @@
+[
+  {
+    "id": "315",
+    "status": "error",
+    "instance": "ventas-digital",
+    "event": "messages.upsert",
+    "fromMe": false,
+    "from": "5215565309978@s.whatsapp.net",
+    "text": "me interesa de 3 recamaras",
+    "lastNode": "Send WhatsApp via Evolution API",
+    "error": "The DNS server returned an error, perhaps the server is offline"
+  },
+  {
+    "id": "314",
+    "status": "success",
+    "instance": "admin-prueba",
+    "event": "messages.upsert",
+    "fromMe": true,
+    "from": "5215629941229@s.whatsapp.net",
+    "text": "me interesa de 3 recamaras",
+    "lastNode": "Ignorar Mensajes de IA",
+    "error": null
+  },
+  {
+    "id": "313",
+    "status": "success",
+    "instance": "admin-prueba",
+    "event": "messages.upsert",
+    "fromMe": false,
+    "from": "5215629941229@s.whatsapp.net",
+    "text": "¡Hola! 😊 Me da mucho gusto saludarte. Soy Brandon, tu asesor de Residencial Los Quetzales. Con gusto te doy toda la información que necesitas.\n\nAquí tienes nuestro **inventario actualizado y precios** para que tengas total claridad:\n\n🏡 **MANZANA 2 (Entrega Inmediata)**\n• **Modelo Quetzal (2 Niveles):**\n   - Austera: $1,456,000 MXN\n   - Austera Elite: $1,545,000 MXN\n   - Equipada: $1,587,000 MXN\n   - Equipada Elite: $1,676,000 MXN\n\n• **Modelo Quetzal Plus (3 Niveles):**\n   - Austera: $1,768,000 MXN\n   - Austera Elite: $1,857,000 MXN\n   - Equipada: $1,943,000 MXN\n   - Equipada Elite: $2,032,000 MXN\n\n🏗️ **MANZANA 3 (PREVENTA - Entrega Agosto 2026)**\n• **Quetzal:**\n   - Austera: $1,503,000 MXN | Austera Elite: $1,590,000 MXN\n   - Equipada: $1,620,000 MXN | Equipada Elite: $1,689,000 MXN\n\n• **Quetzal Roof Garden:**\n   - Austera: $1,687,000 MXN | Austera Elite: $1,774,000 MXN\n   - Equipada: $1,752,000 MXN | Equipada Elite: $1,839,000 MXN\n\n• **Quetzal Plus:**\n   - Austera: $1,807,000 MXN | Austera Elite: $1,895,000 MXN\n   - Equipada: $1,966,000 MXN | Equipada Elite: $2,053,000 MXN\n\n• **Quetzal Plus F.A. (Frente Alberca):**\n   - Austera: $1,837,000 MXN | Austera Elite: $1,925,000 MXN\n   - Equipada: $1,976,000 MXN | Equipada Elite: $2,083,000 MXN\n\n📋 **¿Qué significa cada versión?**\n• **Austera:** Incluye lo básico (tarja, ventiladores).\n• **Equipada:** Cocina con granito, closets, persianas y cancel de baño en recámara principal.\n• **Elite:** Es la versión con una recámara adicional en Planta Baja (ideal para adultos mayores o despacho).\n• **Quetzal vs Plus:** La Quetzal es de 2 recámaras (hasta 3 en Elite). La Plus es de 3 recámaras (hasta 4 en Elite).\n• **Roof Garden:** Solo disponible en modelo Quetzal, es un espacio extra en la azotea.\n\n💰 **Financiamiento (Promo Vigente):**\n• **Esquemas:** Infonavit (Cofinavit, Unamos Créditos), Fovissste, Bancarios y Contado.\n• **¡Importante!** NO se acepta Infonavit Tradicional.\n• **Promoción Banco Mifel 2026:** Tasa fija del **9.70%**, **0%** comisión por apertura. Financiamiento hasta el **97%** con Apoyo Infonavit.\n• **Gastos de Escrituración:** Calcula entre un **5% y 7%** adicional al valor de la casa.\n\n📍 **Vive en Ayala:** Imagina despertar con aire limpio, total seguridad y vistas a los volcanes 🌄. Estás a 15 minutos de Plaza Atrios y a unos pasos del desayuno de cecina en el centro. Es una inversión con gran plusvalía.\n\n🔗 **Recursos para que explores:**\n• **Ubicación exacta:** https://maps.app.goo.gl/UyYBgGzc6p6HkLch6\n• **Mi catálogo digital:** https://marea.pro/joseph-borja-asesor\n• **Tour Virtual Quetzal:** https://my.matterport.com/show/?m=gmCEbVbLvKr\n• **Tour Virtual Plus:** https://my.matterport.com/show/?m=Z7yHuZ1yPye\n\n¿Te gustaría que te enviara el desglose detallado de algún modelo específico o prefieres ver la ubicación exacta para que dimensiones el proyecto? Estoy aquí para resolver todas tus dudas. 🏡✨",
+    "lastNode": "¿IA Encendida?",
+    "error": null
+  },
+  {
+    "id": "312",
+    "status": "success",
+    "instance": "admin-prueba",
+    "event": "messages.upsert",
+    "fromMe": true,
+    "from": "5215629941229@s.whatsapp.net",
+    "text": "hola quiero mas informacion",
+    "lastNode": "Ignorar Mensajes de IA",
+    "error": null
+  },
+  {
+    "id": "311",
+    "status": "success",
+    "instance": "ventas-digital",
+    "event": "messages.upsert",
+    "fromMe": false,
+    "from": "5215565309978@s.whatsapp.net",
+    "text": "hola quiero mas informacion",
+    "lastNode": "Send WhatsApp via Evolution API",
+    "error": null
+  },
+  {
+    "id": "310",
+    "status": "success",
+    "instance": "admin-prueba",
+    "event": "messages.upsert",
+    "fromMe": false,
+    "from": "5215629941229@s.whatsapp.net",
+    "text": "¡Claro que sí! 😊 Entiendo que quieres saber los precios de nuestras propiedades. Te puedo dar un rango general para que tengas una idea:\n\n• Departamentos desde: $150,000 USD\n• Casas desde: $250,000 USD\n\nEstos precios varían según la zona, tamaño, acabados y amenidades. Para darte información más específica y exacta, ¿podrías contarme un poco más sobre lo que buscas? Por ejemplo:\n\n1. ¿Prefieres casa o departamento?\n2. ¿Cuántas habitaciones necesitas?\n3. ¿Tienes alguna zona preferida?\n\n¡Estoy aquí para ayudarte a encontrar la mejor opción para ti! 🏡✨",
+    "lastNode": "¿IA Encendida?",
+    "error": null
+  },
+  {
+    "id": "309",
+    "status": "success",
+    "instance": "admin-prueba",
+    "event": "messages.upsert",
+    "fromMe": true,
+    "from": "5215629941229@s.whatsapp.net",
+    "text": "que cuestan",
+    "lastNode": "Ignorar Mensajes de IA",
+    "error": null
+  },
+  {
+    "id": "308",
+    "status": "success",
+    "instance": "ventas-digital",
+    "event": "messages.upsert",
+    "fromMe": false,
+    "from": "5215565309978@s.whatsapp.net",
+    "text": "que cuestan",
+    "lastNode": "Send WhatsApp via Evolution API",
+    "error": null
+  },
+  {
+    "id": "307",
+    "status": "success",
+    "instance": "admin-prueba",
+    "event": "messages.upsert",
+    "fromMe": false,
+    "from": "5215629941229@s.whatsapp.net",
+    "text": "¡Hola! 😊 Me da mucho gusto que te interese conocer nuestros precios. En la Constructora Residencial Los Quetzales manejamos diferentes opciones de vivienda que se adaptan a diversos presupuestos y necesidades.\n\nPara poder brindarte información precisa y personalizada, sería ideal conocer un poco más sobre lo que buscas:\n• ¿Te interesa una casa o un departamento?\n• ¿Qué tamaño aproximado estás buscando?\n• ¿En qué zona de la ciudad prefieres vivir?\n• ¿Tienes algún rango de presupuesto en mente?\n\nCon esos detalles, puedo orientarte hacia las opciones que mejor se ajusten a lo que necesitas y darte precios específicos. ¡Estoy aquí para ayudarte a encontrar tu hogar ideal! 🏡✨",
+    "lastNode": "¿IA Encendida?",
+    "error": null
+  },
+  {
+    "id": "306",
+    "status": "success",
+    "instance": "admin-prueba",
+    "event": "messages.upsert",
+    "fromMe": true,
+    "from": "5215629941229@s.whatsapp.net",
+    "text": "precios",
+    "lastNode": "Ignorar Mensajes de IA",
+    "error": null
+  }
+]
