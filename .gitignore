@@ -21,3 +21,26 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Scripts de diagnóstico con credenciales hardcodeadas (no commitear)
+diagnostico_whatsapp.mjs
+diagnostico_output.txt
+diag_out.txt
+check_wa_instances.mjs
+verify_fix.mjs
+verify_simple.mjs
+verify_out.txt
+get_n8n_exec.mjs
+get_n8n_wf.mjs
+parse_execs.mjs
+patch_n8n_agent.mjs
+push_via_api.ps1
+update_n8n.cjs
+update_n8n_live.cjs
+wa_debug.json
+n8n_error*.json
+n8n_execs.json
+exec_*.json
+wf_current_live.json
+wf_live_v2.json
+wf_multimedia.json

@@ -688,8 +688,11 @@ function InstanceCard({ instance, onRefresh, onConfig, onShowQR, onDelete: _onDe
     e.stopPropagation();
     setToggling(true);
     try {
-      await whatsappService.toggleAI(instance.id, !instance.ai_enabled);
+      await whatsappService.toggleAI(instance.id, !instance.ai_enabled, instance.instance_name);
       onRefresh();
+    } catch (err) {
+      console.error('Error al cambiar IA:', err);
+      alert('No se pudo cambiar el estado de la IA. Revisa la consola.');
     } finally { setToggling(false); }
   };
 
@@ -834,10 +837,11 @@ function AdvisorView() {
     if (!instance) return;
     setToggling(true);
     try {
-      await whatsappService.updateInstance(instance.id, { ai_enabled: !instance.ai_enabled });
+      await whatsappService.toggleAI(instance.id, !instance.ai_enabled, instance.instance_name);
       setInstance({ ...instance, ai_enabled: !instance.ai_enabled });
-    } catch {
-      // Ignorar error de red si falla
+    } catch (err) {
+      console.error('Error al cambiar IA:', err);
+      alert('No se pudo cambiar el estado de la IA. Intenta de nuevo.');
     } finally {
       setToggling(false);
     }

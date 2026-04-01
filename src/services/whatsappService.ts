@@ -252,9 +252,24 @@ export const whatsappService = {
     if (error) throw error;
   },
 
-  // Toggle AI
-  async toggleAI(id: string, enabled: boolean): Promise<void> {
-    await whatsappService.updateInstance(id, { ai_enabled: enabled });
+  // Toggle AI — usa RPC set_ai_enabled (SECURITY DEFINER) para bypasear RLS.
+  // Recibe instance_name (preferido) o fallback a UPDATE directo con id.
+  async toggleAI(id: string, enabled: boolean, instanceName?: string): Promise<void> {
+    if (instanceName) {
+      // Usar RPC para evitar bloqueo de RLS en usuarios no-admin
+      const { error } = await supabase.rpc('set_ai_enabled', {
+        p_instance_name: instanceName,
+        p_enabled: enabled,
+      });
+      if (error) throw error;
+    } else {
+      // Fallback: UPDATE directo (requiere rol admin en profiles)
+      const { error } = await supabase
+        .from('whatsapp_instances')
+        .update({ ai_enabled: enabled, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+    }
   },
 
   // Guardar contexto LLMS
