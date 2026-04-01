@@ -33,12 +33,16 @@ export default function UserLanding() {
 
         let wa_instance_name: string | null = null;
         if (data?.whatsapp_instance_id) {
-          const { data: instData } = await supabase
-            .from('whatsapp_instances')
-            .select('instance_name')
-            .eq('id', data.whatsapp_instance_id)
-            .single();
-          wa_instance_name = instData?.instance_name ?? null;
+          // Usamos la RPC para saltar el RLS de whatsapp_instances, 
+          // dado que la landing es pública (anon).
+          const { data: instName, error: rpcErr } = await supabase
+            .rpc('get_instance_name', { p_instance_id: data.whatsapp_instance_id });
+          
+          if (!rpcErr && instName) {
+            wa_instance_name = instName;
+          } else if (rpcErr) {
+            console.error("RPC get_instance_name fail:", rpcErr);
+          }
         }
 
         setConfig({ ...data, _wa_instance_name: wa_instance_name });
@@ -84,7 +88,7 @@ export default function UserLanding() {
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({
           hoja: 'Landing',
-          fecha: new Date().toLocaleDateString('es-MX'),
+          fecha: new Date().toLocaleString('es-MX'),
           nombre: formData.nombre,
           telefono: formData.telefono,
           correo: formData.correo,
@@ -104,7 +108,7 @@ export default function UserLanding() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             nombre: formData.nombre,
-            telefono: formData.telefono,
+            telefono: formData.telefono?.length === 10 ? `52${formData.telefono}` : formData.telefono,
             correo: formData.correo,
             presupuesto: formData.presupuesto,
             financiamiento: formData.financiamiento,
