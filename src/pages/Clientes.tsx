@@ -18,6 +18,8 @@ export default function Clientes() {
     const [asesores, setAsesores] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isNewClientOpen, setIsNewClientOpen] = useState(false);
+    const [editingClient, setEditingClient] = useState<any | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     useEffect(() => {
         if (session) {
@@ -170,6 +172,57 @@ export default function Clientes() {
             last_action: `Asignó cliente · ${clientName}`
         }).eq('id', session?.user?.id).then(() => { });
         loadData();
+    };
+
+    const handleDelete = async (id: string, origen?: string) => {
+        const client = clients.find(c => c.id === id);
+        if (!confirm(`¿Eliminar a ${client?.name || 'este cliente'}? Esta acción no se puede deshacer.`)) return;
+        setDeletingId(id);
+        try {
+            if (origen === 'landing_propia' || origen === 'propio') {
+                // Clientes propios: eliminar de la tabla clients
+                const { error } = await supabase.from('clients').delete().eq('id', id);
+                if (error) throw error;
+            } else {
+                // Clientes de Sheet: eliminar el override (si existe) — no podemos eliminar del Sheet
+                await supabase.from('client_overrides').delete().eq('client_id', id);
+            }
+            await loadData();
+        } catch (err: any) {
+            alert(`Error al eliminar: ${err.message}`);
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
+    const handleEdit = (client: any) => {
+        setEditingClient({ ...client });
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingClient) return;
+        try {
+            if (editingClient.origen === 'landing_propia' || editingClient.origen === 'propio') {
+                const { error } = await supabase.from('clients').update({
+                    name: editingClient.name,
+                    phone: editingClient.phone,
+                    email: editingClient.email,
+                    presupuesto: editingClient.budget,
+                    tipo_financiamiento: editingClient.segment,
+                    status: editingClient.status
+                }).eq('id', editingClient.id);
+                if (error) throw error;
+            } else {
+                await supabase.from('client_overrides').upsert(
+                    { client_id: editingClient.id, status: editingClient.status },
+                    { onConflict: 'client_id' }
+                );
+            }
+            setEditingClient(null);
+            await loadData();
+        } catch (err: any) {
+            alert(`Error al guardar: ${err.message}`);
+        }
     };
 
     const filteredClients = clients.filter(client => {
@@ -383,7 +436,7 @@ export default function Clientes() {
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Asignación</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Presupuesto</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Estado</th>
-                                    {(role === 'super_admin' || role === 'gerente' || role === 'asesor') && (
+                                    {(role === 'super_admin' || role === 'gerente' || role === 'asesor' || role === 'master') && (
                                         <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500', textAlign: 'center' }}>Acciones</th>
                                     )}
                                 </tr>
@@ -528,12 +581,25 @@ export default function Clientes() {
                                                 </span>
                                             )}
                                         </td>
-                                        {(role === 'super_admin' || role === 'gerente' || role === 'asesor') && (
+                                        {(role === 'super_admin' || role === 'gerente' || role === 'asesor' || role === 'master') && (
                                             <td style={{ padding: '16px', textAlign: 'center' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                                                    <button style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} title="Editar Datos"><Edit2 size={18} /></button>
-                                                    {role === 'super_admin' && (
-                                                        <button style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }} title="Eliminar"><Trash2 size={18} /></button>
+                                                    <button
+                                                        onClick={() => handleEdit(client)}
+                                                        style={{ background: 'transparent', border: 'none', color: 'var(--primary-accent)', cursor: 'pointer', opacity: 0.8, transition: 'opacity 0.2s' }}
+                                                        onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                                                        onMouseLeave={e => (e.currentTarget.style.opacity = '0.8')}
+                                                        title="Editar datos"
+                                                    ><Edit2 size={18} /></button>
+                                                    {(role === 'super_admin' || role === 'master') && (
+                                                        <button
+                                                            onClick={() => handleDelete(client.id, client.origen)}
+                                                            disabled={deletingId === client.id}
+                                                            style={{ background: 'transparent', border: 'none', color: deletingId === client.id ? 'var(--text-muted)' : 'var(--danger)', cursor: 'pointer', opacity: 0.8, transition: 'opacity 0.2s' }}
+                                                            onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                                                            onMouseLeave={e => (e.currentTarget.style.opacity = '0.8')}
+                                                            title="Eliminar cliente"
+                                                        ><Trash2 size={18} /></button>
                                                     )}
                                                 </div>
                                             </td>
@@ -590,6 +656,53 @@ export default function Clientes() {
                 onSuccess={loadData}
                 existingPhones={clients.map(c => c.phone.replace(/\D/g, ''))}
             />
+
+            {/* Modal de edición inline */}
+            {editingClient && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+                }}>
+                    <div className="glass-panel" style={{
+                        background: 'var(--bg-panel)', padding: '32px', borderRadius: '16px',
+                        width: '100%', maxWidth: '480px',
+                        border: '1px solid var(--border-glass)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)'
+                    }}>
+                        <h3 style={{ margin: '0 0 20px 0', fontSize: '1.2rem' }}>✏️ Editar — <span style={{ color: 'var(--primary-accent)' }}>{editingClient.name}</span></h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            {[['Nombre', 'name'], ['Teléfono', 'phone'], ['Correo', 'email']].map(([label, key]) => (
+                                <div key={key}>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '6px' }}>{label}</label>
+                                    <input
+                                        value={editingClient[key] || ''}
+                                        onChange={e => setEditingClient({ ...editingClient, [key]: e.target.value })}
+                                        style={{ width: '100%', padding: '9px 12px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-glass)', borderRadius: '8px', color: 'var(--text-main)', fontFamily: 'inherit' }}
+                                    />
+                                </div>
+                            ))}
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '6px' }}>Presupuesto</label>
+                                <input
+                                    value={editingClient.budget || ''}
+                                    onChange={e => setEditingClient({ ...editingClient, budget: e.target.value })}
+                                    style={{ width: '100%', padding: '9px 12px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-glass)', borderRadius: '8px', color: 'var(--text-main)', fontFamily: 'inherit' }}
+                                />
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                            <button onClick={() => setEditingClient(null)}
+                                style={{ padding: '9px 20px', borderRadius: '8px', background: 'transparent', border: '1px solid var(--border-glass)', color: 'var(--text-main)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                Cancelar
+                            </button>
+                            <button onClick={handleSaveEdit}
+                                style={{ padding: '9px 20px', borderRadius: '8px', background: 'var(--primary-accent)', color: '#000', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

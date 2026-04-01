@@ -83,6 +83,7 @@ export default function UserLanding() {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({
+          hoja: 'Landing',
           fecha: new Date().toLocaleDateString('es-MX'),
           nombre: formData.nombre,
           telefono: formData.telefono,

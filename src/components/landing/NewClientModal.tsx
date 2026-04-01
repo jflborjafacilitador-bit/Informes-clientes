@@ -82,6 +82,7 @@ export default function NewClientModal({ isOpen, onClose, onSuccess, existingPho
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify({
+                        hoja: 'Personales',
                         fecha: new Date().toLocaleDateString('es-MX'),
                         nombre: formData.name,
                         telefono: phoneClean,
