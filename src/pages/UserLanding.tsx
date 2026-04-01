@@ -52,6 +52,8 @@ export default function UserLanding() {
     loadLanding();
   }, [slug]);
 
+  const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzygK0jaoBPd2bIbXR2Ypv-b_mGUCnZb5nXiYh629XQ-Dfhv9EVn9jwm5cpm6_9AvTNQA/exec';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.telefono.length < 10) {
@@ -76,13 +78,35 @@ export default function UserLanding() {
         throw new Error(`Error BD: ${dbError.message || dbError.details || 'No se pudo guardar la info'}`);
       }
 
+      // ── Google Sheets (fire-and-forget, no bloquea el flujo principal) ──
+      fetch(GOOGLE_SHEETS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({
+          fecha: new Date().toLocaleDateString('es-MX'),
+          nombre: formData.nombre,
+          telefono: formData.telefono,
+          correo: formData.correo,
+          presupuesto: formData.presupuesto,
+          financiamiento: formData.financiamiento,
+          asesor: config.asesor_display_name || 'Landing',
+          estado: 'Lead',
+          notas: `Registro desde landing: ${slug}`
+        })
+      }).catch(e => console.warn('Google Sheets sync skipped:', e));
+
+      // ── n8n webhook: SIEMPRE envía saludo de landing (ignora botón ai_enabled) ──
       const globalWebhookUrl = `${import.meta.env.VITE_N8N_BASE_URL}/webhook/landing-agent`;
       try {
         await fetch(globalWebhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ...formData,
+            nombre: formData.nombre,
+            telefono: formData.telefono,
+            correo: formData.correo,
+            presupuesto: formData.presupuesto,
+            financiamiento: formData.financiamiento,
             asesor_id: config.user_id,
             asesor_name: config.asesor_display_name,
             whatsapp_instance_id: config.whatsapp_instance_id,

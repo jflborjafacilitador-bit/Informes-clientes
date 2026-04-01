@@ -219,7 +219,7 @@ export default function Clientes() {
                         <span style={{ marginLeft: '10px', color: 'var(--text-main)', fontWeight: 'bold' }}>Total: {clients.length} / Activos: {clients.filter(c => c.status === 'Activo').length}</span>
                     </p>
                 </div>
-                {(role === 'asesor' || role === 'super_admin' || role === 'gerente') && (
+                {(role === 'asesor' || role === 'super_admin' || role === 'gerente' || role === 'master') && (
                     <button onClick={() => setIsNewClientOpen(true)}
                         style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'var(--primary-accent)', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 12px rgba(0,240,255,0.2)' }}>
                         <UserPlus size={18} />

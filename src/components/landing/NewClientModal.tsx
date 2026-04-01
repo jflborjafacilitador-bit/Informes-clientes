@@ -3,6 +3,8 @@ import { X, UserPlus, Phone, Mail, DollarSign, Target } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 
+const GOOGLE_SHEETS_WEBHOOK = 'https://script.google.com/macros/s/AKfycbzygK0jaoBPd2bIbXR2Ypv-b_mGUCnZb5nXiYh629XQ-Dfhv9EVn9jwm5cpm6_9AvTNQA/exec';
+
 interface NewClientModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -65,6 +67,34 @@ export default function NewClientModal({ isOpen, onClose, onSuccess, existingPho
                     setError(insertError.message);
                 }
                 throw insertError;
+            }
+
+            // Sincronizar con Google Sheets (sin bloquear el flujo)
+            try {
+                const profile = await supabase
+                    .from('profiles')
+                    .select('full_name, email')
+                    .eq('id', session?.user?.id)
+                    .single();
+                const asesorName = profile.data?.full_name || profile.data?.email || 'Asesor';
+
+                fetch(GOOGLE_SHEETS_WEBHOOK, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({
+                        fecha: new Date().toLocaleDateString('es-MX'),
+                        nombre: formData.name,
+                        telefono: phoneClean,
+                        correo: formData.email,
+                        presupuesto: formData.budget,
+                        financiamiento: formData.segment,
+                        asesor: asesorName,
+                        estado: 'Nuevo',
+                        notas: 'Registro manual'
+                    })
+                }).catch(e => console.warn('Google Sheets no disponible:', e));
+            } catch (e) {
+                console.warn('Error al obtener perfil para Google Sheets:', e);
             }
 
             // Registrar log de actividad
