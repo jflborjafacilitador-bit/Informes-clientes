@@ -107,10 +107,16 @@ export default function Calendario() {
 
     useEffect(() => {
         load();
+        // Realtime: actualización instantánea cuando está habilitado en Supabase
         const ch = supabase.channel('eventos_rt')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'eventos' }, load)
             .subscribe();
-        return () => { supabase.removeChannel(ch); };
+        // Polling cada 30 s como respaldo (por si Realtime no está en la publication)
+        const poll = setInterval(load, 30_000);
+        return () => {
+            supabase.removeChannel(ch);
+            clearInterval(poll);
+        };
     }, []);
 
     // ── Navegación ───────────────────────────────────────
