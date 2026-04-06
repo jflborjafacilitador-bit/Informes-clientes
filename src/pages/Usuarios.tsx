@@ -90,11 +90,24 @@ export default function Usuarios() {
         setSaving(true);
         setMsg(null);
 
+        // ── Guardar sesión del admin ANTES de signUp ──────────────────
+        // supabase.auth.signUp() reemplaza la sesión activa automáticamente.
+        // Capturamos los tokens del admin para restaurarlos después.
+        const { data: { session: adminSession } } = await supabase.auth.getSession();
+
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email: form.email,
             password: form.password,
             options: { data: { role: form.role } },
         });
+
+        // ── Restaurar sesión del admin INMEDIATAMENTE ─────────────────
+        if (adminSession?.access_token && adminSession?.refresh_token) {
+            await supabase.auth.setSession({
+                access_token:  adminSession.access_token,
+                refresh_token: adminSession.refresh_token,
+            });
+        }
 
         if (authError || !authData.user) {
             setMsg({ text: authError?.message || 'Error creando usuario.', ok: false });
@@ -113,6 +126,7 @@ export default function Usuarios() {
         loadUsers();
         setSaving(false);
     };
+
 
     const handleDelete = async (userId: string, email: string) => {
         if (!window.confirm(`¿Seguro que deseas eliminar al usuario ${email}? Esta acción no se puede deshacer.`)) return;
