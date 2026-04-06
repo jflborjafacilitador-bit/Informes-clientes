@@ -6,6 +6,7 @@ interface AuthContextType {
     user: User | null;
     session: Session | null;
     role: string | null;
+    isReadonly: boolean;      // true cuando role === 'readonly'
     signOut: () => Promise<void>;
 }
 
@@ -13,6 +14,7 @@ const AuthContext = createContext<AuthContextType>({
     user: null,
     session: null,
     role: null,
+    isReadonly: false,
     signOut: async () => { },
 });
 
@@ -23,7 +25,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Obtener sesión actual inicial
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
             setUser(session?.user ?? null);
@@ -31,7 +32,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             else setLoading(false);
         });
 
-        // Escuchar cambios de estado de autenticación (Login/Logout)
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
             setUser(session?.user ?? null);
@@ -53,10 +53,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 .select('role')
                 .eq('id', userId)
                 .single();
-
-            if (!error && data) {
-                setRole(data.role);
-            }
+            if (!error && data) setRole(data.role);
         } catch (err) {
             console.error('Error fetching role:', err);
         } finally {
@@ -64,9 +61,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
-    const signOut = async () => {
-        await supabase.auth.signOut();
-    };
+    const signOut = async () => { await supabase.auth.signOut(); };
 
     if (loading) {
         return (
@@ -77,12 +72,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     return (
-        <AuthContext.Provider value={{ user, session, role, signOut }}>
+        <AuthContext.Provider value={{ user, session, role, isReadonly: role === 'readonly', signOut }}>
             {children}
         </AuthContext.Provider>
     );
 };
 
-export const useAuth = () => {
-    return useContext(AuthContext);
-};
+export const useAuth = () => useContext(AuthContext);

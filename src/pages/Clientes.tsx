@@ -6,7 +6,8 @@ import { useAuth } from '../contexts/AuthContext';
 import NewClientModal from '../components/landing/NewClientModal';
 
 export default function Clientes() {
-    const { role, session } = useAuth();
+    const { role, session, isReadonly } = useAuth();
+
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [assignFilter, setAssignFilter] = useState('');
@@ -272,7 +273,7 @@ export default function Clientes() {
                         <span style={{ marginLeft: '10px', color: 'var(--text-main)', fontWeight: 'bold' }}>Total: {clients.length} / Activos: {clients.filter(c => c.status === 'Activo').length}</span>
                     </p>
                 </div>
-                {(role === 'asesor' || role === 'super_admin' || role === 'gerente' || role === 'master') && (
+                {!isReadonly && (role === 'asesor' || role === 'super_admin' || role === 'gerente' || role === 'master') && (
                     <button onClick={() => setIsNewClientOpen(true)}
                         style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'var(--primary-accent)', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 12px rgba(0,240,255,0.2)' }}>
                         <UserPlus size={18} />
@@ -436,7 +437,7 @@ export default function Clientes() {
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Asignación</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Presupuesto</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Estado</th>
-                                    {(role === 'super_admin' || role === 'gerente' || role === 'asesor' || role === 'master') && (
+                                    {!isReadonly && (role === 'super_admin' || role === 'gerente' || role === 'asesor' || role === 'master') && (
                                         <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500', textAlign: 'center' }}>Acciones</th>
                                     )}
                                 </tr>
@@ -530,7 +531,7 @@ export default function Clientes() {
                                             )}
                                         </td>
                                         <td style={{ padding: '16px' }}>
-                                            {(role === 'super_admin' || role === 'gerente' || role === 'asesor') ? (
+                                            {!isReadonly && (role === 'super_admin' || role === 'gerente' || role === 'asesor') ? (
                                                 <select
                                                     value={client.status}
                                                     onChange={(e) => handleStatusChange(client.id, e.target.value)}
@@ -581,7 +582,7 @@ export default function Clientes() {
                                                 </span>
                                             )}
                                         </td>
-                                        {(role === 'super_admin' || role === 'gerente' || role === 'asesor' || role === 'master') && (
+                                        {!isReadonly && (role === 'super_admin' || role === 'gerente' || role === 'asesor' || role === 'master') && (
                                             <td style={{ padding: '16px', textAlign: 'center' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
                                                     <button

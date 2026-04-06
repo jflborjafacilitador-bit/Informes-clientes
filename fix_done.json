@@ -1,0 +1,5 @@
+{
+  "img_node_type": "n8n-nodes-base.httpRequest",
+  "img_node_jsonBody_preview": "={\n  \"model\": \"gpt-4o-mini\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"Des",
+  "code_node_mode": "runOnceForAllItems"
+}

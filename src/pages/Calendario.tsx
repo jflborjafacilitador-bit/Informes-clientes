@@ -80,7 +80,8 @@ const formatFechaLargo = (fechaStr: string) => {
 
 // ─── Componente principal ─────────────────────────────────
 export default function Calendario() {
-    const { session } = useAuth();
+    const { session, isReadonly } = useAuth();
+
     const [eventos, setEventos]   = useState<Evento[]>([]);
     const [loading, setLoading]   = useState(true);
     const [hoy]                   = useState(new Date());
@@ -239,12 +240,14 @@ export default function Calendario() {
                     </h1>
                     <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Gestión de citas, visitas y eventos del equipo.</p>
                 </div>
-                <button
-                    onClick={() => openNewModal(hoyStr)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '10px', background: 'rgba(34,197,94,0.1)', border: '1px solid var(--primary-accent)', color: 'var(--primary-accent)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: '600' }}
-                >
-                    <Plus size={18} /> Agregar Evento
-                </button>
+                {!isReadonly && (
+                    <button
+                        onClick={() => openNewModal(hoyStr)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '10px', background: 'rgba(34,197,94,0.1)', border: '1px solid var(--primary-accent)', color: 'var(--primary-accent)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: '600' }}
+                    >
+                        <Plus size={18} /> Agregar Evento
+                    </button>
+                )}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '20px', alignItems: 'start' }}>
@@ -526,9 +529,11 @@ export default function Calendario() {
                                             );
                                         })}
                                     </div>
-                                    <button onClick={() => openNewModal(modal.fecha)} style={{ width: '100%', padding: '11px', borderRadius: '8px', background: 'rgba(34,197,94,0.1)', border: '1px solid var(--primary-accent)', color: 'var(--primary-accent)', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                                        <Plus size={16} /> Nuevo evento este día
-                                    </button>
+                                    {!isReadonly && (
+                                        <button onClick={() => openNewModal(modal.fecha)} style={{ width: '100%', padding: '11px', borderRadius: '8px', background: 'rgba(34,197,94,0.1)', border: '1px solid var(--primary-accent)', color: 'var(--primary-accent)', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                            <Plus size={16} /> Nuevo evento este día
+                                        </button>
+                                    )}
                                 </>
                             );
                         })()}
@@ -643,42 +648,46 @@ export default function Calendario() {
                                     {ev.created_by && <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Creado por {ev.created_by.split('@')[0]}</p>}
 
                                     {/* Cambio rápido de estado */}
-                                    <div style={{ margin: '16px 0 12px' }}>
-                                        <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase' }}>Cambiar estado</p>
-                                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                                            {Object.entries(ESTADO_CONFIG).map(([k, cfg]) => (
-                                                <button
-                                                    key={k}
-                                                    onClick={() => handleEstadoRapido(ev, k)}
-                                                    style={{
-                                                        padding: '4px 12px', borderRadius: '20px', fontSize: '0.73rem', fontWeight: 600,
-                                                        cursor: 'pointer', fontFamily: 'inherit',
-                                                        background: ev.estado === k ? cfg.bg : 'transparent',
-                                                        border: `1px solid ${ev.estado === k ? cfg.color : 'var(--border-glass)'}`,
-                                                        color: ev.estado === k ? cfg.color : 'var(--text-muted)',
-                                                    }}
-                                                >
-                                                    {cfg.label}
-                                                </button>
-                                            ))}
+                                    {!isReadonly && (
+                                        <div style={{ margin: '16px 0 12px' }}>
+                                            <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase' }}>Cambiar estado</p>
+                                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                                {Object.entries(ESTADO_CONFIG).map(([k, cfg]) => (
+                                                    <button
+                                                        key={k}
+                                                        onClick={() => handleEstadoRapido(ev, k)}
+                                                        style={{
+                                                            padding: '4px 12px', borderRadius: '20px', fontSize: '0.73rem', fontWeight: 600,
+                                                            cursor: 'pointer', fontFamily: 'inherit',
+                                                            background: ev.estado === k ? cfg.bg : 'transparent',
+                                                            border: `1px solid ${ev.estado === k ? cfg.color : 'var(--border-glass)'}`,
+                                                            color: ev.estado === k ? cfg.color : 'var(--text-muted)',
+                                                        }}
+                                                    >
+                                                        {cfg.label}
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
 
                                     {/* Acciones */}
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
-                                        <button
-                                            onClick={() => openEditModal(ev)}
-                                            style={{ padding: '10px', borderRadius: '8px', background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                                        >
-                                            <Edit2 size={14} /> Editar
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(ev.id)}
-                                            style={{ padding: '10px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                                        >
-                                            <Trash2 size={14} /> Eliminar
-                                        </button>
-                                    </div>
+                                    {!isReadonly && (
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
+                                            <button
+                                                onClick={() => openEditModal(ev)}
+                                                style={{ padding: '10px', borderRadius: '8px', background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                                            >
+                                                <Edit2 size={14} /> Editar
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(ev.id)}
+                                                style={{ padding: '10px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                                            >
+                                                <Trash2 size={14} /> Eliminar
+                                            </button>
+                                        </div>
+                                    )}
                                 </>
                             );
                         })()}

@@ -146,7 +146,7 @@ function EstatusSelector({
 const ALL_STATUSES: EstatusManual[] = ['DISPONIBLE', 'EN_PROCESO', 'VENDIDA'];
 
 export default function Inventario() {
-    const { user } = useAuth();
+    const { user, isReadonly } = useAuth();
     const [items, setItems] = useState<InventarioItem[]>([]);
     const [overrides, setOverrides] = useState<Map<string, EstatusManual>>(new Map());
     const [loading, setLoading] = useState(true);
@@ -419,7 +419,7 @@ export default function Inventario() {
                                                     {item.fechaEscrituracion}
                                                 </td>
                                                 <td style={{ padding: '12px 16px' }}>
-                                                    {user && (
+                                                    {user && !isReadonly ? (
                                                         <EstatusSelector
                                                             mza={item.mza}
                                                             casa={item.casa}
@@ -428,6 +428,8 @@ export default function Inventario() {
                                                             userId={user.id}
                                                             onChanged={handleEstatusChanged}
                                                         />
+                                                    ) : (
+                                                        <EstatusBadge estatus={effectiveEstatus} />
                                                     )}
                                                 </td>
                                             </tr>

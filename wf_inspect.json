@@ -1,0 +1,320 @@
+{
+  "nodes": [
+    {
+      "id": "e6a1a1f4-3d04-4e2b-8a5e-6b8d9c2a3f12",
+      "name": "Webhook Landing Page",
+      "type": "n8n-nodes-base.webhook"
+    },
+    {
+      "id": "1d3f9a74-a78b-4c22-921a-e64db801fa32",
+      "name": "Webhook Evolution WhatsApp",
+      "type": "n8n-nodes-base.webhook"
+    },
+    {
+      "id": "node-if-webhook-source",
+      "name": "Ignorar Mensajes de IA",
+      "type": "n8n-nodes-base.if"
+    },
+    {
+      "id": "node-detect-audio",
+      "name": "�Es Audio?",
+      "type": "n8n-nodes-base.if"
+    },
+    {
+      "id": "node-detect-image",
+      "name": "�Es Imagen?",
+      "type": "n8n-nodes-base.if"
+    },
+    {
+      "id": "node-download-audio",
+      "name": "Descargar Audio Base64",
+      "type": "n8n-nodes-base.httpRequest"
+    },
+    {
+      "id": "node-transcribe-audio",
+      "name": "Transcribir Audio Whisper",
+      "type": "n8n-nodes-base.httpRequest"
+    },
+    {
+      "id": "node-download-image",
+      "name": "Descargar Imagen Base64",
+      "type": "n8n-nodes-base.httpRequest"
+    },
+    {
+      "id": "node-analyze-image",
+      "name": "Analizar Imagen GPT-4o",
+      "type": "n8n-nodes-base.httpRequest"
+    },
+    {
+      "id": "node-check-ai",
+      "name": "Verificar IA Activada DB",
+      "type": "n8n-nodes-base.httpRequest"
+    },
+    {
+      "id": "node-if-ai-active",
+      "name": "�IA Encendida?",
+      "type": "n8n-nodes-base.if"
+    },
+    {
+      "id": "node-register-crm",
+      "name": "Registrar Cliente CRM",
+      "type": "n8n-nodes-base.httpRequest"
+    },
+    {
+      "id": "fc2c5a2c-91bc-4c3e-b2d9-1c8a7f4e2d31",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent"
+    },
+    {
+      "id": "8e3b9a1f-4c5d-4f6e-9a2b-3c8d7e6f5a4b",
+      "name": "DeepSeek API",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi"
+    },
+    {
+      "id": "b7a8d5e4-2c3f-4e1b-8a6d-9c8b7a6f5e4d",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow"
+    },
+    {
+      "id": "9d8e7f6a-5b4c-3d2e-1f0a-8b9c7d6e5f4a",
+      "name": "Send WhatsApp via Evolution API",
+      "type": "n8n-nodes-base.httpRequest"
+    },
+    {
+      "id": "node-b64-to-binary",
+      "name": "Convertir Base64 a Binario",
+      "type": "n8n-nodes-base.code"
+    }
+  ],
+  "connections": {
+    "Webhook Landing Page": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Evolution WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Ignorar Mensajes de IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ignorar Mensajes de IA": {
+      "main": [
+        [
+          {
+            "node": "�Es Audio?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "�Es Audio?": {
+      "main": [
+        [
+          {
+            "node": "Descargar Audio Base64",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "�Es Imagen?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "�Es Imagen?": {
+      "main": [
+        [
+          {
+            "node": "Descargar Imagen Base64",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Verificar IA Activada DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar Audio Base64": {
+      "main": [
+        [
+          {
+            "node": "Convertir Base64 a Binario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribir Audio Whisper": {
+      "main": [
+        [
+          {
+            "node": "Verificar IA Activada DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar Imagen Base64": {
+      "main": [
+        [
+          {
+            "node": "Analizar Imagen GPT-4o",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analizar Imagen GPT-4o": {
+      "main": [
+        [
+          {
+            "node": "Verificar IA Activada DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar IA Activada DB": {
+      "main": [
+        [
+          {
+            "node": "�IA Encendida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "�IA Encendida?": {
+      "main": [
+        [
+          {
+            "node": "Registrar Cliente CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Cliente CRM": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp via Evolution API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek API": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convertir Base64 a Binario": {
+      "main": [
+        [
+          {
+            "node": "Transcribir Audio Whisper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "img_node_params": {
+    "method": "POST",
+    "url": "https://api.openai.com/v1/chat/completions",
+    "sendHeaders": true,
+    "headerParameters": {
+      "parameters": [
+        {
+          "name": "Authorization",
+          "value": "Bearer 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"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"Describe esta imagen en espanol, maximo 80 palabras, para un asesor inmobiliario.\"\n        },\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": \"data:image/jpeg;base64,{{ $json.base64 }}\"\n          }\n        }\n      ]\n    }\n  ]\n}",
+    "options": {}
+  },
+  "code_node_params": {},
+  "whisper_params": {
+    "parameters": [
+      {
+        "name": "model",
+        "value": "whisper-1"
+      },
+      {
+        "name": "language",
+        "value": "es"
+      },
+      {
+        "name": "file",
+        "value": "={{ $binary.data }}",
+        "parameterType": "formBinaryData"
+      }
+    ]
+  }
+}

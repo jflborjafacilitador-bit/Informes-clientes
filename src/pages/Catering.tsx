@@ -20,12 +20,13 @@ function getColor(cantidad: number) {
 }
 
 export default function Catering() {
-    const { role, session } = useAuth();
+    const { role, session, isReadonly } = useAuth();
     const [items, setItems] = useState<CateringItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [showNew, setShowNew] = useState(false);
     const [newItem, setNewItem] = useState({ nombre: '', emoji: '🍶', cantidad: 0 });
-    const canManage = role === 'super_admin' || role === 'gerente';
+    const canManage = !isReadonly && (role === 'super_admin' || role === 'gerente');
+    const canAdjust = !isReadonly;
 
     const load = async () => {
         setLoading(true);
@@ -173,14 +174,20 @@ export default function Catering() {
 
                                 {/* Controles */}
                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <button onClick={() => adjust(item, -10)} style={btnCtrl('#ef4444')}>−10</button>
-                                    <button onClick={() => adjust(item, -1)} style={btnCtrl('#ef4444')}>
-                                        <Minus size={16} />
-                                    </button>
-                                    <button onClick={() => adjust(item, 1)} style={{ ...btnCtrl('#22c55e'), marginLeft: 'auto' }}>
-                                        <Plus size={16} />
-                                    </button>
-                                    <button onClick={() => adjust(item, 10)} style={btnCtrl('#22c55e')}>+10</button>
+                                    {canAdjust ? (
+                                        <>
+                                            <button onClick={() => adjust(item, -10)} style={btnCtrl('#ef4444')}>−10</button>
+                                            <button onClick={() => adjust(item, -1)} style={btnCtrl('#ef4444')}>
+                                                <Minus size={16} />
+                                            </button>
+                                            <button onClick={() => adjust(item, 1)} style={{ ...btnCtrl('#22c55e'), marginLeft: 'auto' }}>
+                                                <Plus size={16} />
+                                            </button>
+                                            <button onClick={() => adjust(item, 10)} style={btnCtrl('#22c55e')}>+10</button>
+                                        </>
+                                    ) : (
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Solo lectura</span>
+                                    )}
                                 </div>
                             </div>
                         );
