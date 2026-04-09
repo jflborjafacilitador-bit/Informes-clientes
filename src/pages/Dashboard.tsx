@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, AlertCircle, CalendarCheck, UserX, CalendarDays, Building2, Activity } from 'lucide-react';
+import { Users, AlertCircle, CalendarCheck, UserX, CalendarDays, Building2, Activity, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { fetchClientsFromSheet } from '../services/googleSheets';
 import { fetchInventario } from '../services/inventarioService';
 import { fetchEstatusOverrides, resolveEstatus } from '../services/inventarioEstatusService';
@@ -266,6 +267,26 @@ export default function Dashboard() {
     });
     const topAsesores = Object.entries(asesorMap).sort((a, b) => b[1] - a[1]);
 
+    const downloadExcel = () => {
+        const rows = filteredClients.map(c => ({
+            'Nombre':            c.name || '',
+            'Teléfono':          c.phone || '',
+            'Email':             c.email || '',
+            'Estado':            c.status || '',
+            'Fecha Registro':    c.date || '',
+            'Asesor Asignado':   c.assigned_email || c.sheet_assigned || 'Sin asignar',
+            'Financiamiento':    c.segment || '',
+            'Origen':            c.origen === 'landing_propia' ? 'Landing Propia' : c.origen === 'propio' ? 'Propio' : 'Base General',
+        }));
+        const ws = XLSX.utils.json_to_sheet(rows);
+        // Ancho de columnas
+        ws['!cols'] = [{ wch: 30 }, { wch: 16 }, { wch: 30 }, { wch: 20 }, { wch: 14 }, { wch: 28 }, { wch: 20 }, { wch: 16 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
+        const fecha = new Date().toISOString().split('T')[0];
+        XLSX.writeFile(wb, `Informe_Clientes_${fecha}.xlsx`);
+    };
+
     return (
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', flexWrap: 'wrap', gap: '12px' }}>
@@ -273,6 +294,32 @@ export default function Dashboard() {
                     <h1 style={{ fontSize: '2rem', margin: 0 }}>Dashboard <span className="glow-text" style={{ color: 'var(--primary-accent)' }}>General</span></h1>
                     <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Pipeline de ventas en tiempo real.</p>
                 </div>
+                {(role === 'super_admin' || role === 'gerente') && (
+                    <button
+                        id="btn-descargar-informe-clientes"
+                        onClick={downloadExcel}
+                        disabled={loading || filteredClients.length === 0}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: '8px',
+                            padding: '9px 18px', borderRadius: '8px', cursor: loading || filteredClients.length === 0 ? 'not-allowed' : 'pointer',
+                            background: 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(0,240,255,0.08))',
+                            border: '1px solid rgba(16,185,129,0.4)',
+                            color: '#10b981', fontFamily: 'inherit', fontSize: '0.85rem', fontWeight: '600',
+                            opacity: loading || filteredClients.length === 0 ? 0.5 : 1,
+                            transition: 'all 0.2s',
+                            boxShadow: '0 0 12px rgba(16,185,129,0.15)',
+                        }}
+                        onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 20px rgba(16,185,129,0.3)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 12px rgba(16,185,129,0.15)'; }}
+                        title={`Exportar ${filteredClients.length} clientes a Excel`}
+                    >
+                        <Download size={16} />
+                        Descargar Informe
+                        <span style={{ fontSize: '0.72rem', background: 'rgba(16,185,129,0.2)', borderRadius: '10px', padding: '1px 7px' }}>
+                            {filteredClients.length}
+                        </span>
+                    </button>
+                )}
             </div>
 
             {/* Barra de filtros de fecha */}
