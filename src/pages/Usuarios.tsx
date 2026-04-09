@@ -130,16 +130,19 @@ export default function Usuarios() {
     };
 
     const handleRoleChange = async (userId: string, newRole: string) => {
-        // Si es huérfano, crear el perfil primero
-        const user = users.find(u => u.id === userId);
-        if (user?._orphan) {
-            await supabase.from('profiles').upsert(
-                { id: userId, email: user.email, role: newRole },
-                { onConflict: 'id', ignoreDuplicates: false }
-            );
-        } else {
-            await supabase.from('profiles').update({ role: newRole }).eq('id', userId);
+        // Usar RPC admin_set_user_role (SECURITY DEFINER) para bypasear RLS.
+        // El UPDATE directo falla silenciosamente porque RLS solo permite
+        // que cada usuario actualice su propio perfil (id = auth.uid()).
+        const { error } = await supabase.rpc('admin_set_user_role', {
+            target_user_id: userId,
+            new_role: newRole,
+        });
+
+        if (error) {
+            setMsg({ text: `Error al cambiar rol: ${error.message}`, ok: false });
+            return;
         }
+
         setUsers(prev => prev.map(u => u.id === userId
             ? { ...u, role: newRole, _orphan: false }
             : u
