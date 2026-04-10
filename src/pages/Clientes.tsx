@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Edit2, Trash2, RefreshCw, UserPlus } from 'lucide-react';
-import { fetchClientsFromSheet, type ClientData } from '../services/googleSheets';
+import { fetchClientsFromSheet, updateSheetRow, type ClientData } from '../services/googleSheets';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import NewClientModal from '../components/landing/NewClientModal';
@@ -27,12 +27,18 @@ export default function Clientes() {
             loadData();
             if (role === 'super_admin' || role === 'gerente') loadAsesores();
 
+            // Polling: sincroniza con Google Sheets cada 60 segundos
+            const pollInterval = setInterval(() => loadData(), 60000);
+
             // Realtime: actualiza cuando alguien cambia un override (estado/asignación)
             const channel = supabase.channel('realtime_clients').on('postgres_changes', { event: '*', schema: 'public', table: 'client_overrides' }, () => {
                 loadData();
             }).subscribe();
 
-            return () => { supabase.removeChannel(channel); };
+            return () => {
+                clearInterval(pollInterval);
+                supabase.removeChannel(channel);
+            };
         }
     }, [session, role]);
 
@@ -58,6 +64,7 @@ export default function Clientes() {
                 id: c.id,
                 name: c.name,
                 phone: c.phone || '',
+                email: c.email || '',
                 segment: c.tipo_financiamiento || '',
                 budget: c.presupuesto || '',
                 date: c.created_at || '',
@@ -130,7 +137,11 @@ export default function Clientes() {
             alert(`No se pudo guardar el cambio de estado: ${error.message}`);
             return;
         }
-        const clientName = clients.find(c => c.id === id)?.name ?? id;
+        // Write-back bidireccional al Google Sheet
+        const cliente = clients.find(c => c.id === id);
+        if (cliente?.phone) updateSheetRow(cliente.phone, { status: newStatus });
+
+        const clientName = cliente?.name ?? id;
         supabase.from('profiles').update({
             last_seen: new Date().toISOString(),
             last_action: `Cambió estado · ${clientName}`
@@ -139,18 +150,23 @@ export default function Clientes() {
     };
 
     const handleAssign = async (id: string, value: string) => {
+        const cliente = clients.find(c => c.id === id);
+        const phone = cliente?.phone || '';
+
         if (value === '') {
             // Sin asignar: limpiar asignación
             await supabase.from('client_overrides').upsert(
                 { client_id: id, assigned_to: null, assigned_email: null },
                 { onConflict: 'client_id' }
             );
+            if (phone) updateSheetRow(phone, { assigned: 'Sin asignar' });
         } else if (value === 'pendiente') {
             // Pendiente: en espera, sin asesor específico
             await supabase.from('client_overrides').upsert(
                 { client_id: id, assigned_to: null, assigned_email: 'pendiente' },
                 { onConflict: 'client_id' }
             );
+            if (phone) updateSheetRow(phone, { assigned: 'pendiente' });
         } else {
             // Asesor específico
             const asesor = asesores.find(a => a.id === value);
@@ -158,16 +174,17 @@ export default function Clientes() {
                 { client_id: id, assigned_to: value, assigned_email: asesor?.email || '' },
                 { onConflict: 'client_id' }
             );
-            const clientName = clients.find(c => c.id === id)?.name ?? id;
             await supabase.from('notifications').insert({
                 user_id: value,
                 title: 'Nuevo Prospecto Asignado',
-                message: `Se te ha asignado al cliente ${clientName}.`,
+                message: `Se te ha asignado al cliente ${cliente?.name || id}.`,
                 type: 'assigned_client',
                 read: false
             }).then(() => {});
+            // Write-back bidireccional: guardar email del asesor en el Sheet
+            if (phone && asesor?.email) updateSheetRow(phone, { assigned: asesor.email });
         }
-        const clientName = clients.find(c => c.id === id)?.name ?? id;
+        const clientName = cliente?.name ?? id;
         supabase.from('profiles').update({
             last_seen: new Date().toISOString(),
             last_action: `Asignó cliente · ${clientName}`
@@ -227,19 +244,26 @@ export default function Clientes() {
     };
 
     const filteredClients = clients.filter(client => {
-        const matchSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            client.phone.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchSearch = !searchTerm ||
+            client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            client.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (client.email || '').toLowerCase().includes(searchTerm.toLowerCase());
         const matchStatus = statusFilter === '' || client.status === statusFilter;
         const matchAssign = assignFilter === ''
             ? true
             : assignFilter === 'sin_asignar'
-                // Sin asesor real asignado Y no marcado como Pendiente desde el app
-                ? (!client.assigned_to && client.assigned_email !== 'pendiente')
+                // Sin asesor real asignado Y no está en pendiente (app o sheet)
+                ? (!client.assigned_to &&
+                   client.assigned_email !== 'pendiente' &&
+                   client.sheet_assigned?.toLowerCase() !== 'pendiente' &&
+                   !client.sheet_assigned)
                 : assignFilter === 'pendiente'
-                    // Solo clientes marcados explícitamente como Pendiente desde el app
-                    ? client.assigned_email === 'pendiente'
-                    // Filtrar por asesor específico (email)
-                    : (client.assigned_email === assignFilter);
+                    // Pendiente puede venir del app O del Sheet
+                    ? (client.assigned_email === 'pendiente' ||
+                       client.sheet_assigned?.toLowerCase() === 'pendiente')
+                    // Asesor específico: comparar con email del app override O con asesor del Sheet
+                    : (client.assigned_email === assignFilter ||
+                       client.sheet_assigned === assignFilter);
         const matchOrigin = originFilter === 'todos' || client.origen === originFilter;
 
         return matchSearch && matchStatus && matchAssign && matchOrigin;
@@ -337,7 +361,7 @@ export default function Clientes() {
                         <Search size={18} style={{ position: 'absolute', left: '16px', top: '12px', color: 'var(--text-muted)' }} />
                         <input
                             type="text"
-                            placeholder="Buscar por nombre o teléfono..."
+                            placeholder="Buscar por nombre, teléfono o email..."
                             value={searchTerm}
                             onChange={(e) => handleSearchChange(e.target.value)}
                             style={{
@@ -432,6 +456,7 @@ export default function Clientes() {
                                 <tr style={{ borderBottom: '1px solid var(--border-glass)' }}>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500', width: '50px', textAlign: 'center' }}>#</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Nombre del Cliente</th>
+                                    <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Email</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Origen</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Teléfono</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Asignación</th>
@@ -453,6 +478,18 @@ export default function Clientes() {
                                     >
                                         <td style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{index + 1}</td>
                                         <td style={{ padding: '16px', fontWeight: '500' }}>{client.name}</td>
+                                        <td style={{ padding: '16px' }}>
+                                            {client.email ? (
+                                                <a href={`mailto:${client.email}`}
+                                                    title={client.email}
+                                                    style={{ color: 'var(--primary-accent)', fontSize: '0.82rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                                >
+                                                    ✉️ {client.email.length > 24 ? client.email.substring(0, 24) + '…' : client.email}
+                                                </a>
+                                            ) : (
+                                                <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>—</span>
+                                            )}
+                                        </td>
                                         <td style={{ padding: '16px' }}>
                                             <span style={{
                                                 fontSize: '0.75rem', padding: '4px 10px', borderRadius: '12px',
@@ -499,9 +536,13 @@ export default function Clientes() {
                                                 </select>
                                             ) : (
                                                 <span style={{ color: client.assigned_to || client.assigned_email || client.sheet_assigned ? 'var(--text-main)' : 'var(--text-muted)' }}>
-                                                    {client.assigned_email === 'pendiente' ? '⏳ Pendiente'
-                                                        : client.assigned_email?.includes('@') ? client.assigned_email.split('@')[0]
-                                                            : client.sheet_assigned || 'Sin asignar'}
+                                                    {client.assigned_email === 'pendiente' || client.sheet_assigned?.toLowerCase() === 'pendiente'
+                                                        ? '⏳ Pendiente'
+                                                        : client.assigned_email?.includes('@')
+                                                            ? client.assigned_email.split('@')[0]
+                                                            : client.sheet_assigned?.includes('@')
+                                                                ? client.sheet_assigned.split('@')[0]
+                                                                : client.sheet_assigned || 'Sin asignar'}
                                                 </span>
                                             )}
                                         </td>
