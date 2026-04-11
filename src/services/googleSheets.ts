@@ -27,7 +27,7 @@ const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format
 // URL del Apps Script para write-back (bidireccional)
 // Instala sheets-sync.gs en el Google Sheet y pega la URL aquí:
 // (Mientras esté vacío, los cambios solo se guardan en Supabase)
-export let APPS_SCRIPT_URL = '';
+export let APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxqbYfI49tn0Ix136JtV8d2esVkRd_uP4F7HraryVfgMrOrs0i_SzDCXTIq4bxcR5Ko/exec';
 
 // Estados válidos del sistema CRM
 const ESTADOS_VALIDOS = [
