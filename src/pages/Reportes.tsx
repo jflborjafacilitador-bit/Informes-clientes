@@ -955,7 +955,6 @@ function TabAuditorias({ role: _role }: { role: string }) {
 interface ProfileActivity {
     id: string;
     email: string;
-    full_name: string | null;
     role: string;
     last_seen: string | null;
     last_action: string | null;
@@ -992,10 +991,11 @@ function TabActividad() {
 
     const load = async () => {
         setLoading(true);
-        const { data } = await supabase
+        const { data, error } = await supabase
             .from('profiles')
-            .select('id, email, full_name, role, last_seen, last_action')
-            .order('last_seen', { ascending: false });
+            .select('id, email, role, last_seen, last_action')
+            .order('last_seen', { ascending: false, nullsFirst: false });
+        if (error) console.error('[TabActividad]', error.message);
         setProfiles((data as ProfileActivity[]) || []);
         setLoading(false);
     };
@@ -1019,14 +1019,14 @@ function TabActividad() {
     const filtered = profiles
         .filter(p => {
             const q = search.toLowerCase();
-            return (p.email?.toLowerCase().includes(q) || (p.full_name?.toLowerCase().includes(q)));
+            return p.email?.toLowerCase().includes(q) ?? false;
         })
         .sort((a, b) => {
             if (sortBy === 'last_seen') {
                 return (b.last_seen ? new Date(b.last_seen).getTime() : 0)
                      - (a.last_seen ? new Date(a.last_seen).getTime() : 0);
             }
-            if (sortBy === 'name') return (a.full_name || a.email).localeCompare(b.full_name || b.email);
+            if (sortBy === 'name') return a.email.localeCompare(b.email);
             return (a.role || '').localeCompare(b.role || '');
         });
 
@@ -1094,7 +1094,7 @@ function TabActividad() {
                             </thead>
                             <tbody>
                                 {filtered.map(p => {
-                                    const nombre   = p.full_name || p.email?.split('@')[0] || '—';
+                                    const nombre   = p.email?.split('@')[0] || '—';
                                     const online   = isOnline(p.last_seen);
                                     const roleInfo = ROLE_LABELS[p.role] || { label: p.role || '—', color: '#6b7280' };
                                     return (
