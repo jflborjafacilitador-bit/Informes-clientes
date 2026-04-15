@@ -150,27 +150,44 @@ export default function Clientes() {
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         const isDiscarding = newStatus === 'Descartado';
-        const overridePayload: any = { client_id: id, status: newStatus };
-        if (isDiscarding) {
-            overridePayload.assigned_to = null;
-            overridePayload.assigned_email = 'descartado';
-        }
-        const { error } = await supabase.from('client_overrides').upsert(
-            overridePayload,
-            { onConflict: 'client_id' }
-        );
-        if (error) {
-            console.error('Error al cambiar estado:', error);
-            alert(`No se pudo guardar el cambio de estado: ${error.message}`);
-            return;
-        }
-        // Write-back bidireccional al Google Sheet
         const cliente = clients.find(c => c.id === id);
-        if (cliente?.phone) {
-            const sheetUpdate: any = { status: newStatus };
-            if (isDiscarding) sheetUpdate.assigned = 'Descartado';
-            updateSheetRow(cliente.phone, sheetUpdate);
+        const origen = (cliente as any)?.origen;
+        const isOwn = origen === 'landing_propia' || origen === 'propio';
+
+        if (isOwn) {
+            // Clientes propios: el estado vive directamente en tabla `clients`
+            const { error } = await supabase.from('clients')
+                .update({ status: newStatus })
+                .eq('id', id);
+            if (error) {
+                console.error('Error al cambiar estado (clients):', error);
+                alert(`No se pudo guardar el cambio de estado: ${error.message}`);
+                return;
+            }
+        } else {
+            // Clientes de Sheet: el estado vive en client_overrides
+            const overridePayload: any = { client_id: id, status: newStatus };
+            if (isDiscarding) {
+                overridePayload.assigned_to = null;
+                overridePayload.assigned_email = 'descartado';
+            }
+            const { error } = await supabase.from('client_overrides').upsert(
+                overridePayload,
+                { onConflict: 'client_id' }
+            );
+            if (error) {
+                console.error('Error al cambiar estado (overrides):', error);
+                alert(`No se pudo guardar el cambio de estado: ${error.message}`);
+                return;
+            }
+            // Write-back al Google Sheet solo para clientes del sheet
+            if (cliente?.phone) {
+                const sheetUpdate: any = { status: newStatus };
+                if (isDiscarding) sheetUpdate.assigned = 'Descartado';
+                updateSheetRow(cliente.phone, sheetUpdate);
+            }
         }
+
         const clientName = cliente?.name ?? id;
         const oldStatus = cliente?.status ?? '';
         // ── Audit log ────────────────────────────────────────────
