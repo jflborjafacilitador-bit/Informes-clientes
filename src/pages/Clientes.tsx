@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Search, Edit2, Trash2, RefreshCw, UserPlus } from 'lucide-react';
+import { Search, Edit2, Trash2, RefreshCw, Archive, RotateCcw } from 'lucide-react';
 import { fetchClientsFromSheet, updateSheetRow, type ClientData } from '../services/googleSheets';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import NewClientModal from '../components/landing/NewClientModal';
 
 export default function Clientes() {
     const { role, session, isReadonly } = useAuth();
@@ -11,14 +10,13 @@ export default function Clientes() {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [assignFilter, setAssignFilter] = useState('');
-    const [originFilter, setOriginFilter] = useState<'todos' | 'asignado' | 'landing_propia' | 'propio'>('todos');
+    const [originFilter, setOriginFilter] = useState<'todos' | 'asignado' | 'landing_propia' | 'descartado'>('todos');
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState(25);
     const [clients, setClients] = useState<(ClientData & { origen?: string; created_at?: string })[]>([]);
     const [asesores, setAsesores] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isNewClientOpen, setIsNewClientOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<any | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -128,8 +126,14 @@ export default function Clientes() {
     };
 
     const handleStatusChange = async (id: string, newStatus: string) => {
+        const isDiscarding = newStatus === 'Descartado';
+        const overridePayload: any = { client_id: id, status: newStatus };
+        if (isDiscarding) {
+            overridePayload.assigned_to = null;
+            overridePayload.assigned_email = 'descartado';
+        }
         const { error } = await supabase.from('client_overrides').upsert(
-            { client_id: id, status: newStatus },
+            overridePayload,
             { onConflict: 'client_id' }
         );
         if (error) {
@@ -139,12 +143,15 @@ export default function Clientes() {
         }
         // Write-back bidireccional al Google Sheet
         const cliente = clients.find(c => c.id === id);
-        if (cliente?.phone) updateSheetRow(cliente.phone, { status: newStatus });
-
+        if (cliente?.phone) {
+            const sheetUpdate: any = { status: newStatus };
+            if (isDiscarding) sheetUpdate.assigned = 'Descartado';
+            updateSheetRow(cliente.phone, sheetUpdate);
+        }
         const clientName = cliente?.name ?? id;
         supabase.from('profiles').update({
             last_seen: new Date().toISOString(),
-            last_action: `Cambió estado · ${clientName}`
+            last_action: isDiscarding ? `Descartó cliente · ${clientName}` : `Cambió estado · ${clientName}`
         }).eq('id', session?.user?.id).then(() => { });
         loadData();
     };
@@ -248,20 +255,27 @@ export default function Clientes() {
             client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             client.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (client.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+        // Pestaña Descartados: mostrar solo clientes con estado Descartado
+        if (originFilter === 'descartado') {
+            return client.status === 'Descartado' && matchSearch;
+        }
+
+        // Pestañas activas: excluir siempre a los descartados
+        if (client.status === 'Descartado') return false;
+
         const matchStatus = statusFilter === '' || client.status === statusFilter;
         const matchAssign = assignFilter === ''
             ? true
             : assignFilter === 'sin_asignar'
-                // Sin asesor real asignado Y no está en pendiente (app o sheet)
                 ? (!client.assigned_to &&
                    client.assigned_email !== 'pendiente' &&
+                   client.assigned_email !== 'descartado' &&
                    client.sheet_assigned?.toLowerCase() !== 'pendiente' &&
                    !client.sheet_assigned)
                 : assignFilter === 'pendiente'
-                    // Pendiente puede venir del app O del Sheet
                     ? (client.assigned_email === 'pendiente' ||
                        client.sheet_assigned?.toLowerCase() === 'pendiente')
-                    // Asesor específico: comparar con email del app override O con asesor del Sheet
                     : (client.assigned_email === assignFilter ||
                        client.sheet_assigned === assignFilter);
         const matchOrigin = originFilter === 'todos' || client.origen === originFilter;
@@ -285,7 +299,7 @@ export default function Clientes() {
     const handleAssignFilter = (v: string) => { setAssignFilter(v); setPage(0); };
     const clearFilters = () => { setStatusFilter(''); setAssignFilter(''); setPage(0); };
 
-    const STATUSES = ['Nuevo', 'No responde', 'Numero sin Whatsapp', 'Reprogramo', 'Citado', 'En seguimiento', 'No esta interesado', 'Repetido', 'Presupuesto insuficiente', 'Activo', 'En espera'];
+    const STATUSES = ['Nuevo', 'No responde', 'Numero sin Whatsapp', 'Reprogramo', 'Citado', 'En seguimiento', 'No esta interesado', 'Repetido', 'Presupuesto insuficiente', 'Activo', 'En espera', 'Descartado'];
 
     return (
         <div style={{ paddingBottom: '40px' }}>
@@ -297,13 +311,7 @@ export default function Clientes() {
                         <span style={{ marginLeft: '10px', color: 'var(--text-main)', fontWeight: 'bold' }}>Total: {clients.length} / Activos: {clients.filter(c => c.status === 'Activo').length}</span>
                     </p>
                 </div>
-                {!isReadonly && (role === 'asesor' || role === 'super_admin' || role === 'gerente' || role === 'master') && (
-                    <button onClick={() => setIsNewClientOpen(true)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'var(--primary-accent)', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 12px rgba(0,240,255,0.2)' }}>
-                        <UserPlus size={18} />
-                        Nuevo Contacto
-                    </button>
-                )}
+
             </div>
 
             {/* Pestañas de Origen */}
@@ -342,15 +350,24 @@ export default function Clientes() {
                     Propios (Landing)
                 </button>
                 <button
-                    onClick={() => { setOriginFilter('propio'); setPage(0); }}
+                    onClick={() => { setOriginFilter('descartado'); setPage(0); }}
                     style={{
                         background: 'transparent', border: 'none', cursor: 'pointer',
-                        padding: '10px 16px', fontSize: '1rem', fontWeight: originFilter === 'propio' ? 'bold' : 'normal',
-                        color: originFilter === 'propio' ? 'var(--primary-accent)' : 'var(--text-muted)',
-                        borderBottom: originFilter === 'propio' ? '2px solid var(--primary-accent)' : '2px solid transparent'
+                        padding: '10px 16px', fontSize: '1rem', fontWeight: originFilter === 'descartado' ? 'bold' : 'normal',
+                        color: originFilter === 'descartado' ? '#ef4444' : 'var(--text-muted)',
+                        borderBottom: originFilter === 'descartado' ? '2px solid #ef4444' : '2px solid transparent'
                     }}
                 >
-                    Propios (Manuales)
+                    🗑 Descartados
+                    {clients.filter(c => c.status === 'Descartado').length > 0 && (
+                        <span style={{
+                            marginLeft: '6px', fontSize: '0.7rem', padding: '2px 7px',
+                            borderRadius: '12px', background: 'rgba(239,68,68,0.15)',
+                            color: '#ef4444', fontWeight: '700'
+                        }}>
+                            {clients.filter(c => c.status === 'Descartado').length}
+                        </span>
+                    )}
                 </button>
             </div>
 
@@ -444,7 +461,15 @@ export default function Clientes() {
                     </div>
                 </div>
 
-                <div style={{ overflowX: 'auto' }}>
+                {originFilter === 'descartado' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', marginBottom: '16px', borderRadius: '10px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                        <Archive size={16} color="#ef4444" />
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                            Estos clientes están archivados. Para <strong style={{ color: 'var(--text-main)' }}>reactivarlos</strong>, haz clic en el botón ↺ de la columna Acciones.
+                        </span>
+                    </div>
+                )}
+                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                     {loading ? (
                         <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>
                             <RefreshCw className="animate-spin" size={30} style={{ margin: '0 auto 15px auto', display: 'block' }} color="var(--primary-accent)" />
@@ -535,14 +560,16 @@ export default function Clientes() {
                                                     {asesores.map(a => <option key={a.id} value={a.id}>{a.email.split('@')[0]}</option>)}
                                                 </select>
                                             ) : (
-                                                <span style={{ color: client.assigned_to || client.assigned_email || client.sheet_assigned ? 'var(--text-main)' : 'var(--text-muted)' }}>
-                                                    {client.assigned_email === 'pendiente' || client.sheet_assigned?.toLowerCase() === 'pendiente'
-                                                        ? '⏳ Pendiente'
-                                                        : client.assigned_email?.includes('@')
-                                                            ? client.assigned_email.split('@')[0]
-                                                            : client.sheet_assigned?.includes('@')
-                                                                ? client.sheet_assigned.split('@')[0]
-                                                                : client.sheet_assigned || 'Sin asignar'}
+                                                <span style={{ color: client.assigned_to || (client.assigned_email && client.assigned_email !== 'descartado') || client.sheet_assigned ? 'var(--text-main)' : 'var(--text-muted)' }}>
+                                                    {client.assigned_email === 'descartado'
+                                                        ? '🗑 Descartado'
+                                                        : client.assigned_email === 'pendiente' || client.sheet_assigned?.toLowerCase() === 'pendiente'
+                                                            ? '⏳ Pendiente'
+                                                            : client.assigned_email?.includes('@')
+                                                                ? client.assigned_email.split('@')[0]
+                                                                : client.sheet_assigned?.includes('@')
+                                                                    ? client.sheet_assigned.split('@')[0]
+                                                                    : client.sheet_assigned || 'Sin asignar'}
                                                 </span>
                                             )}
                                         </td>
@@ -624,23 +651,49 @@ export default function Clientes() {
                                             )}
                                         </td>
                                         {!isReadonly && (role === 'super_admin' || role === 'gerente' || role === 'asesor' || role === 'master') && (
-                                            <td style={{ padding: '16px', textAlign: 'center' }}>
+                                            <td style={{ padding: '16px', textAlign: 'center', minWidth: '120px' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                                                    <button
-                                                        onClick={() => handleEdit(client)}
-                                                        style={{ background: 'transparent', border: 'none', color: 'var(--primary-accent)', cursor: 'pointer', opacity: 0.8, transition: 'opacity 0.2s' }}
-                                                        onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-                                                        onMouseLeave={e => (e.currentTarget.style.opacity = '0.8')}
-                                                        title="Editar datos"
-                                                    ><Edit2 size={18} /></button>
-                                                    {(role === 'super_admin' || role === 'master') && (
+                                                    {/* Botón editar — solo en pestañas activas */}
+                                                    {client.status !== 'Descartado' && (
+                                                        <button
+                                                            onClick={() => handleEdit(client)}
+                                                            style={{ background: 'transparent', border: 'none', color: 'var(--primary-accent)', cursor: 'pointer', opacity: 0.8, transition: 'opacity 0.2s' }}
+                                                            onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                                                            onMouseLeave={e => (e.currentTarget.style.opacity = '0.8')}
+                                                            title="Editar datos"
+                                                        ><Edit2 size={18} /></button>
+                                                    )}
+                                                    {/* Botón Descartar / Reactivar */}
+                                                    {client.status !== 'Descartado' ? (
+                                                        <button
+                                                            onClick={() => {
+                                                                if (confirm(`¿Descartar a ${client.name}? Podrás reactivarlo desde la pestaña Descartados.`)) {
+                                                                    handleStatusChange(client.id, 'Descartado');
+                                                                }
+                                                            }}
+                                                            style={{ background: 'transparent', border: 'none', color: '#f59e0b', cursor: 'pointer', opacity: 0.8, transition: 'opacity 0.2s' }}
+                                                            onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                                                            onMouseLeave={e => (e.currentTarget.style.opacity = '0.8')}
+                                                            title="Descartar cliente (archivarlo)"
+                                                        ><Archive size={18} /></button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleStatusChange(client.id, 'Nuevo')}
+                                                            style={{ background: 'transparent', border: 'none', color: '#22c55e', cursor: 'pointer', opacity: 0.8, transition: 'opacity 0.2s' }}
+                                                            onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                                                            onMouseLeave={e => (e.currentTarget.style.opacity = '0.8')}
+                                                            title="Reactivar cliente"
+                                                        ><RotateCcw size={18} /></button>
+                                                    )}
+                                                    {/* Botón eliminar — solo admins, solo clientes propios */}
+                                                    {(role === 'super_admin' || role === 'master') && client.status !== 'Descartado' && (
                                                         <button
                                                             onClick={() => handleDelete(client.id, client.origen)}
                                                             disabled={deletingId === client.id}
                                                             style={{ background: 'transparent', border: 'none', color: deletingId === client.id ? 'var(--text-muted)' : 'var(--danger)', cursor: 'pointer', opacity: 0.8, transition: 'opacity 0.2s' }}
                                                             onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
                                                             onMouseLeave={e => (e.currentTarget.style.opacity = '0.8')}
-                                                            title="Eliminar cliente"
+                                                            title="Eliminar cliente permanentemente"
                                                         ><Trash2 size={18} /></button>
                                                     )}
                                                 </div>
@@ -692,12 +745,7 @@ export default function Clientes() {
                 </div>
             </div>
 
-            <NewClientModal
-                isOpen={isNewClientOpen}
-                onClose={() => setIsNewClientOpen(false)}
-                onSuccess={loadData}
-                existingPhones={clients.map(c => c.phone.replace(/\D/g, ''))}
-            />
+
 
             {/* Modal de edición inline */}
             {editingClient && (
