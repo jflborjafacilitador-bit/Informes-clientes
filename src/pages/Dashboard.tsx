@@ -256,7 +256,7 @@ export default function Dashboard() {
     // --- Panel asesores: cuántos clientes tiene cada uno ---
     const asesorMap: Record<string, number> = {};
     filteredClients.forEach(c => {
-        if (c.assigned_email) {
+        if (c.assigned_email && c.assigned_email !== 'descartado') {
             const nombre = c.assigned_email.split('@')[0];
             asesorMap[nombre] = (asesorMap[nombre] || 0) + 1;
         }
@@ -266,6 +266,7 @@ export default function Dashboard() {
         if (!(nombre in asesorMap)) asesorMap[nombre] = 0;
     });
     const topAsesores = Object.entries(asesorMap).sort((a, b) => b[1] - a[1]);
+
 
     const downloadExcel = () => {
         const rows = filteredClients.map(c => ({

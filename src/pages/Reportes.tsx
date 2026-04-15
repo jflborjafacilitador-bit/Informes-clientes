@@ -670,7 +670,7 @@ function getPeriodRange(period: string, customFrom: string, customTo: string): {
     }
 }
 
-function TabAuditorias({ role }: { role: string }) {
+function TabAuditorias({ role: _role }: { role: string }) {
     const [logs, setLogs]             = useState<AuditEntry[]>([]);
     const [loading, setLoading]       = useState(true);
     const [period, setPeriod]         = useState('week');
