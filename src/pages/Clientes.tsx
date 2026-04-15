@@ -49,7 +49,7 @@ export default function Clientes() {
             // 2. Supabase guarda solo las modificaciones (estado y asignación)
             const { data: overrides } = await supabase
                 .from('client_overrides')
-                .select('client_id, status, assigned_to, assigned_email, budget_range');
+                .select('client_id, status, assigned_to, assigned_email, budget_range, synced');
 
             // 3. Obtener clientes propios de la Landing y Propios Manuales
             const { data: ownClients } = await supabase
@@ -82,15 +82,16 @@ export default function Clientes() {
                 if (override) {
                     return {
                         ...client,
-                        status: override.status || client.status,
-                        assigned_to: override.assigned_to || undefined,
+                        status:        override.status        || client.status,
+                        assigned_to:   override.assigned_to   || undefined,
                         assigned_email: override.assigned_email || undefined,
-                        budget_range: override.budget_range || undefined,
-                        origen: 'asignado',
-                        created_at: client.date || ''
+                        budget_range:  override.budget_range  || undefined,
+                        synced:        override.synced        ?? false,
+                        origen:        'asignado',
+                        created_at:    client.date || ''
                     };
                 }
-                return { ...client, origen: 'asignado', created_at: client.date || '' };
+                return { ...client, synced: false, origen: 'asignado', created_at: client.date || '' };
             });
 
             // 6. Unimos ambos origenes
@@ -123,6 +124,16 @@ export default function Clientes() {
             { onConflict: 'client_id' }
         );
         loadData();
+    };
+
+    const handleToggleSync = async (id: string, current: boolean) => {
+        const newVal = !current;
+        // Optimistic update
+        setClients(prev => prev.map(c => c.id === id ? { ...c, synced: newVal } : c));
+        await supabase.from('client_overrides').upsert(
+            { client_id: id, synced: newVal },
+            { onConflict: 'client_id' }
+        );
     };
 
     const handleStatusChange = async (id: string, newStatus: string) => {
@@ -504,6 +515,7 @@ export default function Clientes() {
                         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                             <thead>
                                 <tr style={{ borderBottom: '1px solid var(--border-glass)' }}>
+                                    <th title='Sincronización manual' style={{ padding: '12px 8px', color: 'var(--text-muted)', fontWeight: '500', width: '44px', textAlign: 'center' }}>✓ Sync</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500', width: '50px', textAlign: 'center' }}>#</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Nombre del Cliente</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Email</th>
@@ -526,6 +538,27 @@ export default function Clientes() {
                                         onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
                                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                     >
+                                        {/* Checkbox sincronizado */}
+                                        <td style={{ padding: '10px 8px', textAlign: 'center' }}
+                                            onClick={() => !isReadonly && handleToggleSync(client.id, (client as any).synced ?? false)}
+                                            title={(client as any).synced ? 'Marcar como no sincronizado' : 'Marcar como sincronizado'}
+                                        >
+                                            <span style={{
+                                                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                                width: '26px', height: '26px', borderRadius: '6px',
+                                                border: `2px solid ${(client as any).synced ? '#10b981' : 'rgba(255,255,255,0.15)'}`,
+                                                background: (client as any).synced ? 'rgba(16,185,129,0.15)' : 'transparent',
+                                                cursor: isReadonly ? 'default' : 'pointer',
+                                                transition: 'all 0.2s',
+                                                boxShadow: (client as any).synced ? '0 0 8px rgba(16,185,129,0.4)' : 'none',
+                                            }}>
+                                                {(client as any).synced && (
+                                                    <svg width='13' height='13' viewBox='0 0 12 12' fill='none'>
+                                                        <path d='M2 6l3 3 5-5' stroke='#10b981' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'/>
+                                                    </svg>
+                                                )}
+                                            </span>
+                                        </td>
                                         <td style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{index + 1}</td>
                                         <td style={{ padding: '16px', fontWeight: '500' }}>{client.name}</td>
                                         <td style={{ padding: '16px' }}>
