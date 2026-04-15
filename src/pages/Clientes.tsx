@@ -149,6 +149,18 @@ export default function Clientes() {
             updateSheetRow(cliente.phone, sheetUpdate);
         }
         const clientName = cliente?.name ?? id;
+        const oldStatus = cliente?.status ?? '';
+        // ── Audit log ────────────────────────────────────────────
+        supabase.from('audit_log').insert({
+            event_type: isDiscarding ? 'discarded' : 'status_change',
+            client_id: id,
+            client_name: clientName,
+            asesor_id: session?.user?.id,
+            asesor_email: session?.user?.email,
+            field_changed: 'status',
+            old_value: oldStatus,
+            new_value: newStatus,
+        }).then(() => { });
         supabase.from('profiles').update({
             last_seen: new Date().toISOString(),
             last_action: isDiscarding ? `Descartó cliente · ${clientName}` : `Cambió estado · ${clientName}`
@@ -159,6 +171,8 @@ export default function Clientes() {
     const handleAssign = async (id: string, value: string) => {
         const cliente = clients.find(c => c.id === id);
         const phone = cliente?.phone || '';
+        const clientName = cliente?.name ?? id;
+        const oldAssigned = cliente?.assigned_email ?? 'Sin asignar';
 
         if (value === '') {
             // Sin asignar: limpiar asignación
@@ -184,14 +198,25 @@ export default function Clientes() {
             await supabase.from('notifications').insert({
                 user_id: value,
                 title: 'Nuevo Prospecto Asignado',
-                message: `Se te ha asignado al cliente ${cliente?.name || id}.`,
+                message: `Se te ha asignado al cliente ${clientName}.`,
                 type: 'assigned_client',
                 read: false
             }).then(() => {});
             // Write-back bidireccional: guardar email del asesor en el Sheet
             if (phone && asesor?.email) updateSheetRow(phone, { assigned: asesor.email });
         }
-        const clientName = cliente?.name ?? id;
+        // ── Audit log ────────────────────────────────────────────
+        const newLabel = value === '' ? 'Sin asignar' : value === 'pendiente' ? 'pendiente' : (asesores.find(a => a.id === value)?.email ?? value);
+        supabase.from('audit_log').insert({
+            event_type: 'assignment_change',
+            client_id: id,
+            client_name: clientName,
+            asesor_id: session?.user?.id,
+            asesor_email: session?.user?.email,
+            field_changed: 'assigned_to',
+            old_value: oldAssigned,
+            new_value: newLabel,
+        }).then(() => { });
         supabase.from('profiles').update({
             last_seen: new Date().toISOString(),
             last_action: `Asignó cliente · ${clientName}`

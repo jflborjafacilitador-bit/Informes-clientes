@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, X, CalendarDays, FileText, BarChart3, Save, Edit2, Trash2 } from 'lucide-react';
+import { Search, X, CalendarDays, FileText, BarChart3, Save, Edit2, Trash2, ClipboardList, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { fetchClientsFromSheet, type ClientData } from '../services/googleSheets';
 import { useAuth } from '../contexts/AuthContext';
@@ -622,26 +622,394 @@ function TabResumen() {
     );
 }
 
-// ─── Página Principal ──────────────────────────────────────
+// ── TAB 4: Auditorías ──────────────────────────────────────────────────────────
+
+interface AuditEntry {
+    id: string;
+    event_type: string;
+    client_id: string;
+    client_name: string | null;
+    asesor_id: string | null;
+    asesor_email: string | null;
+    field_changed: string | null;
+    old_value: string | null;
+    new_value: string | null;
+    created_at: string;
+}
+
+const EVENT_LABELS: Record<string, { label: string; bg: string; color: string }> = {
+    status_change:     { label: 'Cambio de estado',  bg: 'rgba(56,189,248,0.12)',  color: '#0369a1' },
+    assignment_change: { label: 'Asignación',         bg: 'rgba(139,92,246,0.12)', color: '#6d28d9' },
+    discarded:         { label: 'Descartado',          bg: 'rgba(239,68,68,0.12)',  color: '#b91c1c' },
+};
+
+function fmtDate(iso: string) {
+    return new Date(iso).toLocaleDateString('es-MX', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+    });
+}
+
+function getPeriodRange(period: string, customFrom: string, customTo: string): { from: Date; to: Date } {
+    const now = new Date();
+    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
+    const endOfDay   = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+    switch (period) {
+        case 'today': return { from: startOfDay(now), to: endOfDay(now) };
+        case 'week': {
+            const day = now.getDay();
+            const monday = new Date(now); monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+            return { from: startOfDay(monday), to: endOfDay(now) };
+        }
+        case 'month': return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: endOfDay(now) };
+        case 'custom': return {
+            from: customFrom ? new Date(customFrom + 'T00:00:00') : startOfDay(now),
+            to:   customTo   ? new Date(customTo   + 'T23:59:59') : endOfDay(now),
+        };
+        default: return { from: startOfDay(now), to: endOfDay(now) };
+    }
+}
+
+function TabAuditorias({ role }: { role: string }) {
+    const [logs, setLogs]             = useState<AuditEntry[]>([]);
+    const [loading, setLoading]       = useState(true);
+    const [period, setPeriod]         = useState('week');
+    const [customFrom, setCustomFrom] = useState('');
+    const [customTo, setCustomTo]     = useState('');
+    const [filterAsesor, setFilterAsesor] = useState('');
+    const [filterEvent, setFilterEvent]   = useState('');
+    const [search, setSearch]         = useState('');
+    const [sortAsc, setSortAsc]       = useState(false);
+
+    useEffect(() => { loadLogs(); }, [period, customFrom, customTo]);
+
+    const loadLogs = async () => {
+        setLoading(true);
+        const { from, to } = getPeriodRange(period, customFrom, customTo);
+        const { data, error } = await supabase
+            .from('audit_log')
+            .select('*')
+            .gte('created_at', from.toISOString())
+            .lte('created_at', to.toISOString())
+            .order('created_at', { ascending: false });
+        if (error) console.error('Error cargando audit_log:', error);
+        setLogs(data || []);
+        setLoading(false);
+    };
+
+    const filtered = logs.filter(l => {
+        const matchAsesor = !filterAsesor || (l.asesor_email || '').toLowerCase().includes(filterAsesor.toLowerCase());
+        const matchEvent  = !filterEvent  || l.event_type === filterEvent;
+        const matchSearch = !search ||
+            (l.client_name || '').toLowerCase().includes(search.toLowerCase()) ||
+            (l.asesor_email || '').toLowerCase().includes(search.toLowerCase());
+        return matchAsesor && matchEvent && matchSearch;
+    });
+
+    const sorted = sortAsc ? [...filtered].reverse() : filtered;
+
+    const kpis = [
+        { label: 'Total eventos',    value: filtered.length,                                     color: '#006b2c' },
+        { label: 'Asignaciones',     value: filtered.filter(l => l.event_type === 'assignment_change').length, color: '#6d28d9' },
+        { label: 'Cambios de estado',value: filtered.filter(l => l.event_type === 'status_change').length,    color: '#0369a1' },
+        { label: 'Descartados',      value: filtered.filter(l => l.event_type === 'discarded').length,        color: '#b91c1c' },
+    ];
+
+    const byAsesor: Record<string, { assignments: number; statusChanges: number; discarded: number; total: number }> = {};
+    filtered.forEach(l => {
+        const key = (l.asesor_email || '').split('@')[0] || 'Sistema';
+        if (!byAsesor[key]) byAsesor[key] = { assignments: 0, statusChanges: 0, discarded: 0, total: 0 };
+        byAsesor[key].total++;
+        if (l.event_type === 'assignment_change') byAsesor[key].assignments++;
+        if (l.event_type === 'status_change')     byAsesor[key].statusChanges++;
+        if (l.event_type === 'discarded')          byAsesor[key].discarded++;
+    });
+    const asesorRows    = Object.entries(byAsesor).sort((a, b) => b[1].total - a[1].total);
+    const uniqueAsesores = [...new Set(logs.map(l => l.asesor_email).filter(Boolean))];
+
+    const periodOptions = [
+        { key: 'today', label: 'Hoy' },
+        { key: 'week',  label: 'Esta semana' },
+        { key: 'month', label: 'Este mes' },
+        { key: 'custom',label: 'Personalizado' },
+    ];
+
+    const exportPdf = () => {
+        const { from, to } = getPeriodRange(period, customFrom, customTo);
+        const periodLabel = `${from.toLocaleDateString('es-MX')} – ${to.toLocaleDateString('es-MX')}`;
+        const printWindow = window.open('', '_blank', 'width=1100,height=750');
+        if (!printWindow) return;
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <title>Auditoría de Leads – ${periodLabel}</title>
+                <style>
+                    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 32px; color: #171c20; }
+                    h1   { font-size: 20px; margin: 0 0 4px; color: #006b2c; }
+                    p.sub{ font-size: 12px; color: #545f73; margin: 0 0 20px; }
+                    .kpis{ display: flex; gap: 16px; margin-bottom: 20px; }
+                    .kpi { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 18px; text-align: center; flex: 1; }
+                    .kpi .val { font-size: 24px; font-weight: 800; }
+                    .kpi .lbl { font-size: 11px; color: #545f73; }
+                    table  { width: 100%; border-collapse: collapse; font-size: 11px; }
+                    thead tr { background: #f1f5f9; }
+                    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+                    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; }
+                    h2 { font-size: 14px; margin: 24px 0 8px; }
+                    @media print { body { margin: 16px; } }
+                </style>
+            </head>
+            <body>
+                <h1>📊 Auditoría de Leads – Los Quetzales</h1>
+                <p class="sub">Período: ${periodLabel} &nbsp;·&nbsp; Generado: ${new Date().toLocaleString('es-MX')}</p>
+                <div class="kpis">
+                    ${kpis.map(k => `<div class="kpi"><div class="val" style="color:${k.color}">${k.value}</div><div class="lbl">${k.label}</div></div>`).join('')}
+                </div>
+                <h2>Resumen por asesor</h2>
+                <table>
+                    <thead><tr><th>Asesor</th><th>Total</th><th>Asignaciones</th><th>Cambios estado</th><th>Descartados</th></tr></thead>
+                    <tbody>${asesorRows.map(([n, c]) => `<tr><td>${n}</td><td><b>${c.total}</b></td><td>${c.assignments}</td><td>${c.statusChanges}</td><td>${c.discarded}</td></tr>`).join('')}</tbody>
+                </table>
+                <h2>Detalle de eventos (${sorted.length} registros)</h2>
+                <table>
+                    <thead><tr><th>Fecha/Hora</th><th>Asesor</th><th>Cliente</th><th>Evento</th><th>Anterior</th><th>Nuevo</th></tr></thead>
+                    <tbody>${sorted.map(l => {
+                        const ev = EVENT_LABELS[l.event_type] || { label: l.event_type, bg: '#eee', color: '#333' };
+                        return `<tr>
+                            <td>${fmtDate(l.created_at)}</td>
+                            <td>${(l.asesor_email || '').split('@')[0]}</td>
+                            <td>${l.client_name || '—'}</td>
+                            <td><span class="badge" style="background:${ev.bg};color:${ev.color}">${ev.label}</span></td>
+                            <td style="color:#545f73">${l.old_value || '—'}</td>
+                            <td style="font-weight:600">${l.new_value || '—'}</td>
+                        </tr>`;
+                    }).join('')}</tbody>
+                </table>
+            </body></html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); }, 400);
+    };
+
+    return (
+        <div style={{ paddingBottom: '20px' }}>
+            {/* ── Barra de filtros ── */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px', alignItems: 'center' }}>
+                {/* Período */}
+                <div style={{ display: 'flex', gap: '4px', border: '1px solid var(--border-glass)', borderRadius: '10px', padding: '4px', background: 'var(--ghost-bg)' }}>
+                    {periodOptions.map(opt => (
+                        <button key={opt.key} onClick={() => setPeriod(opt.key)}
+                            style={{ padding: '7px 14px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: period === opt.key ? '700' : '400', fontSize: '0.83rem', background: period === opt.key ? 'var(--primary-accent)' : 'transparent', color: period === opt.key ? '#fff' : 'var(--text-muted)', transition: 'all 0.15s' }}>
+                            {opt.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Fechas custom */}
+                {period === 'custom' && (
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+                            style={{ padding: '7px 10px', borderRadius: '8px', border: '1px solid var(--border-glass)', background: 'var(--bg-panel)', color: 'var(--text-main)', fontFamily: 'inherit', fontSize: '0.83rem' }} />
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>hasta</span>
+                        <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
+                            style={{ padding: '7px 10px', borderRadius: '8px', border: '1px solid var(--border-glass)', background: 'var(--bg-panel)', color: 'var(--text-main)', fontFamily: 'inherit', fontSize: '0.83rem' }} />
+                    </div>
+                )}
+
+                {/* Filtro asesor */}
+                <select value={filterAsesor} onChange={e => setFilterAsesor(e.target.value)}
+                    style={{ padding: '7px 10px', borderRadius: '8px', border: '1px solid var(--border-glass)', background: 'var(--bg-panel)', color: 'var(--text-main)', fontFamily: 'inherit', fontSize: '0.83rem', cursor: 'pointer' }}>
+                    <option value=''>Todos los asesores</option>
+                    {uniqueAsesores.map(email => (
+                        <option key={email!} value={email!}>{email!.split('@')[0]}</option>
+                    ))}
+                </select>
+
+                {/* Filtro tipo */}
+                <select value={filterEvent} onChange={e => setFilterEvent(e.target.value)}
+                    style={{ padding: '7px 10px', borderRadius: '8px', border: '1px solid var(--border-glass)', background: 'var(--bg-panel)', color: 'var(--text-main)', fontFamily: 'inherit', fontSize: '0.83rem', cursor: 'pointer' }}>
+                    <option value=''>Todos los eventos</option>
+                    <option value='status_change'>Cambios de estado</option>
+                    <option value='assignment_change'>Asignaciones</option>
+                    <option value='discarded'>Descartados</option>
+                </select>
+
+                {/* Buscar */}
+                <div style={{ position: 'relative', flex: 1, minWidth: '180px' }}>
+                    <Search size={14} style={{ position: 'absolute', left: '11px', top: '11px', color: 'var(--text-muted)' }} />
+                    <input type='text' placeholder='Buscar cliente u asesor…' value={search} onChange={e => setSearch(e.target.value)}
+                        style={{ width: '100%', padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid var(--border-glass)', background: 'var(--bg-panel)', color: 'var(--text-main)', fontFamily: 'inherit', fontSize: '0.83rem', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+
+                {/* PDF */}
+                <button onClick={exportPdf} disabled={sorted.length === 0}
+                    style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 16px', borderRadius: '8px', border: 'none', background: sorted.length > 0 ? 'var(--primary-accent)' : 'var(--ghost-bg)', color: sorted.length > 0 ? '#fff' : 'var(--text-muted)', fontFamily: 'inherit', fontWeight: '700', fontSize: '0.83rem', cursor: sorted.length > 0 ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>
+                    <Download size={15} /> Descargar PDF
+                </button>
+            </div>
+
+            {/* ── KPIs ── */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '14px', marginBottom: '24px' }}>
+                {kpis.map(k => (
+                    <div key={k.label} className='glass-panel' style={{ padding: '18px', textAlign: 'center' }}>
+                        <p style={{ margin: '0 0 6px', fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k.label}</p>
+                        <p style={{ margin: 0, fontSize: '2rem', fontWeight: '800', color: k.color }}>{loading ? '…' : k.value}</p>
+                    </div>
+                ))}
+            </div>
+
+            {/* ── Resumen por asesor ── */}
+            {asesorRows.length > 0 && (
+                <div className='glass-panel' style={{ padding: '20px', marginBottom: '20px' }}>
+                    <h3 style={{ margin: '0 0 14px', fontSize: '0.93rem', fontWeight: '700' }}>👤 Resumen por asesor en el período</h3>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                            <thead>
+                                <tr>
+                                    {['Asesor', 'Total acciones', 'Asignaciones', 'Cambios estado', 'Descartados'].map(h => (
+                                        <th key={h} style={{ padding: '10px 14px', color: 'var(--text-muted)', fontWeight: '500', textAlign: h === 'Asesor' ? 'left' : 'center', borderBottom: '1px solid var(--border-glass)' }}>{h}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {asesorRows.map(([nombre, c]) => (
+                                    <tr key={nombre}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--ghost-bg)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                        <td style={{ padding: '10px 14px', fontWeight: '700' }}>👤 {nombre}</td>
+                                        <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: '700', color: 'var(--primary-accent)' }}>{c.total}</td>
+                                        <td style={{ padding: '10px 14px', textAlign: 'center', color: '#6d28d9' }}>{c.assignments}</td>
+                                        <td style={{ padding: '10px 14px', textAlign: 'center', color: '#0369a1' }}>{c.statusChanges}</td>
+                                        <td style={{ padding: '10px 14px', textAlign: 'center', color: '#b91c1c' }}>{c.discarded}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Tabla de eventos ── */}
+            <div className='glass-panel' style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                    <h3 style={{ margin: 0, fontSize: '0.93rem', fontWeight: '700' }}>
+                        📋 Historial de eventos
+                        <span style={{ marginLeft: '10px', fontSize: '0.78rem', fontWeight: '400', color: 'var(--text-muted)' }}>{sorted.length} registros</span>
+                    </h3>
+                    <button onClick={() => setSortAsc(v => !v)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 12px', border: '1px solid var(--border-glass)', borderRadius: '7px', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.78rem' }}>
+                        {sortAsc ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                        {sortAsc ? 'Más antiguo primero' : 'Más reciente primero'}
+                    </button>
+                </div>
+
+                {loading ? (
+                    <div style={{ textAlign: 'center', padding: '50px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Cargando registros…</div>
+                ) : sorted.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '50px', color: 'var(--text-muted)' }}>
+                        <ClipboardList size={36} style={{ display: 'block', margin: '0 auto 10px', opacity: 0.25 }} />
+                        Sin eventos en este período. Los eventos se registrarán automáticamente a partir de ahora.
+                    </div>
+                ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                            <thead>
+                                <tr>
+                                    {['Fecha / Hora', 'Asesor', 'Cliente', 'Evento', 'Valor anterior', 'Nuevo valor'].map(h => (
+                                        <th key={h} style={{ padding: '10px 14px', color: 'var(--text-muted)', fontWeight: '500', textAlign: 'left', borderBottom: '1px solid var(--border-glass)', whiteSpace: 'nowrap' }}>{h}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sorted.map(l => {
+                                    const ev = EVENT_LABELS[l.event_type] || { label: l.event_type, bg: 'var(--ghost-bg)', color: 'var(--text-muted)' };
+                                    return (
+                                        <tr key={l.id}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--ghost-bg)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                            <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{fmtDate(l.created_at)}</td>
+                                            <td style={{ padding: '11px 14px', fontWeight: '600', whiteSpace: 'nowrap' }}>{(l.asesor_email || '').split('@')[0]}</td>
+                                            <td style={{ padding: '11px 14px' }}>{l.client_name || '—'}</td>
+                                            <td style={{ padding: '11px 14px' }}>
+                                                <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '700', background: ev.bg, color: ev.color }}>{ev.label}</span>
+                                            </td>
+                                            <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.83rem' }}>{l.old_value || '—'}</td>
+                                            <td style={{ padding: '11px 14px', fontWeight: '600', color: 'var(--text-main)' }}>{l.new_value || '—'}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ── Página Principal ──────────────────────────────────────────────────────────
 export default function Reportes() {
     const { session, role } = useAuth();
-    const [tab, setTab] = useState<'citas' | 'notas' | 'resumen'>('citas');
+    const [tab, setTab] = useState<'citas' | 'notas' | 'resumen' | 'auditorias'>('citas');
+
+    const isAdmin = role === 'super_admin' || role === 'gerente' || role === 'master';
 
     const tabs = [
-        { key: 'citas', label: '📅 Citas', icon: CalendarDays },
-        { key: 'notas', label: '📝 Notas', icon: FileText },
-        ...(role === 'super_admin' || role === 'gerente' ? [{ key: 'resumen', label: '📊 Resumen', icon: BarChart3 }] : []),
+        { key: 'citas',       label: '📅 Citas',        icon: CalendarDays },
+        { key: 'notas',       label: '📝 Notas',        icon: FileText },
+        ...(isAdmin ? [{ key: 'resumen',     label: '📊 Resumen',     icon: BarChart3     }] : []),
+        ...(role !== 'readonly' ? [{ key: 'auditorias', label: '📋 Auditorías', icon: ClipboardList }] : []),
     ] as { key: typeof tab; label: string; icon: any }[];
 
     return (
         <div style={{ paddingBottom: '40px' }}>
             <div style={{ marginBottom: '2rem' }}>
-                <h1 style={{ fontSize: '2rem', margin: 0 }}>Módulo de <span className="glow-text" style={{ color: 'var(--primary-accent)' }}>Reportes</span></h1>
-                <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Seguimiento de citas y notas de clientes en tiempo real.</p>
+                <h1 style={{ fontSize: '2rem', margin: 0 }}>Módulo de <span className='glow-text' style={{ color: 'var(--primary-accent)' }}>Reportes</span></h1>
+                <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Seguimiento de citas, notas y auditoría de cambios en tiempo real.</p>
             </div>
 
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid var(--border-glass)', paddingBottom: '0' }}>
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: '1px solid var(--border-glass)', paddingBottom: '0' }}>
+                {tabs.map(t => (
+                    <button key={t.key} onClick={() => setTab(t.key)}
+                        style={{ padding: '10px 20px', background: 'transparent', border: 'none', borderBottom: `2px solid ${tab === t.key ? 'var(--primary-accent)' : 'transparent'}`, color: tab === t.key ? 'var(--primary-accent)' : 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: tab === t.key ? '700' : '400', fontSize: '0.9rem', transition: 'all 0.2s', marginBottom: '-1px' }}>
+                        {t.label}
+                    </button>
+                ))}
+            </div>
+
+            {tab === 'citas'      && <TabCitas session={session} role={role || ''} />}
+            {tab === 'notas'      && <TabNotas session={session} role={role || ''} />}
+            {tab === 'resumen'    && <TabResumen />}
+            {tab === 'auditorias' && <TabAuditorias role={role || ''} />}
+        </div>
+    );
+}
+
+    const { session, role } = useAuth();
+    const [tab, setTab] = useState<'citas' | 'notas' | 'resumen' | 'auditorias'>('citas');
+
+    const isAdmin = role === 'super_admin' || role === 'gerente' || role === 'master';
+
+    const tabs = [
+        { key: 'citas',      label: '📅 Citas',       icon: CalendarDays },
+        { key: 'notas',      label: '📝 Notas',       icon: FileText },
+        ...(isAdmin ? [{ key: 'resumen',    label: '📊 Resumen',    icon: BarChart3 }] : []),
+        ...(role !== 'readonly' ? [{ key: 'auditorias', label: '📋 Auditorías', icon: ClipboardList }] : []),
+    ] as { key: typeof tab; label: string; icon: any }[];
+
+    return (
+        <div style={{ paddingBottom: '40px' }}>
+            <div style={{ marginBottom: '2rem' }}>
+                <h1 style={{ fontSize: '2rem', margin: 0 }}>Módulo de <span className='glow-text' style={{ color: 'var(--primary-accent)' }}>Reportes</span></h1>
+                <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Seguimiento de citas, notas y auditoría de cambios en tiempo real.</p>
+            </div>
+
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: '1px solid var(--border-glass)', paddingBottom: '0' }}>
                 {tabs.map(t => (
                     <button key={t.key} onClick={() => setTab(t.key)}
                         style={{ padding: '10px 20px', background: 'transparent', border: 'none', borderBottom: `2px solid ${tab === t.key ? 'var(--primary-accent)' : 'transparent'}`, color: tab === t.key ? 'var(--primary-accent)' : 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: tab === t.key ? '700' : '400', fontSize: '0.9rem', transition: 'all 0.2s', marginBottom: '-1px' }}>
@@ -651,9 +1019,10 @@ export default function Reportes() {
             </div>
 
             {/* Contenido del tab */}
-            {tab === 'citas' && <TabCitas session={session} role={role || ''} />}
-            {tab === 'notas' && <TabNotas session={session} role={role || ''} />}
-            {tab === 'resumen' && <TabResumen />}
+            {tab === 'citas'       && <TabCitas session={session} role={role || ''} />}
+            {tab === 'notas'       && <TabNotas session={session} role={role || ''} />}
+            {tab === 'resumen'     && <TabResumen />}
+            {tab === 'auditorias'  && <TabAuditorias role={role || ''} />}
         </div>
     );
 }
