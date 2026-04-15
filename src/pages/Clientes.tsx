@@ -16,13 +16,25 @@ export default function Clientes() {
     const [pageSize, setPageSize] = useState(25);
     const [clients, setClients] = useState<(ClientData & { origen?: string; created_at?: string })[]>([]);
     const [asesores, setAsesores] = useState<any[]>([]);
+    const [statusOptions, setStatusOptions] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // Cargar estados dinámicos desde client_statuses
+    const loadStatuses = async () => {
+        const { data } = await supabase
+            .from('client_statuses')
+            .select('label')
+            .order('sort_order');
+        if (data) setStatusOptions(data.map((s: any) => s.label));
+    };
+
     const [editingClient, setEditingClient] = useState<any | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
     useEffect(() => {
         if (session) {
             loadData();
+            loadStatuses(); // cargar estados dinámicos al montar
             if (role === 'super_admin' || role === 'gerente') loadAsesores();
 
             // Polling: sincroniza con Google Sheets cada 60 segundos
@@ -335,7 +347,8 @@ export default function Clientes() {
     const handleAssignFilter = (v: string) => { setAssignFilter(v); setPage(0); };
     const clearFilters = () => { setStatusFilter(''); setAssignFilter(''); setPage(0); };
 
-    const STATUSES = ['Nuevo', 'No responde', 'Numero sin Whatsapp', 'Reprogramo', 'Citado', 'En seguimiento', 'No esta interesado', 'Repetido', 'Presupuesto insuficiente', 'Activo', 'En espera', 'Descartado'];
+    // Usar estados dinámicos; 'Descartado' es interno — no aparece en el dropdown de estados activos
+    const STATUSES = statusOptions.filter(s => s !== 'Descartado');
 
     return (
         <div style={{ paddingBottom: '40px' }}>
@@ -678,17 +691,9 @@ export default function Clientes() {
                                                         cursor: 'pointer'
                                                     }}
                                                 >
-                                                    <option value="Nuevo">Nuevo</option>
-                                                    <option value="No responde">No responde</option>
-                                                    <option value="Numero sin Whatsapp">Numero sin Whatsapp</option>
-                                                    <option value="Reprogramo">Reprogramo</option>
-                                                    <option value="Citado">Citado</option>
-                                                    <option value="En seguimiento">En seguimiento</option>
-                                                    <option value="No esta interesado">No esta interesado</option>
-                                                    <option value="Repetido">Repetido</option>
-                                                    <option value="Presupuesto insuficiente">Presupuesto insuficiente</option>
-                                                    <option value="Activo">Activo</option>
-                                                    <option value="En espera">En espera</option>
+                                                    {statusOptions.filter(s => s !== 'Descartado').map(s => (
+                                                        <option key={s} value={s}>{s}</option>
+                                                    ))}
                                                 </select>
                                             ) : (
                                                 <span style={{
