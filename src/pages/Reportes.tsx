@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, X, CalendarDays, FileText, BarChart3, Save, Edit2, Trash2, ClipboardList, Download, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, X, CalendarDays, FileText, BarChart3, Save, Edit2, Trash2, ClipboardList, Download, ChevronDown, ChevronUp, Activity } from 'lucide-react';
+
 import { supabase } from '../services/supabaseClient';
 import { fetchClientsFromSheet, type ClientData } from '../services/googleSheets';
 import { useAuth } from '../contexts/AuthContext';
@@ -950,17 +951,244 @@ function TabAuditorias({ role: _role }: { role: string }) {
     );
 }
 
+// ── TAB 5: Última Actividad ───────────────────────────────────────────────────
+interface ProfileActivity {
+    id: string;
+    email: string;
+    full_name: string | null;
+    role: string;
+    last_seen: string | null;
+    last_action: string | null;
+}
+
+function relativeTime(iso: string | null): string {
+    if (!iso) return 'Nunca';
+    const diff = Date.now() - new Date(iso).getTime();
+    if (diff < 60000)      return '🟢 Ahora mismo';
+    if (diff < 3600000)    return `🟢 Hace ${Math.floor(diff / 60000)} min`;
+    if (diff < 7200000)    return `🟡 Hace ${Math.floor(diff / 3600000)}h`;
+    if (diff < 86400000)   return `🟡 Hace ${Math.floor(diff / 3600000)}h`;
+    if (diff < 172800000)  return `🔴 Hace ${Math.floor(diff / 86400000)} día`;
+    return `🔴 Hace ${Math.floor(diff / 86400000)} días`;
+}
+
+function isOnline(iso: string | null): boolean {
+    if (!iso) return false;
+    return Date.now() - new Date(iso).getTime() < 300000; // 5 min
+}
+
+function TabActividad() {
+    const [profiles, setProfiles] = useState<ProfileActivity[]>([]);
+    const [loading, setLoading]   = useState(true);
+    const [search, setSearch]     = useState('');
+    const [sortBy, setSortBy]     = useState<'last_seen' | 'name' | 'role'>('last_seen');
+    const [now, setNow]           = useState(Date.now());
+
+    // Actualizar timestamps cada 30 s
+    useEffect(() => {
+        const id = setInterval(() => setNow(Date.now()), 30000);
+        return () => clearInterval(id);
+    }, []);
+
+    const load = async () => {
+        setLoading(true);
+        const { data } = await supabase
+            .from('profiles')
+            .select('id, email, full_name, role, last_seen, last_action')
+            .order('last_seen', { ascending: false });
+        setProfiles((data as ProfileActivity[]) || []);
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        load();
+        const ch = supabase.channel('activity_tab')
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, load)
+            .subscribe();
+        return () => { supabase.removeChannel(ch); };
+    }, []);
+
+    const ROLE_LABELS: Record<string, { label: string; color: string }> = {
+        super_admin: { label: 'Super Admin', color: '#f59e0b' },
+        master:      { label: 'Master',      color: '#8b5cf6' },
+        gerente:     { label: 'Gerente',      color: '#38bdf8' },
+        asesor:      { label: 'Asesor',       color: '#10b981' },
+        readonly:    { label: 'Solo lectura', color: '#6b7280' },
+    };
+
+    const filtered = profiles
+        .filter(p => {
+            const q = search.toLowerCase();
+            return (p.email?.toLowerCase().includes(q) || (p.full_name?.toLowerCase().includes(q)));
+        })
+        .sort((a, b) => {
+            if (sortBy === 'last_seen') {
+                return (b.last_seen ? new Date(b.last_seen).getTime() : 0)
+                     - (a.last_seen ? new Date(a.last_seen).getTime() : 0);
+            }
+            if (sortBy === 'name') return (a.full_name || a.email).localeCompare(b.full_name || b.email);
+            return (a.role || '').localeCompare(b.role || '');
+        });
+
+    const onlineCount = profiles.filter(p => isOnline(p.last_seen)).length;
+
+    // supress unused warning
+    void now;
+
+    return (
+        <div>
+            {/* KPIs rápidos */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '14px', marginBottom: '24px' }}>
+                {[
+                    { label: 'Total usuarios', value: profiles.length, color: 'var(--primary-accent)' },
+                    { label: '🟢 En línea ahora', value: onlineCount, color: '#10b981' },
+                    { label: '🔴 Sin conexión', value: profiles.length - onlineCount, color: '#ef4444' },
+                    { label: 'Con actividad', value: profiles.filter(p => p.last_action).length, color: '#f59e0b' },
+                ].map(m => (
+                    <div key={m.label} className='glass-panel' style={{ padding: '16px 18px', textAlign: 'center' }}>
+                        <p style={{ margin: '0 0 6px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{m.label}</p>
+                        <p style={{ margin: 0, fontSize: '1.8rem', fontWeight: '800', color: m.color }}>
+                            {loading ? '…' : m.value}
+                        </p>
+                    </div>
+                ))}
+            </div>
+
+            {/* Controles */}
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '18px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+                    <Search size={15} style={{ position: 'absolute', left: '12px', top: '11px', color: 'var(--text-muted)' }} />
+                    <input
+                        type='text' placeholder='Buscar asesor...' value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        style={{ width: '100%', padding: '9px 12px 9px 36px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-glass)', color: 'var(--text-main)', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', fontSize: '0.85rem' }}
+                    />
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                    {(['last_seen', 'name', 'role'] as const).map(s => (
+                        <button key={s} onClick={() => setSortBy(s)}
+                            style={{ padding: '6px 14px', borderRadius: '20px', border: `1px solid ${sortBy === s ? 'var(--primary-accent)' : 'var(--border-glass)'}`, background: sortBy === s ? 'rgba(0,240,255,0.1)' : 'transparent', color: sortBy === s ? 'var(--primary-accent)' : 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.78rem', fontWeight: sortBy === s ? '700' : '400', transition: 'all 0.2s' }}>
+                            {s === 'last_seen' ? '🕒 Reciente' : s === 'name' ? '🔤 Nombre' : '👤 Rol'}
+                        </button>
+                    ))}
+                </div>
+                <button onClick={load} title='Actualizar'
+                    style={{ padding: '7px 14px', borderRadius: '8px', border: '1px solid var(--border-glass)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    ↺ Actualizar
+                </button>
+            </div>
+
+            {/* Tabla */}
+            {loading ? (
+                <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)' }}>Cargando actividad...</div>
+            ) : (
+                <div className='glass-panel' style={{ padding: '0', overflow: 'hidden' }}>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                                <tr style={{ borderBottom: '1px solid var(--border-glass)', background: 'rgba(255,255,255,0.02)' }}>
+                                    {['Usuario', 'Rol', 'Última conexión', 'Última acción', 'Estado'].map(h => (
+                                        <th key={h} style={{ padding: '14px 16px', color: 'var(--text-muted)', fontWeight: '600', textAlign: 'left', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filtered.map(p => {
+                                    const nombre   = p.full_name || p.email?.split('@')[0] || '—';
+                                    const online   = isOnline(p.last_seen);
+                                    const roleInfo = ROLE_LABELS[p.role] || { label: p.role || '—', color: '#6b7280' };
+                                    return (
+                                        <tr key={p.id}
+                                            style={{ borderBottom: '1px solid rgba(80,200,255,0.05)', transition: 'background 0.15s' }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+
+                                            {/* Usuario */}
+                                            <td style={{ padding: '14px 16px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                                                        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: online ? 'linear-gradient(135deg, #10b981, #00f0ff)' : 'linear-gradient(135deg, #374151, #1f2937)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: '700', color: online ? '#000' : 'var(--text-muted)' }}>
+                                                            {nombre.charAt(0).toUpperCase()}
+                                                        </div>
+                                                        {online && (
+                                                            <div style={{ position: 'absolute', bottom: '1px', right: '1px', width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', border: '2px solid var(--bg-main)', boxShadow: '0 0 6px #10b981' }} />
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <p style={{ margin: 0, fontWeight: '600', fontSize: '0.87rem' }}>{nombre}</p>
+                                                        <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>{p.email}</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+
+                                            {/* Rol */}
+                                            <td style={{ padding: '14px 16px' }}>
+                                                <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '0.72rem', fontWeight: '600', background: `${roleInfo.color}18`, color: roleInfo.color, border: `1px solid ${roleInfo.color}40` }}>
+                                                    {roleInfo.label}
+                                                </span>
+                                            </td>
+
+                                            {/* Última conexión */}
+                                            <td style={{ padding: '14px 16px', fontSize: '0.82rem' }}>
+                                                <span style={{ color: online ? '#10b981' : p.last_seen ? 'var(--text-muted)' : '#ef4444', fontWeight: online ? '600' : '400' }}>
+                                                    {relativeTime(p.last_seen)}
+                                                </span>
+                                                {p.last_seen && (
+                                                    <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                                        {new Date(p.last_seen).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                    </p>
+                                                )}
+                                            </td>
+
+                                            {/* Última acción */}
+                                            <td style={{ padding: '14px 16px', fontSize: '0.82rem', maxWidth: '260px' }}>
+                                                {p.last_action ? (
+                                                    <span style={{ color: 'var(--text-main)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                                                        {p.last_action}
+                                                    </span>
+                                                ) : (
+                                                    <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Sin actividad registrada</span>
+                                                )}
+                                            </td>
+
+                                            {/* Estado */}
+                                            <td style={{ padding: '14px 16px' }}>
+                                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600', background: online ? 'rgba(16,185,129,0.12)' : 'rgba(107,114,128,0.12)', color: online ? '#10b981' : '#6b7280', border: `1px solid ${online ? 'rgba(16,185,129,0.3)' : 'rgba(107,114,128,0.2)'}` }}>
+                                                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: online ? '#10b981' : '#6b7280', boxShadow: online ? '0 0 6px #10b981' : 'none' }} />
+                                                    {online ? 'En línea' : 'Desconectado'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                        {filtered.length === 0 && (
+                            <div style={{ textAlign: 'center', padding: '50px', color: 'var(--text-muted)' }}>
+                                No hay usuarios que coincidan con tu búsqueda.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ── Página Principal ──────────────────────────────────────────────────────────
 export default function Reportes() {
     const { session, role } = useAuth();
-    const [tab, setTab] = useState<'citas' | 'notas' | 'resumen' | 'auditorias'>('citas');
+    const [tab, setTab] = useState<'citas' | 'notas' | 'resumen' | 'auditorias' | 'actividad'>('citas');
 
     const isAdmin = role === 'super_admin' || role === 'gerente' || role === 'master';
 
     const tabs = [
-        { key: 'citas',       label: '📅 Citas',        icon: CalendarDays },
-        { key: 'notas',       label: '📝 Notas',        icon: FileText },
-        ...(isAdmin ? [{ key: 'resumen',     label: '📊 Resumen',     icon: BarChart3     }] : []),
+        { key: 'citas',       label: '📅 Citas',             icon: CalendarDays  },
+        { key: 'notas',       label: '📝 Notas',             icon: FileText      },
+        ...(isAdmin ? [
+            { key: 'resumen',    label: '📊 Resumen',          icon: BarChart3     },
+            { key: 'actividad',  label: '👥 Última Actividad',  icon: Activity      },
+        ] : []),
         ...(role !== 'readonly' ? [{ key: 'auditorias', label: '📋 Auditorías', icon: ClipboardList }] : []),
     ] as { key: typeof tab; label: string; icon: any }[];
 
@@ -968,11 +1196,11 @@ export default function Reportes() {
         <div style={{ paddingBottom: '40px' }}>
             <div style={{ marginBottom: '2rem' }}>
                 <h1 style={{ fontSize: '2rem', margin: 0 }}>Módulo de <span className='glow-text' style={{ color: 'var(--primary-accent)' }}>Reportes</span></h1>
-                <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Seguimiento de citas, notas y auditoría de cambios en tiempo real.</p>
+                <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Seguimiento de citas, notas, auditoría y actividad del equipo en tiempo real.</p>
             </div>
 
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: '1px solid var(--border-glass)', paddingBottom: '0' }}>
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: '1px solid var(--border-glass)', paddingBottom: '0', flexWrap: 'wrap' }}>
                 {tabs.map(t => (
                     <button key={t.key} onClick={() => setTab(t.key)}
                         style={{ padding: '10px 20px', background: 'transparent', border: 'none', borderBottom: `2px solid ${tab === t.key ? 'var(--primary-accent)' : 'transparent'}`, color: tab === t.key ? 'var(--primary-accent)' : 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: tab === t.key ? '700' : '400', fontSize: '0.9rem', transition: 'all 0.2s', marginBottom: '-1px' }}>
@@ -985,7 +1213,9 @@ export default function Reportes() {
             {tab === 'notas'      && <TabNotas session={session} role={role || ''} />}
             {tab === 'resumen'    && <TabResumen />}
             {tab === 'auditorias' && <TabAuditorias role={role || ''} />}
+            {tab === 'actividad'  && <TabActividad />}
         </div>
     );
 }
+
 
