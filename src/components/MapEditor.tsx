@@ -473,7 +473,51 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                 ctx.restore();
             });
 
-            // 3. Exportar
+            // 3. Leyenda de colorimetría (esquina inferior izquierda)
+            const legend = [
+                { label: 'Disponible', fill: 'rgba(34,197,94,0.55)',  border: 'rgba(34,197,94,0.9)'  },
+                { label: 'En proceso', fill: 'rgba(245,158,11,0.55)', border: 'rgba(245,158,11,0.9)' },
+                { label: 'Vendida',    fill: 'rgba(239,68,68,0.55)',  border: 'rgba(239,68,68,0.9)'  },
+            ];
+            const lPad = 14, lRow = 28, lBoxW = 18, lBoxH = 14;
+            const lW = 160, lH = lPad * 2 + lRow * legend.length;
+            const lX = 18, lY = ch - lH - 18;
+            const lFontSize = Math.max(13, cw * 0.012);
+
+            // Fondo de la leyenda
+            ctx.save();
+            ctx.fillStyle = 'rgba(10,15,13,0.82)';
+            roundRect(ctx, lX, lY, lW, lH, 10);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Título
+            ctx.font = `bold ${lFontSize * 0.82}px sans-serif`;
+            ctx.fillStyle = 'rgba(255,255,255,0.55)';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText('LEYENDA', lX + lPad, lY + 8);
+
+            legend.forEach((item, i) => {
+                const ry = lY + lPad + 14 + i * lRow;
+                // Cuadro de color
+                ctx.fillStyle = item.fill;
+                roundRect(ctx, lX + lPad, ry, lBoxW, lBoxH, 3);
+                ctx.fill();
+                ctx.strokeStyle = item.border;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+                // Etiqueta
+                ctx.fillStyle = '#ffffff';
+                ctx.font = `${lFontSize}px sans-serif`;
+                ctx.textBaseline = 'middle';
+                ctx.fillText(item.label, lX + lPad + lBoxW + 8, ry + lBoxH / 2);
+            });
+            ctx.restore();
+
+            // 4. Exportar
             canvas.toBlob(blob => {
                 if (!blob) return;
                 const url = URL.createObjectURL(blob);
@@ -488,6 +532,21 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
         };
         img.onerror = () => alert('No se pudo cargar la imagen del plano para exportar.');
     };
+
+    // Función auxiliar para canvas con esquinas redondeadas
+    function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, r: number) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + width - r, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+        ctx.lineTo(x + width, y + height - r);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+        ctx.lineTo(x + r, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+    }
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', height: '100%', position: 'relative' }}>
@@ -908,6 +967,68 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                                         }
                                         return null;
                                     })}
+
+                                    {/* ── Leyenda de colorimetría ── */}
+                                    {(() => {
+                                        const legend = [
+                                            { label: 'Disponible', fill: 'rgba(34,197,94,0.45)',  border: 'rgba(34,197,94,0.9)'  },
+                                            { label: 'En proceso', fill: 'rgba(245,158,11,0.45)', border: 'rgba(245,158,11,0.9)' },
+                                            { label: 'Vendida',    fill: 'rgba(239,68,68,0.45)',  border: 'rgba(239,68,68,0.9)'  },
+                                        ];
+                                        const lx = w * 0.01;
+                                        const rowH = h * 0.038;
+                                        const boxW = w * 0.025;
+                                        const boxH = rowH * 0.55;
+                                        const fs  = Math.max(8, h * 0.018);
+                                        const padX = w * 0.012;
+                                        const padY = h * 0.012;
+                                        const lW   = w * 0.16;
+                                        const lH   = padY * 2 + fs * 1.1 + rowH * legend.length + padY * 0.5;
+                                        const ly   = h - lH - h * 0.015;
+                                        return (
+                                            <g style={{ pointerEvents: 'none' }}>
+                                                {/* Fondo */}
+                                                <rect
+                                                    x={lx} y={ly} width={lW} height={lH}
+                                                    rx={w * 0.008} ry={w * 0.008}
+                                                    fill="rgba(10,15,13,0.80)"
+                                                    stroke="rgba(255,255,255,0.18)" strokeWidth={1}
+                                                />
+                                                {/* Título */}
+                                                <text
+                                                    x={lx + padX} y={ly + padY + fs * 0.5}
+                                                    fontSize={fs * 0.78} fontWeight="bold"
+                                                    fill="rgba(255,255,255,0.50)"
+                                                    dominantBaseline="middle"
+                                                >
+                                                    LEYENDA
+                                                </text>
+                                                {/* Filas */}
+                                                {legend.map((item, i) => {
+                                                    const ry = ly + padY + fs * 1.1 + i * rowH + padY * 0.5;
+                                                    return (
+                                                        <g key={item.label}>
+                                                            <rect
+                                                                x={lx + padX} y={ry}
+                                                                width={boxW} height={boxH}
+                                                                rx={w * 0.002}
+                                                                fill={item.fill} stroke={item.border} strokeWidth={1.5}
+                                                            />
+                                                            <text
+                                                                x={lx + padX + boxW + w * 0.006}
+                                                                y={ry + boxH / 2}
+                                                                fontSize={fs} fill="#ffffff"
+                                                                dominantBaseline="middle"
+                                                            >
+                                                                {item.label}
+                                                            </text>
+                                                        </g>
+                                                    );
+                                                })}
+                                            </g>
+                                        );
+                                    })()}
+
                                 </svg>
                                 </div>
                             </div>
