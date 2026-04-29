@@ -676,7 +676,33 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
             )}
 
             <div style={{ display: 'flex', gap: '1rem', height: '100%', position: 'relative' }}>
-                
+
+                {/* ── Leyenda HTML (pegada a la izquierda, entre las barras) ── */}
+                <div style={{
+                    flexShrink: 0, alignSelf: 'center',
+                    display: 'flex', flexDirection: 'column', gap: '6px',
+                    background: 'rgba(10,15,13,0.82)',
+                    border: '1px solid rgba(255,255,255,0.14)',
+                    borderRadius: '10px', padding: '10px 12px',
+                    minWidth: '110px'
+                }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', marginBottom: '2px' }}>LEYENDA</span>
+                    {([
+                        { label: 'Disponible', color: 'rgba(34,197,94,0.7)',  border: 'rgba(34,197,94,0.9)'  },
+                        { label: 'En proceso', color: 'rgba(245,158,11,0.7)', border: 'rgba(245,158,11,0.9)' },
+                        { label: 'Vendida',    color: 'rgba(239,68,68,0.7)',  border: 'rgba(239,68,68,0.9)'  },
+                    ] as const).map(item => (
+                        <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                            <span style={{
+                                display: 'inline-block', width: '16px', height: '12px',
+                                background: item.color, border: `1.5px solid ${item.border}`,
+                                borderRadius: '3px', flexShrink: 0
+                            }} />
+                            <span style={{ fontSize: '0.75rem', color: '#fff', whiteSpace: 'nowrap' }}>{item.label}</span>
+                        </div>
+                    ))}
+                </div>
+
                 {mode === 'align' && (
                     <div className="glass-panel" style={{ width: '320px', flexShrink: 0, padding: '20px', zIndex: 10 }}>
                         <h3 style={{ margin: '0 0 16px', fontSize: '1.2rem' }}>Alineación Global</h3>
@@ -967,67 +993,6 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                                         }
                                         return null;
                                     })}
-
-                                    {/* ── Leyenda de colorimetría ── */}
-                                    {(() => {
-                                        const legend = [
-                                            { label: 'Disponible', fill: 'rgba(34,197,94,0.45)',  border: 'rgba(34,197,94,0.9)'  },
-                                            { label: 'En proceso', fill: 'rgba(245,158,11,0.45)', border: 'rgba(245,158,11,0.9)' },
-                                            { label: 'Vendida',    fill: 'rgba(239,68,68,0.45)',  border: 'rgba(239,68,68,0.9)'  },
-                                        ];
-                                        const lx = w * 0.01;
-                                        const rowH = h * 0.038;
-                                        const boxW = w * 0.025;
-                                        const boxH = rowH * 0.55;
-                                        const fs  = Math.max(8, h * 0.018);
-                                        const padX = w * 0.012;
-                                        const padY = h * 0.012;
-                                        const lW   = w * 0.16;
-                                        const lH   = padY * 2 + fs * 1.1 + rowH * legend.length + padY * 0.5;
-                                        const ly   = h - lH - h * 0.015;
-                                        return (
-                                            <g style={{ pointerEvents: 'none' }}>
-                                                {/* Fondo */}
-                                                <rect
-                                                    x={lx} y={ly} width={lW} height={lH}
-                                                    rx={w * 0.008} ry={w * 0.008}
-                                                    fill="rgba(10,15,13,0.80)"
-                                                    stroke="rgba(255,255,255,0.18)" strokeWidth={1}
-                                                />
-                                                {/* Título */}
-                                                <text
-                                                    x={lx + padX} y={ly + padY + fs * 0.5}
-                                                    fontSize={fs * 0.78} fontWeight="bold"
-                                                    fill="rgba(255,255,255,0.50)"
-                                                    dominantBaseline="middle"
-                                                >
-                                                    LEYENDA
-                                                </text>
-                                                {/* Filas */}
-                                                {legend.map((item, i) => {
-                                                    const ry = ly + padY + fs * 1.1 + i * rowH + padY * 0.5;
-                                                    return (
-                                                        <g key={item.label}>
-                                                            <rect
-                                                                x={lx + padX} y={ry}
-                                                                width={boxW} height={boxH}
-                                                                rx={w * 0.002}
-                                                                fill={item.fill} stroke={item.border} strokeWidth={1.5}
-                                                            />
-                                                            <text
-                                                                x={lx + padX + boxW + w * 0.006}
-                                                                y={ry + boxH / 2}
-                                                                fontSize={fs} fill="#ffffff"
-                                                                dominantBaseline="middle"
-                                                            >
-                                                                {item.label}
-                                                            </text>
-                                                        </g>
-                                                    );
-                                                })}
-                                            </g>
-                                        );
-                                    })()}
 
                                 </svg>
                                 </div>
