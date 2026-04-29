@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type MouseEvent } from 'react';
-import { Save, Trash2, Edit3, X, Check, Eye, Move, Calculator } from 'lucide-react';
+import { Save, Trash2, Edit3, X, Check, Eye, Move, Calculator, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { fetchMapLayout, saveMapLayout, type MapLayout, type MapZone } from '../services/mapLayoutsService';
@@ -400,9 +400,36 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
         selectedH = Math.max(...ys) - Math.min(...ys);
     }
 
+    const handleDownloadPlano = () => {
+        const a = document.createElement('a');
+        a.href = imageUrl;
+        a.download = `Plano ${condominio}.jpeg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', height: '100%', position: 'relative' }}>
-            
+
+            {/* ── Barra de descarga (visible para todos) ── */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                    onClick={handleDownloadPlano}
+                    style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '6px',
+                        padding: '7px 16px', borderRadius: '8px',
+                        background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.4)',
+                        color: '#22c55e', cursor: 'pointer', fontSize: '0.83rem',
+                        fontFamily: 'inherit', fontWeight: '600', transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(34,197,94,0.22)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'rgba(34,197,94,0.1)')}
+                >
+                    <Download size={15} /> Descargar Plano
+                </button>
+            </div>
+
             {isAdmin && (
                 <div className="glass-panel" style={{ padding: '12px 20px', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', zIndex: 10 }}>
                     <div style={{ fontWeight: 'bold', marginRight: 'auto' }}>
