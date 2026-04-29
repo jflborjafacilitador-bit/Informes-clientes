@@ -560,32 +560,6 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
 
             <div style={{ display: 'flex', gap: '1rem', height: '100%', position: 'relative' }}>
 
-                {/* ── Leyenda HTML (pegada a la izquierda, entre las barras) ── */}
-                <div style={{
-                    flexShrink: 0, alignSelf: 'center',
-                    display: 'flex', flexDirection: 'column', gap: '6px',
-                    background: 'rgba(10,15,13,0.82)',
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    borderRadius: '10px', padding: '10px 12px',
-                    minWidth: '110px'
-                }}>
-                    <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', marginBottom: '2px' }}>LEYENDA</span>
-                    {([
-                        { label: 'Disponible', color: 'rgba(34,197,94,0.7)',  border: 'rgba(34,197,94,0.9)'  },
-                        { label: 'En proceso', color: 'rgba(245,158,11,0.7)', border: 'rgba(245,158,11,0.9)' },
-                        { label: 'Vendida',    color: 'rgba(239,68,68,0.7)',  border: 'rgba(239,68,68,0.9)'  },
-                    ] as const).map(item => (
-                        <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                            <span style={{
-                                display: 'inline-block', width: '16px', height: '12px',
-                                background: item.color, border: `1.5px solid ${item.border}`,
-                                borderRadius: '3px', flexShrink: 0
-                            }} />
-                            <span style={{ fontSize: '0.75rem', color: '#fff', whiteSpace: 'nowrap' }}>{item.label}</span>
-                        </div>
-                    ))}
-                </div>
-
                 {mode === 'align' && (
                     <div className="glass-panel" style={{ width: '320px', flexShrink: 0, padding: '20px', zIndex: 10 }}>
                         <h3 style={{ margin: '0 0 16px', fontSize: '1.2rem' }}>Alineación Global</h3>
@@ -638,7 +612,33 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
 
                 {/* React Zoom Pan Pinch Wrap */}
                 <div ref={mapContainerRef} style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#e0e0e0', borderRadius: '16px', border: '1px solid var(--border-glass)' }}>
-                    
+
+                    {/* ── Leyenda de colorimetría (overlay sobre el mapa, incluida en la descarga) ── */}
+                    <div style={{
+                        position: 'absolute', bottom: '14px', left: '14px', zIndex: 8,
+                        display: 'flex', flexDirection: 'column', gap: '6px',
+                        background: 'rgba(10,15,13,0.82)',
+                        border: '1px solid rgba(255,255,255,0.18)',
+                        borderRadius: '10px', padding: '10px 14px',
+                        pointerEvents: 'none',
+                    }}>
+                        <span style={{ fontSize: '0.62rem', fontWeight: 'bold', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.1em', marginBottom: '2px' }}>LEYENDA</span>
+                        {([
+                            { label: 'Disponible', color: 'rgba(34,197,94,0.7)',  border: 'rgba(34,197,94,0.9)'  },
+                            { label: 'En proceso', color: 'rgba(245,158,11,0.7)', border: 'rgba(245,158,11,0.9)' },
+                            { label: 'Vendida',    color: 'rgba(239,68,68,0.7)',  border: 'rgba(239,68,68,0.9)'  },
+                        ] as const).map(item => (
+                            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{
+                                    display: 'inline-block', width: '16px', height: '11px',
+                                    background: item.color, border: `1.5px solid ${item.border}`,
+                                    borderRadius: '3px', flexShrink: 0
+                                }} />
+                                <span style={{ fontSize: '0.73rem', color: '#fff', whiteSpace: 'nowrap' }}>{item.label}</span>
+                            </div>
+                        ))}
+                    </div>
+
                     {/* Pinned or Hovered Tooltip */}
                     {mode === 'view' && (clickedZone || hoveredZone) ? (() => {
                         const activeId = clickedZone || hoveredZone;
