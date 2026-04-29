@@ -400,143 +400,120 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
         selectedH = Math.max(...ys) - Math.min(...ys);
     }
 
-    // ── Descarga con canvas: imagen + polígonos coloreados + números ──────────
-    const handleDownloadPlano = () => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.src = imageUrl;
-        img.onload = () => {
+    // ── Descarga vía SVG-a-Canvas (pixel-perfect respecto a pantalla) ──────────
+    const handleDownloadPlano = async () => {
+        try {
+            // 1. Cargar imagen como base64 para incrustarla en el SVG
+            const resp = await fetch(imageUrl);
+            const imgBlob = await resp.blob();
+            const imgBase64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload  = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(imgBlob);
+            });
+
+            // 2. Colores por estatus (mismo que pantalla)
+            const FILL: Record<EstatusManual, string> = {
+                DISPONIBLE: 'rgba(34,197,94,0.35)',
+                EN_PROCESO: 'rgba(245,158,11,0.35)',
+                VENDIDA:    'rgba(239,68,68,0.35)',
+            };
+            const STROKE: Record<EstatusManual, string> = {
+                DISPONIBLE: 'rgba(34,197,94,0.85)',
+                EN_PROCESO: 'rgba(245,158,11,0.85)',
+                VENDIDA:    'rgba(239,68,68,0.85)',
+            };
+
+            // 3. Construir polígonos SVG con el mismo sistema de coords que pantalla
+            //    viewBox "0 0 w h" → cada punto: (p.x * w / 100, p.y * h / 100)
+            const polyElements = zones.map(zone => {
+                if (zone.points.length < 2) return '';
+                const status   = getZoneStatus(zone);
+                const pts      = zone.points.map(p => `${(p.x * w) / 100},${(p.y * h) / 100}`).join(' ');
+                const pxs      = zone.points.map(p => (p.x * w) / 100);
+                const pys      = zone.points.map(p => (p.y * h) / 100);
+                const bboxW    = Math.max(...pxs) - Math.min(...pxs);
+                const bboxH    = Math.max(...pys) - Math.min(...pys);
+                const fontSize = Math.max(8, Math.min(bboxW, bboxH) * 0.32);
+                const cx       = pxs.reduce((s, x) => s + x, 0) / pxs.length;
+                const cy       = pys.reduce((s, y) => s + y, 0) / pys.length;
+                return `
+  <polygon points="${pts}" fill="${FILL[status]}" stroke="${STROKE[status]}" stroke-width="2"/>
+  <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle"
+        font-size="${fontSize}" font-weight="bold" fill="white"
+        stroke="rgba(0,0,0,0.85)" stroke-width="${fontSize * 0.18}" paint-order="stroke"
+        font-family="sans-serif">${zone.casa}</text>`;
+            }).join('\n');
+
+            // 4. Leyenda SVG (esquina inferior izquierda)
+            const leg = [
+                { label: 'Disponible', fill: 'rgba(34,197,94,0.55)',  stroke: 'rgba(34,197,94,0.9)'  },
+                { label: 'En proceso', fill: 'rgba(245,158,11,0.55)', stroke: 'rgba(245,158,11,0.9)' },
+                { label: 'Vendida',    fill: 'rgba(239,68,68,0.55)',  stroke: 'rgba(239,68,68,0.9)'  },
+            ];
+            const lRow = h * 0.038, lBoxW = w * 0.025, lBoxH = lRow * 0.55;
+            const lfs  = Math.max(8, h * 0.018), lPadX = w * 0.012, lPadY = h * 0.012;
+            const lW   = w * 0.16;
+            const lH   = lPadY * 2 + lfs * 1.2 + lRow * leg.length;
+            const lX   = w * 0.01, lY = h - lH - h * 0.015;
+            const legElements = `
+  <rect x="${lX}" y="${lY}" width="${lW}" height="${lH}" rx="${w * 0.008}"
+        fill="rgba(10,15,13,0.82)" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
+  <text x="${lX + lPadX}" y="${lY + lPadY + lfs * 0.5}" font-size="${lfs * 0.78}"
+        font-weight="bold" fill="rgba(255,255,255,0.50)" dominant-baseline="middle"
+        font-family="sans-serif">LEYENDA</text>
+  ${leg.map((item, i) => {
+      const ry = lY + lPadY + lfs * 1.2 + i * lRow;
+      return `<rect x="${lX + lPadX}" y="${ry}" width="${lBoxW}" height="${lBoxH}" rx="${w * 0.002}"
+              fill="${item.fill}" stroke="${item.stroke}" stroke-width="1.5"/>
+  <text x="${lX + lPadX + lBoxW + w * 0.006}" y="${ry + lBoxH / 2}" font-size="${lfs}"
+        fill="white" dominant-baseline="middle" font-family="sans-serif">${item.label}</text>`;
+  }).join('\n')}`;
+
+            // 5. SVG completo con viewBox = dimensiones del layout (igual que en pantalla)
+            const svgStr = `<svg xmlns="http://www.w3.org/2000/svg"
+                 viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">
+  <image x="0" y="0" width="${w}" height="${h}"
+         href="${imgBase64}" preserveAspectRatio="none"/>
+  ${polyElements}
+  ${legElements}
+</svg>`;
+
+            // 6. SVG → canvas → PNG
             const canvas = document.createElement('canvas');
-            // ⚠️ Usar las dimensiones del LAYOUT (donde están calibrados los polígonos),
-            // no las dimensiones naturales de la imagen. Así los % coinciden exactamente.
             canvas.width  = w;
             canvas.height = h;
             const ctx = canvas.getContext('2d')!;
 
-            // 1. Fondo blanco + imagen escalada al tamaño del layout
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+            const svgUrl  = URL.createObjectURL(svgBlob);
 
-            const cw = canvas.width;   // = w (layout width)
-            const ch = canvas.height;  // = h (layout height)
-
-
-            // 2. Polígonos con color de estatus semi-transparente
-            const fillColors: Record<EstatusManual, string> = {
-                DISPONIBLE: 'rgba(34,197,94,0.30)',
-                EN_PROCESO: 'rgba(245,158,11,0.30)',
-                VENDIDA:    'rgba(239,68,68,0.30)',
-            };
-            const strokeColors: Record<EstatusManual, string> = {
-                DISPONIBLE: 'rgba(34,197,94,0.9)',
-                EN_PROCESO: 'rgba(245,158,11,0.9)',
-                VENDIDA:    'rgba(239,68,68,0.9)',
-            };
-
-            zones.forEach(zone => {
-                if (zone.points.length < 2) return;
-                const status = getZoneStatus(zone);
-
-                // Calcular bounding box para tamaño de fuente adaptativo
-                const xs = zone.points.map(p => (p.x * cw) / 100);
-                const ys = zone.points.map(p => (p.y * ch) / 100);
-                const bw = Math.max(...xs) - Math.min(...xs);
-                const bh = Math.max(...ys) - Math.min(...ys);
-                const fontSize = Math.max(10, Math.min(bw, bh) * 0.35);
-
-                // Centroide
-                const cx = xs.reduce((s, x) => s + x, 0) / xs.length;
-                const cy = ys.reduce((s, y) => s + y, 0) / ys.length;
-
-                // Dibujar polígono
-                ctx.beginPath();
-                zone.points.forEach((p, i) => {
-                    const px = (p.x * cw) / 100;
-                    const py = (p.y * ch) / 100;
-                    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-                });
-                ctx.closePath();
-                ctx.fillStyle = fillColors[status];
-                ctx.fill();
-                ctx.strokeStyle = strokeColors[status];
-                ctx.lineWidth = 2;
-                ctx.stroke();
-
-                // Número de casa centrado
-                ctx.save();
-                ctx.font = `bold ${fontSize}px sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-                ctx.lineWidth = fontSize * 0.18;
-                ctx.strokeText(zone.casa, cx, cy);
-                ctx.fillStyle = '#ffffff';
-                ctx.fillText(zone.casa, cx, cy);
-                ctx.restore();
+            await new Promise<void>((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => { ctx.drawImage(img, 0, 0, w, h); URL.revokeObjectURL(svgUrl); resolve(); };
+                img.onerror = reject;
+                img.src = svgUrl;
             });
 
-            // 3. Leyenda de colorimetría (esquina inferior izquierda)
-            const legend = [
-                { label: 'Disponible', fill: 'rgba(34,197,94,0.55)',  border: 'rgba(34,197,94,0.9)'  },
-                { label: 'En proceso', fill: 'rgba(245,158,11,0.55)', border: 'rgba(245,158,11,0.9)' },
-                { label: 'Vendida',    fill: 'rgba(239,68,68,0.55)',  border: 'rgba(239,68,68,0.9)'  },
-            ];
-            const lPad = 14, lRow = 28, lBoxW = 18, lBoxH = 14;
-            const lW = 160, lH = lPad * 2 + lRow * legend.length;
-            const lX = 18, lY = ch - lH - 18;
-            const lFontSize = Math.max(13, cw * 0.012);
-
-            // Fondo de la leyenda
-            ctx.save();
-            ctx.fillStyle = 'rgba(10,15,13,0.82)';
-            roundRect(ctx, lX, lY, lW, lH, 10);
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(255,255,255,0.18)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-
-            // Título
-            ctx.font = `bold ${lFontSize * 0.82}px sans-serif`;
-            ctx.fillStyle = 'rgba(255,255,255,0.55)';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'top';
-            ctx.fillText('LEYENDA', lX + lPad, lY + 8);
-
-            legend.forEach((item, i) => {
-                const ry = lY + lPad + 14 + i * lRow;
-                // Cuadro de color
-                ctx.fillStyle = item.fill;
-                roundRect(ctx, lX + lPad, ry, lBoxW, lBoxH, 3);
-                ctx.fill();
-                ctx.strokeStyle = item.border;
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-                // Etiqueta
-                ctx.fillStyle = '#ffffff';
-                ctx.font = `${lFontSize}px sans-serif`;
-                ctx.textBaseline = 'middle';
-                ctx.fillText(item.label, lX + lPad + lBoxW + 8, ry + lBoxH / 2);
-            });
-            ctx.restore();
-
-            // 4. Exportar
             canvas.toBlob(blob => {
                 if (!blob) return;
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
+                const a   = document.createElement('a');
+                a.href     = url;
                 a.download = `Plano ${condominio}.png`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             }, 'image/png');
-        };
-        img.onerror = () => alert('No se pudo cargar la imagen del plano para exportar.');
+
+        } catch {
+            alert('No se pudo generar la descarga del plano.');
+        }
     };
 
-    // Función auxiliar para canvas con esquinas redondeadas
+    // (roundRect ya no se usa — se conserva por si otra parte del código lo necesita)
     function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, r: number) {
         ctx.beginPath();
         ctx.moveTo(x + r, y);
