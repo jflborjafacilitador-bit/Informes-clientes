@@ -610,8 +610,7 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                     </div>
                 )}
 
-                {/* React Zoom Pan Pinch Wrap */}
-                <div ref={mapContainerRef} style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#e0e0e0', borderRadius: '16px', border: '1px solid var(--border-glass)' }}>
+                <div ref={mapContainerRef} style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#e0e0e0', borderRadius: '16px', border: '1px solid var(--border-glass)', touchAction: 'none', userSelect: 'none' }}>
 
                     {/* ── Leyenda de colorimetría (overlay sobre el mapa, incluida en la descarga) ── */}
                     <div style={{
