@@ -90,6 +90,15 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
     const imgRef = useRef<HTMLImageElement>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
 
+    // Previene scroll de página al tocar el mapa en móvil (passive:false requerido)
+    useEffect(() => {
+        const el = mapContainerRef.current;
+        if (!el) return;
+        const prevent = (e: TouchEvent) => e.preventDefault();
+        el.addEventListener('touchmove', prevent, { passive: false });
+        return () => el.removeEventListener('touchmove', prevent);
+    }, []);
+
     useEffect(() => {
         const load = async () => {
             const data = await fetchMapLayout(condominio);
@@ -610,7 +619,7 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                     </div>
                 )}
 
-                <div ref={mapContainerRef} style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#e0e0e0', borderRadius: '16px', border: '1px solid var(--border-glass)', touchAction: 'none', userSelect: 'none' }}>
+                <div ref={mapContainerRef} style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#e0e0e0', borderRadius: '16px', border: '1px solid var(--border-glass)' }}>
 
                     {/* ── Leyenda de colorimetría (overlay sobre el mapa, incluida en la descarga) ── */}
                     <div style={{

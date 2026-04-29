@@ -441,7 +441,7 @@ export default function Inventario() {
                     )}
                 </div>
             ) : vista === 'plano_mza3' ? (
-                <div style={{ height: '70vh', minHeight: '600px', display: 'flex', flexDirection: 'column', overflow: 'hidden', touchAction: 'none' }}>
+                <div style={{ height: '70vh', minHeight: '600px', display: 'flex', flexDirection: 'column' }}>
                     {loading ? (
                         <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }} className="glass-panel">
                             <RefreshCw size={28} style={{ animation: 'spin 1s linear infinite', marginBottom: '12px', display: 'block', margin: '0 auto 12px' }} />
@@ -459,7 +459,7 @@ export default function Inventario() {
                     )}
                 </div>
             ) : vista === 'plano_mza2' ? (
-                <div style={{ height: '70vh', minHeight: '600px', display: 'flex', flexDirection: 'column', overflow: 'hidden', touchAction: 'none' }}>
+                <div style={{ height: '70vh', minHeight: '600px', display: 'flex', flexDirection: 'column' }}>
                     {loading ? (
                         <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }} className="glass-panel">
                             <RefreshCw size={28} style={{ animation: 'spin 1s linear infinite', marginBottom: '12px', display: 'block', margin: '0 auto 12px' }} />
