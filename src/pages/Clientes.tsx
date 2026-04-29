@@ -61,7 +61,8 @@ export default function Clientes() {
             // 2. Supabase guarda solo las modificaciones (estado y asignación)
             const { data: overrides } = await supabase
                 .from('client_overrides')
-                .select('client_id, status, assigned_to, assigned_email, budget_range, synced');
+                .select('client_id, status, assigned_to, assigned_email, budget_range, synced, discarded_from_asesor');
+
 
             // 3. Obtener clientes propios de la Landing y Propios Manuales
             const { data: ownClients } = await supabase

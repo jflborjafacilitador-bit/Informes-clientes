@@ -636,6 +636,7 @@ interface AuditEntry {
     old_value: string | null;
     new_value: string | null;
     created_at: string;
+    extra_context?: { from_asesor?: string; from_status?: string } | null;
 }
 
 const EVENT_LABELS: Record<string, { label: string; bg: string; color: string }> = {
@@ -758,11 +759,10 @@ function TabAuditorias({ role: _role }: { role: string }) {
         if (l.event_type === 'status_change')     byAsesor[actor].statusChanges++;
         if (l.event_type === 'discarded') {
             // Atribuir el descarte al asesor que TENÍA el cliente, no a quien descartó
-            const victim = (l.extra_context as any)?.from_asesor
-                ? ((l.extra_context as any).from_asesor as string).split('@')[0]
+            const victim = l.extra_context?.from_asesor
+                ? l.extra_context.from_asesor.split('@')[0]
                 : actor; // fallback a quien descartó (registros históricos sin extra_context)
             if (victim !== actor) {
-                // Asegurarse que la víctima exista en el mapa
                 if (!byAsesor[victim]) byAsesor[victim] = { assignments: 0, statusChanges: 0, discarded: 0, total: 0 };
             }
             byAsesor[victim].discarded++;
