@@ -400,13 +400,93 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
         selectedH = Math.max(...ys) - Math.min(...ys);
     }
 
+    // ── Descarga con canvas: imagen + polígonos coloreados + números ──────────
     const handleDownloadPlano = () => {
-        const a = document.createElement('a');
-        a.href = imageUrl;
-        a.download = `Plano ${condominio}.jpeg`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = imageUrl;
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width  = img.naturalWidth  || w;
+            canvas.height = img.naturalHeight || h;
+            const ctx = canvas.getContext('2d')!;
+
+            // 1. Fondo blanco + imagen
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            const cw = canvas.width;
+            const ch = canvas.height;
+
+            // 2. Polígonos con color de estatus semi-transparente
+            const fillColors: Record<EstatusManual, string> = {
+                DISPONIBLE: 'rgba(34,197,94,0.30)',
+                EN_PROCESO: 'rgba(245,158,11,0.30)',
+                VENDIDA:    'rgba(239,68,68,0.30)',
+            };
+            const strokeColors: Record<EstatusManual, string> = {
+                DISPONIBLE: 'rgba(34,197,94,0.9)',
+                EN_PROCESO: 'rgba(245,158,11,0.9)',
+                VENDIDA:    'rgba(239,68,68,0.9)',
+            };
+
+            zones.forEach(zone => {
+                if (zone.points.length < 2) return;
+                const status = getZoneStatus(zone);
+
+                // Calcular bounding box para tamaño de fuente adaptativo
+                const xs = zone.points.map(p => (p.x * cw) / 100);
+                const ys = zone.points.map(p => (p.y * ch) / 100);
+                const bw = Math.max(...xs) - Math.min(...xs);
+                const bh = Math.max(...ys) - Math.min(...ys);
+                const fontSize = Math.max(10, Math.min(bw, bh) * 0.35);
+
+                // Centroide
+                const cx = xs.reduce((s, x) => s + x, 0) / xs.length;
+                const cy = ys.reduce((s, y) => s + y, 0) / ys.length;
+
+                // Dibujar polígono
+                ctx.beginPath();
+                zone.points.forEach((p, i) => {
+                    const px = (p.x * cw) / 100;
+                    const py = (p.y * ch) / 100;
+                    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+                });
+                ctx.closePath();
+                ctx.fillStyle = fillColors[status];
+                ctx.fill();
+                ctx.strokeStyle = strokeColors[status];
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Número de casa centrado
+                ctx.save();
+                ctx.font = `bold ${fontSize}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+                ctx.lineWidth = fontSize * 0.18;
+                ctx.strokeText(zone.casa, cx, cy);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(zone.casa, cx, cy);
+                ctx.restore();
+            });
+
+            // 3. Exportar
+            canvas.toBlob(blob => {
+                if (!blob) return;
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Plano ${condominio}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 'image/png');
+        };
+        img.onerror = () => alert('No se pudo cargar la imagen del plano para exportar.');
     };
 
     return (
@@ -779,6 +859,36 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                                                 }}
                                             />
                                         )
+                                    })}
+
+                                    {/* ── Números de casa centrados en cada polígono ── */}
+                                    {zones.map(zone => {
+                                        if (zone.points.length === 0) return null;
+                                        const cx = zone.points.reduce((s, p) => s + p.x, 0) / zone.points.length;
+                                        const cy = zone.points.reduce((s, p) => s + p.y, 0) / zone.points.length;
+                                        const xs = zone.points.map(p => p.x);
+                                        const ys = zone.points.map(p => p.y);
+                                        const bw = (Math.max(...xs) - Math.min(...xs)) * w / 100;
+                                        const bh = (Math.max(...ys) - Math.min(...ys)) * h / 100;
+                                        const fs = Math.max(8, Math.min(bw, bh) * 0.32);
+                                        return (
+                                            <text
+                                                key={`lbl-${zone.id}`}
+                                                x={(cx * w) / 100}
+                                                y={(cy * h) / 100}
+                                                textAnchor="middle"
+                                                dominantBaseline="middle"
+                                                fontSize={fs}
+                                                fontWeight="bold"
+                                                fill="white"
+                                                stroke="rgba(0,0,0,0.85)"
+                                                strokeWidth={fs * 0.18}
+                                                paintOrder="stroke"
+                                                style={{ pointerEvents: 'none', userSelect: 'none' }}
+                                            >
+                                                {zone.casa}
+                                            </text>
+                                        );
                                     })}
 
                                     {isDrawing && currentPoints.length > 0 && (
