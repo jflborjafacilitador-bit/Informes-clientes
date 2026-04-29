@@ -681,22 +681,55 @@ function TabAuditorias({ role: _role }: { role: string }) {
     const [filterEvent, setFilterEvent]   = useState('');
     const [search, setSearch]         = useState('');
     const [sortAsc, setSortAsc]       = useState(false);
+    const [showExportMenu, setShowExportMenu] = useState(false);
+    const [assignedTotals, setAssignedTotals] = useState<Record<string, number>>({});
+    const [activeCardMenu, setActiveCardMenu] = useState<string | null>(null);
+    const [assignedClients, setAssignedClients] = useState<Record<string, Array<{ name: string; status: string; date: string }>>>({});
+    const [leaderboardMode, setLeaderboardMode] = useState<'cartera' | 'asignaciones'>('cartera');
 
     useEffect(() => { loadLogs(); }, [period, customFrom, customTo]);
 
     const loadLogs = async () => {
         setLoading(true);
         const { from, to } = getPeriodRange(period, customFrom, customTo);
-        const { data, error } = await supabase
-            .from('audit_log')
-            .select('*')
-            .gte('created_at', from.toISOString())
-            .lte('created_at', to.toISOString())
-            .order('created_at', { ascending: false });
+        const [{ data, error }, sheetClients, { data: overrides }] = await Promise.all([
+            // Logs del período filtrado
+            supabase
+                .from('audit_log')
+                .select('*')
+                .gte('created_at', from.toISOString())
+                .lte('created_at', to.toISOString())
+                .order('created_at', { ascending: false }),
+            // Sheet completo (misma fuente que Dashboard)
+            fetchClientsFromSheet(),
+            // Overrides actuales (assigned_email del asesor real)
+            supabase
+                .from('client_overrides')
+                .select('client_id, assigned_email'),
+        ]);
         if (error) console.error('Error cargando audit_log:', error);
         setLogs(data || []);
+
+        // Cartera total: misma lógica que Dashboard "Cartera por Asesor"
+        // Merge Sheet + overrides, contar por assigned_email.split('@')[0]
+        const overrideMap: Record<string, string> = {};
+        (overrides || []).forEach((o: any) => {
+            if (o.assigned_email) overrideMap[o.client_id] = o.assigned_email;
+        });
+        const asesorMap: Record<string, number> = {};
+        (sheetClients || []).forEach((c: any) => {
+            // Primero override, luego sheet_assigned (igual que Dashboard)
+            const email = overrideMap[c.id] || c.assigned_email || c.sheet_assigned || '';
+            if (email && email !== 'descartado' && email.toLowerCase() !== 'pendiente') {
+                const nombre = email.includes('@') ? email.split('@')[0] : email;
+                asesorMap[nombre] = (asesorMap[nombre] || 0) + 1;
+            }
+        });
+        setAssignedTotals(asesorMap);
+        setAssignedClients({});
         setLoading(false);
     };
+
 
     const filtered = logs.filter(l => {
         const matchAsesor = !filterAsesor || (l.asesor_email || '').toLowerCase().includes(filterAsesor.toLowerCase());
@@ -718,15 +751,63 @@ function TabAuditorias({ role: _role }: { role: string }) {
 
     const byAsesor: Record<string, { assignments: number; statusChanges: number; discarded: number; total: number }> = {};
     filtered.forEach(l => {
-        const key = (l.asesor_email || '').split('@')[0] || 'Sistema';
-        if (!byAsesor[key]) byAsesor[key] = { assignments: 0, statusChanges: 0, discarded: 0, total: 0 };
-        byAsesor[key].total++;
-        if (l.event_type === 'assignment_change') byAsesor[key].assignments++;
-        if (l.event_type === 'status_change')     byAsesor[key].statusChanges++;
-        if (l.event_type === 'discarded')          byAsesor[key].discarded++;
+        const actor = (l.asesor_email || '').split('@')[0] || 'Sistema';
+        if (!byAsesor[actor]) byAsesor[actor] = { assignments: 0, statusChanges: 0, discarded: 0, total: 0 };
+        byAsesor[actor].total++;
+        if (l.event_type === 'assignment_change') byAsesor[actor].assignments++;
+        if (l.event_type === 'status_change')     byAsesor[actor].statusChanges++;
+        if (l.event_type === 'discarded') {
+            // Atribuir el descarte al asesor que TENÍA el cliente, no a quien descartó
+            const victim = (l.extra_context as any)?.from_asesor
+                ? ((l.extra_context as any).from_asesor as string).split('@')[0]
+                : actor; // fallback a quien descartó (registros históricos sin extra_context)
+            if (victim !== actor) {
+                // Asegurarse que la víctima exista en el mapa
+                if (!byAsesor[victim]) byAsesor[victim] = { assignments: 0, statusChanges: 0, discarded: 0, total: 0 };
+            }
+            byAsesor[victim].discarded++;
+        }
     });
-    const asesorRows    = Object.entries(byAsesor).sort((a, b) => b[1].total - a[1].total);
+
     const uniqueAsesores = [...new Set(logs.map(l => l.asesor_email).filter(Boolean))];
+
+    // Clientes RECIBIDOS por asesor en el período (new_value = email del asesor receptor)
+    const periodReceived: Record<string, number> = {};
+    filtered.forEach(l => {
+        if (
+            l.event_type === 'assignment_change' &&
+            l.new_value &&
+            l.new_value !== 'Sin asignar' &&
+            l.new_value !== 'pendiente' &&
+            l.new_value !== 'Descartado' &&
+            l.new_value !== 'descartado'
+        ) {
+            const key = l.new_value.split('@')[0];
+            if (key) periodReceived[key] = (periodReceived[key] || 0) + 1;
+        }
+    });
+
+    // Leaderboard: asesores con cartera acumulada o actividad en el período
+    // Prioridad: assignedTotals (cartera acumulada) > periodReceived (actividad período)
+    const allAsesorNames = [...new Set([
+        ...Object.keys(assignedTotals),   // asesores con cartera (siempre presentes)
+        ...Object.keys(periodReceived),    // asesores activos en el período
+    ])];
+    const leaderboardRows = allAsesorNames
+        .map(name => ({
+            name,
+            totalAsignados: assignedTotals[name] || 0,
+            periodReceived: periodReceived[name] || 0,
+            periodStatusChanges: byAsesor[name]?.statusChanges || 0,
+            periodDiscarded: byAsesor[name]?.discarded || 0,
+        }))
+        .filter(r => r.totalAsignados > 0 || r.periodReceived > 0)
+        .sort((a, b) => leaderboardMode === 'asignaciones'
+            ? b.periodReceived - a.periodReceived || b.totalAsignados - a.totalAsignados
+            : b.totalAsignados - a.totalAsignados || b.periodReceived - a.periodReceived
+        );
+    const maxAssigned = Math.max(...leaderboardRows.map(r => r.totalAsignados), 1);
+    const periodDisplayLabel = period === 'today' ? 'hoy' : period === 'week' ? 'esta semana' : period === 'month' ? 'este mes' : 'el período personalizado';
 
     const periodOptions = [
         { key: 'today', label: 'Hoy' },
@@ -735,64 +816,422 @@ function TabAuditorias({ role: _role }: { role: string }) {
         { key: 'custom',label: 'Personalizado' },
     ];
 
-    const exportPdf = () => {
+    const exportPdf = async () => {
+        const { default: jsPDF } = await import('jspdf');
+        const autoTable = (await import('jspdf-autotable')).default;
         const { from, to } = getPeriodRange(period, customFrom, customTo);
         const periodLabel = `${from.toLocaleDateString('es-MX')} – ${to.toLocaleDateString('es-MX')}`;
-        const printWindow = window.open('', '_blank', 'width=1100,height=750');
-        if (!printWindow) return;
-        printWindow.document.write(`
-            <!DOCTYPE html>
-            <html lang="es">
-            <head>
-                <meta charset="UTF-8">
-                <title>Auditoría de Leads – ${periodLabel}</title>
-                <style>
-                    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 32px; color: #171c20; }
-                    h1   { font-size: 20px; margin: 0 0 4px; color: #006b2c; }
-                    p.sub{ font-size: 12px; color: #545f73; margin: 0 0 20px; }
-                    .kpis{ display: flex; gap: 16px; margin-bottom: 20px; }
-                    .kpi { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 18px; text-align: center; flex: 1; }
-                    .kpi .val { font-size: 24px; font-weight: 800; }
-                    .kpi .lbl { font-size: 11px; color: #545f73; }
-                    table  { width: 100%; border-collapse: collapse; font-size: 11px; }
-                    thead tr { background: #f1f5f9; }
-                    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #e2e8f0; }
-                    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; }
-                    h2 { font-size: 14px; margin: 24px 0 8px; }
-                    @media print { body { margin: 16px; } }
-                </style>
-            </head>
-            <body>
-                <h1>📊 Auditoría de Leads – Los Quetzales</h1>
-                <p class="sub">Período: ${periodLabel} &nbsp;·&nbsp; Generado: ${new Date().toLocaleString('es-MX')}</p>
-                <div class="kpis">
-                    ${kpis.map(k => `<div class="kpi"><div class="val" style="color:${k.color}">${k.value}</div><div class="lbl">${k.label}</div></div>`).join('')}
-                </div>
-                <h2>Resumen por asesor</h2>
-                <table>
-                    <thead><tr><th>Asesor</th><th>Total</th><th>Asignaciones</th><th>Cambios estado</th><th>Descartados</th></tr></thead>
-                    <tbody>${asesorRows.map(([n, c]) => `<tr><td>${n}</td><td><b>${c.total}</b></td><td>${c.assignments}</td><td>${c.statusChanges}</td><td>${c.discarded}</td></tr>`).join('')}</tbody>
-                </table>
-                <h2>Detalle de eventos (${sorted.length} registros)</h2>
-                <table>
-                    <thead><tr><th>Fecha/Hora</th><th>Asesor</th><th>Cliente</th><th>Evento</th><th>Anterior</th><th>Nuevo</th></tr></thead>
-                    <tbody>${sorted.map(l => {
-                        const ev = EVENT_LABELS[l.event_type] || { label: l.event_type, bg: '#eee', color: '#333' };
-                        return `<tr>
-                            <td>${fmtDate(l.created_at)}</td>
-                            <td>${(l.asesor_email || '').split('@')[0]}</td>
-                            <td>${l.client_name || '—'}</td>
-                            <td><span class="badge" style="background:${ev.bg};color:${ev.color}">${ev.label}</span></td>
-                            <td style="color:#545f73">${l.old_value || '—'}</td>
-                            <td style="font-weight:600">${l.new_value || '—'}</td>
-                        </tr>`;
-                    }).join('')}</tbody>
-                </table>
-            </body></html>
-        `);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => { printWindow.print(); }, 400);
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const pageW = doc.internal.pageSize.getWidth();
+        const pageH = doc.internal.pageSize.getHeight();
+        let y = 14;
+
+        // ── Header profesional ──────────────────────────────────
+        doc.setFillColor(0, 107, 44);
+        doc.rect(0, 0, pageW, 22, 'F');
+        doc.setFillColor(0, 80, 33);
+        doc.rect(0, 21, pageW, 6, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(15); doc.setFont('helvetica', 'bold');
+        doc.text('REPORTE DE AUDITORÍA DE LEADS — LOS QUETZALES', pageW / 2, 10, { align: 'center' });
+        doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+        doc.text('Documento Confidencial', pageW / 2, 16, { align: 'center' });
+        doc.setTextColor(180, 255, 180); doc.setFontSize(7);
+        doc.text(`Período: ${periodLabel}`, 10, 24.5);
+        doc.text(`Generado: ${new Date().toLocaleString('es-MX')}`, pageW - 10, 24.5, { align: 'right' });
+        y = 36;
+
+        // ── KPIs con borde de color ─────────────────────────────
+        const kpiColors: [number,number,number][] = [[0,107,44],[109,40,217],[3,105,161],[185,28,28]];
+        const kpiW = (pageW - 20) / kpis.length;
+        kpis.forEach((k, i) => {
+            const x = 10 + i * kpiW; const [cr,cg,cb] = kpiColors[i];
+            doc.setFillColor(248, 250, 252); doc.roundedRect(x, y, kpiW - 3, 20, 2, 2, 'F');
+            doc.setFillColor(cr, cg, cb); doc.rect(x, y, kpiW - 3, 2.5, 'F');
+            doc.setDrawColor(cr, cg, cb); doc.setLineWidth(0.5);
+            doc.roundedRect(x, y, kpiW - 3, 20, 2, 2, 'S');
+            doc.setLineWidth(0.2); doc.setDrawColor(200,200,200);
+            doc.setTextColor(80, 80, 80); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+            doc.text(k.label, x + (kpiW-3)/2, y + 10, { align: 'center' });
+            doc.setFontSize(16); doc.setFont('helvetica', 'bold');
+            doc.setTextColor(cr, cg, cb);
+            doc.text(String(k.value), x + (kpiW-3)/2, y + 18, { align: 'center' });
+        });
+        y += 26;
+
+        // ── Análisis automático ─────────────────────────────────
+        const topAsesor = leaderboardRows[0];
+        if (topAsesor && kpis[1].value > 0) {
+            doc.setFillColor(240, 253, 244);
+            doc.roundedRect(10, y, pageW - 20, 10, 2, 2, 'F');
+            doc.setTextColor(0, 80, 33); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+            doc.text('Análisis:', 14, y + 6.5);
+            doc.setFont('helvetica', 'normal'); doc.setTextColor(30, 30, 30);
+            const txt = `El asesor con mayor cartera es ${topAsesor.name} (${topAsesor.totalAsignados} clientes). Recibió ${topAsesor.periodReceived} asignaciones ${periodDisplayLabel}. Total: ${kpis[0].value} eventos — ${kpis[1].value} asignaciones, ${kpis[2].value} cambios de estado, ${kpis[3].value} descartados.`;
+            doc.text(txt, 38, y + 6.5, { maxWidth: pageW - 50 });
+        }
+        y += 15;
+
+        // ── Tabla 1: Productividad por asesor ───────────────────
+        doc.setTextColor(30,30,30); doc.setFontSize(9); doc.setFont('helvetica','bold');
+        doc.text('Productividad por asesor', 10, y); y += 4;
+        const maxCart = Math.max(...leaderboardRows.map(r => r.totalAsignados), 1);
+        autoTable(doc, {
+            startY: y,
+            head: [['#','Asesor','Cartera Total',`Recibidos ${periodDisplayLabel}`,'Cambios Estado','Descartados']],
+            body: leaderboardRows.map((r,i) => [i+1, r.name, r.totalAsignados, r.periodReceived, r.periodStatusChanges, r.periodDiscarded]),
+            headStyles: { fillColor: [0,107,44], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+            bodyStyles: { fontSize: 8, textColor: [30,30,30] },
+            alternateRowStyles: { fillColor: [245,250,246] },
+            columnStyles: { 0:{cellWidth:8,halign:'center'}, 2:{halign:'center',fontStyle:'bold',textColor:[0,107,44]}, 3:{halign:'center'}, 4:{halign:'center'}, 5:{halign:'center'} },
+            margin: { left: 10, right: 10 },
+            didDrawCell: (data: any) => {
+                if (data.section === 'body' && data.column.index === 2) {
+                    const val = leaderboardRows[data.row.index]?.totalAsignados || 0;
+                    const barW = Math.max(1, ((data.cell.width - 6) * val) / maxCart);
+                    doc.setFillColor(0, 150, 60);
+                    doc.rect(data.cell.x + 3, data.cell.y + data.cell.height - 2.2, barW, 1.4, 'F');
+                }
+            },
+        });
+        y = (doc as any).lastAutoTable.finalY + 10;
+        if (y > pageH - 60) { doc.addPage(); y = 14; }
+
+        // ── Tabla 2: Detalle de eventos ─────────────────────────
+        doc.setTextColor(30,30,30); doc.setFontSize(9); doc.setFont('helvetica','bold');
+        doc.text(`Detalle de eventos (${sorted.length} registros)`, 10, y); y += 4;
+        const evRowBg: Record<string,[number,number,number]> = {
+            assignment_change:[240,235,254], discarded:[254,226,226], status_change:[224,242,254],
+        };
+        autoTable(doc, {
+            startY: y,
+            head: [['Fecha/Hora','Asesor','Cliente','Evento','Anterior','Nuevo valor']],
+            body: sorted.map(l => [
+                fmtDate(l.created_at),
+                (l.asesor_email||'').split('@')[0],
+                l.client_name||'—',
+                l.event_type,
+                l.old_value||'—',
+                l.new_value||'—',
+            ]),
+            headStyles: { fillColor: [30,41,59], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+            bodyStyles: { fontSize: 7.5, textColor: [40,40,40] },
+            columnStyles: { 0:{cellWidth:34}, 1:{cellWidth:24}, 3:{cellWidth:30} },
+            margin: { left: 10, right: 10 },
+            didParseCell: (data: any) => {
+                if (data.section === 'body') {
+                    const evType = sorted[data.row.index]?.event_type;
+                    const bg = evRowBg[evType];
+                    if (bg) data.cell.styles.fillColor = bg;
+                    if (data.column.index === 3) {
+                        const ev = EVENT_LABELS[evType];
+                        if (ev) {
+                            const h = ev.color.replace('#','');
+                            data.cell.styles.textColor = [parseInt(h.substring(0,2),16),parseInt(h.substring(2,4),16),parseInt(h.substring(4,6),16)];
+                            data.cell.styles.fontStyle = 'bold';
+                            data.cell.text = [ev.label];
+                        }
+                    }
+                }
+            },
+        });
+
+        // ── Pie de página ────────────────────────────────────────
+        const totalPages = (doc as any).internal.getNumberOfPages();
+        for (let p = 1; p <= totalPages; p++) {
+            doc.setPage(p);
+            doc.setDrawColor(200,200,200); doc.setLineWidth(0.3);
+            doc.line(10, pageH-9, pageW-10, pageH-9);
+            doc.setFontSize(6.5); doc.setTextColor(140,140,140); doc.setFont('helvetica','normal');
+            doc.text('Los Quetzales CRM  ·  Confidencial', 10, pageH-5);
+            doc.text(`Página ${p} de ${totalPages}`, pageW/2, pageH-5, { align: 'center' });
+            doc.text(new Date().toLocaleDateString('es-MX'), pageW-10, pageH-5, { align: 'right' });
+        }
+        doc.save(`auditoria_${periodLabel.replace(/[\s/]/g,'_')}.pdf`);
+    };
+
+
+
+    const exportExcel = async () => {
+
+        const XLSX = (await import('xlsx-js-style')) as any;
+        const { from, to } = getPeriodRange(period, customFrom, customTo);
+        const periodStr = `${from.toLocaleDateString('es-MX')} – ${to.toLocaleDateString('es-MX')}`;
+        const wb = XLSX.utils.book_new();
+
+        // ── Helpers de estilo ────────────────────────────────────
+        const hdr = (txt: string, bg = '006b2c', color = 'FFFFFF') => ({
+            v: txt, t: 's',
+            s: { font: { bold: true, color: { rgb: color }, sz: 11 }, fill: { fgColor: { rgb: bg } }, alignment: { horizontal: 'center', vertical: 'center' }, border: { bottom: { style: 'thin', color: { rgb: 'CCCCCC' } } } }
+        });
+        const cell = (v: any, bold = false, bg = 'FFFFFF', color = '1e293b', align: string = 'left') => ({
+            v, t: typeof v === 'number' ? 'n' : 's',
+            s: { font: { bold, color: { rgb: color }, sz: 10 }, fill: { fgColor: { rgb: bg } }, alignment: { horizontal: align, vertical: 'center' } }
+        });
+        const setColWidths = (ws: any, widths: number[]) => { ws['!cols'] = widths.map(w => ({ wch: w })); };
+
+        // ── Hoja 0: PORTADA ──────────────────────────────────────
+        const coverWs: any = {};
+        const coverData = [
+            [{ v: '🏡 LOS QUETZALES — REPORTE DE AUDITORÍA', t: 's', s: { font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '006b2c' } }, alignment: { horizontal: 'center', vertical: 'center' } } }],
+            [{ v: '', t: 's', s: { fill: { fgColor: { rgb: '006b2c' } } } }],
+            [cell('Período', true, 'f0fdf4', '006b2c'), cell(periodStr, false, 'f0fdf4', '1e293b')],
+            [cell('Generado', true, 'FFFFFF', '006b2c'), cell(new Date().toLocaleString('es-MX'), false, 'FFFFFF', '1e293b')],
+            [cell('Total asesores', true, 'f0fdf4', '006b2c'), cell(leaderboardRows.length, false, 'f0fdf4', '1e293b')],
+            [cell('Total eventos', true, 'FFFFFF', '006b2c'), cell(kpis[0].value, false, 'FFFFFF', '1e293b')],
+            [cell('Asignaciones', true, 'f0fdf4', '006b2c'), cell(kpis[1].value, false, 'f0fdf4', '1e293b')],
+            [cell('Cambios de estado', true, 'FFFFFF', '006b2c'), cell(kpis[2].value, false, 'FFFFFF', '1e293b')],
+            [cell('Descartados', true, 'f0fdf4', '6b2c00'), cell(kpis[3].value, false, 'f0fdf4', '1e293b')],
+        ];
+        coverData.forEach((row, r) => row.forEach((c, col) => { const addr = XLSX.utils.encode_cell({ r, c: col }); coverWs[addr] = c; }));
+        coverWs['!ref'] = `A1:B${coverData.length}`;
+        coverWs['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 1, c: 1 } }];
+        coverWs['!rows'] = [{ hpt: 36 }, { hpt: 8 }];
+        setColWidths(coverWs, [28, 40]);
+        XLSX.utils.book_append_sheet(wb, coverWs, '📋 Portada');
+
+        // ── Hoja 1: RESUMEN POR ASESOR ───────────────────────────
+        const sumWs: any = {};
+        const sumHeaders = ['#', 'Asesor', 'Cartera Total', `Recibidos ${periodDisplayLabel}`, 'Cambios Estado', 'Descartados'];
+        sumHeaders.forEach((h, c) => { sumWs[XLSX.utils.encode_cell({ r: 0, c })] = hdr(h); });
+        leaderboardRows.forEach((r, ri) => {
+            const rowBg = ri % 2 === 0 ? 'FFFFFF' : 'f0fdf4';
+            const vals = [ri + 1, r.name, r.totalAsignados, r.periodReceived, r.periodStatusChanges, r.periodDiscarded];
+            vals.forEach((v, c) => {
+                const isNum = typeof v === 'number';
+                sumWs[XLSX.utils.encode_cell({ r: ri + 1, c })] = cell(v, c === 1, rowBg, isNum && c === 2 ? '006b2c' : '1e293b', isNum ? 'center' : 'left');
+            });
+        });
+        // Fila totales
+        const tr = leaderboardRows.length + 1;
+        ['TOTAL', '', ...([2,3,4,5].map(c => leaderboardRows.reduce((s, r) => s + [r.totalAsignados, r.periodReceived, r.periodStatusChanges, r.periodDiscarded][c-2], 0)))]
+            .forEach((v, c) => { sumWs[XLSX.utils.encode_cell({ r: tr, c })] = cell(v, true, 'e2e8f0', '1e293b', typeof v === 'number' ? 'center' : 'left'); });
+        sumWs['!ref'] = `A1:F${tr + 1}`;
+        sumWs['!freeze'] = { xSplit: 0, ySplit: 1 };
+        sumWs['!autofilter'] = { ref: `A1:F1` };
+        sumWs['!rows'] = [{ hpt: 20 }];
+        setColWidths(sumWs, [6, 22, 18, 22, 18, 14]);
+        XLSX.utils.book_append_sheet(wb, sumWs, '📊 Resumen por Asesor');
+
+        // ── Hoja 2: DETALLE DE EVENTOS ───────────────────────────
+        const evColors: Record<string, { bg: string; fg: string }> = {
+            assignment_change: { bg: 'ede9fe', fg: '6d28d9' },
+            discarded:         { bg: 'fee2e2', fg: 'b91c1c' },
+            status_change:     { bg: 'e0f2fe', fg: '0369a1' },
+        };
+        const detWs: any = {};
+        const detHeaders = ['Fecha/Hora', 'Asesor', 'Cliente', 'Evento', 'Valor anterior', 'Nuevo valor'];
+        detHeaders.forEach((h, c) => { detWs[XLSX.utils.encode_cell({ r: 0, c })] = hdr(h, '1e293b', 'FFFFFF'); });
+        sorted.forEach((l, ri) => {
+            const ev = evColors[l.event_type] || { bg: 'FFFFFF', fg: '1e293b' };
+            const rowBg = ri % 2 === 0 ? 'FFFFFF' : 'f8fafc';
+            const vals = [
+                fmtDate(l.created_at),
+                (l.asesor_email || '').split('@')[0],
+                l.client_name || '—',
+                EVENT_LABELS[l.event_type]?.label || l.event_type,
+                l.old_value || '—',
+                l.new_value || '—',
+            ];
+            vals.forEach((v, c) => {
+                const isEvt = c === 3;
+                detWs[XLSX.utils.encode_cell({ r: ri + 1, c })] = cell(v, isEvt, isEvt ? ev.bg : rowBg, isEvt ? ev.fg : '1e293b');
+            });
+        });
+        detWs['!ref'] = `A1:F${sorted.length + 1}`;
+        detWs['!freeze'] = { xSplit: 0, ySplit: 1 };
+        detWs['!autofilter'] = { ref: `A1:F1` };
+        setColWidths(detWs, [22, 18, 28, 22, 22, 22]);
+        XLSX.utils.book_append_sheet(wb, detWs, '📋 Detalle Eventos');
+
+        XLSX.writeFile(wb, `auditoria_${periodStr.replace(/[\s/]/g, '_')}.xlsx`);
+    };
+
+    // ── Reporte individual por asesor ─────────────────────────────────────
+    const getAsesorEventos = (name: string) =>
+        logs.filter(l => {
+            const actor = (l.asesor_email || '').split('@')[0];
+            const receptor = (l.new_value || '').split('@')[0];
+            return actor === name || (l.event_type === 'assignment_change' && receptor === name);
+        });
+
+    const exportPdfAsesor = async (name: string) => {
+        const { default: jsPDF } = await import('jspdf');
+        const autoTable = (await import('jspdf-autotable')).default;
+        const { from, to } = getPeriodRange(period, customFrom, customTo);
+        const periodLabel = `${from.toLocaleDateString('es-MX')} – ${to.toLocaleDateString('es-MX')}`;
+        // Carga lazy: si no hay cartera cacheada, la pedimos al servidor
+        let cartera = assignedClients[name] || [];
+        if (cartera.length === 0) {
+            const { data: clientData } = await supabase.rpc('get_asesor_clients', { p_asesor_key: name });
+            cartera = (clientData || []).map((c: any) => ({ name: c.client_name || c.client_id, status: c.status || '—', date: c.assigned_at || '—' }));
+            setAssignedClients(prev => ({ ...prev, [name]: cartera }));
+        }
+        const eventos = getAsesorEventos(name);
+        const row = leaderboardRows.find(r => r.name === name);
+        const doc = new (jsPDF as any)({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const pageW = doc.internal.pageSize.getWidth();
+        const pageH = doc.internal.pageSize.getHeight();
+        let y = 14;
+
+        // Encabezado verde
+        doc.setFillColor(0, 107, 44);
+        doc.rect(0, 0, pageW, 26, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(15); doc.setFont('helvetica', 'bold');
+        doc.text(`Reporte de Asesor: ${name}`, 10, 11);
+        doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+        doc.text(`Período: ${periodLabel}   ·   Generado: ${new Date().toLocaleString('es-MX')}`, 10, 19);
+        y = 32;
+
+        // KPIs del asesor
+        const asesorKpis = [
+            { label: 'Cartera actual', value: cartera.length, color: '#006b2c' },
+            { label: `Recibidos ${periodDisplayLabel}`, value: row?.periodReceived || 0, color: '#6d28d9' },
+            { label: 'Cambios de estado', value: row?.periodStatusChanges || 0, color: '#0369a1' },
+            { label: 'Descartados', value: row?.periodDiscarded || 0, color: '#b91c1c' },
+        ];
+        const kpiW = (pageW - 20) / asesorKpis.length;
+        asesorKpis.forEach((k, i) => {
+            const x = 10 + i * kpiW;
+            doc.setFillColor(245, 248, 250);
+            doc.roundedRect(x, y, kpiW - 3, 16, 2, 2, 'F');
+            doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80);
+            doc.text(k.label, x + (kpiW - 3) / 2, y + 5, { align: 'center' });
+            const hex = k.color.replace('#', '');
+            doc.setTextColor(parseInt(hex.substring(0,2),16), parseInt(hex.substring(2,4),16), parseInt(hex.substring(4,6),16));
+            doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+            doc.text(String(k.value), x + (kpiW - 3) / 2, y + 13, { align: 'center' });
+        });
+        y += 22;
+
+        // Tabla 1: Cartera de clientes
+        doc.setTextColor(30,30,30); doc.setFontSize(10); doc.setFont('helvetica','bold');
+        doc.text(`Cartera actual (${cartera.length} clientes)`, 10, y); y += 4;
+        autoTable(doc, {
+            startY: y,
+            head: [['#', 'Cliente', 'Estado', 'Fecha asignación']],
+            body: cartera.map((c, i) => [i + 1, c.name, c.status, c.date]),
+            headStyles: { fillColor: [0,107,44], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+            bodyStyles: { fontSize: 8 },
+            alternateRowStyles: { fillColor: [245,250,246] },
+            columnStyles: { 0: { cellWidth: 8, halign: 'center' } },
+            margin: { left: 10, right: 10 },
+        });
+        y = (doc as any).lastAutoTable.finalY + 10;
+        if (y > pageH - 60) { doc.addPage(); y = 14; }
+
+        // Tabla 2: Actividad en el período
+        doc.setTextColor(30,30,30); doc.setFontSize(10); doc.setFont('helvetica','bold');
+        doc.text(`Actividad en el período (${eventos.length} eventos)`, 10, y); y += 4;
+        autoTable(doc, {
+            startY: y,
+            head: [['Fecha/Hora', 'Evento', 'Cliente', 'Anterior', 'Nuevo valor']],
+            body: eventos.map(l => [
+                fmtDate(l.created_at),
+                EVENT_LABELS[l.event_type]?.label || l.event_type,
+                l.client_name || '—',
+                l.old_value || '—',
+                l.new_value || '—',
+            ]),
+            headStyles: { fillColor: [51,65,85], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+            bodyStyles: { fontSize: 7.5 },
+            alternateRowStyles: { fillColor: [248,250,252] },
+            columnStyles: { 0: { cellWidth: 32 }, 1: { cellWidth: 28 } },
+            margin: { left: 10, right: 10 },
+        });
+        const total = (doc as any).internal.getNumberOfPages();
+        for (let p = 1; p <= total; p++) {
+            doc.setPage(p); doc.setFontSize(7); doc.setTextColor(160,160,160);
+            doc.text(`Los Quetzales CRM  ·  Asesor: ${name}  ·  Página ${p} de ${total}`, pageW / 2, pageH - 6, { align: 'center' });
+        }
+        doc.save(`asesor_${name}_${periodLabel.replace(/[\s/]/g,'_')}.pdf`);
+    };
+
+    const exportExcelAsesor = async (name: string) => {
+        const XLSX = (await import('xlsx-js-style')) as any;
+        const { from, to } = getPeriodRange(period, customFrom, customTo);
+        const periodStr = `${from.toLocaleDateString('es-MX')} – ${to.toLocaleDateString('es-MX')}`;
+        let cartera = assignedClients[name] || [];
+        if (cartera.length === 0) {
+            const { data: clientData } = await supabase.rpc('get_asesor_clients', { p_asesor_key: name });
+            cartera = (clientData || []).map((c: any) => ({ name: c.client_name || c.client_id, status: c.status || '—', date: c.assigned_at || '—' }));
+            setAssignedClients(prev => ({ ...prev, [name]: cartera }));
+        }
+        const eventos = getAsesorEventos(name);
+        const row = leaderboardRows.find(r => r.name === name);
+        const wb = XLSX.utils.book_new();
+
+        const hdr = (txt: string, bg = '006b2c') => ({ v: txt, t: 's', s: { font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 }, fill: { fgColor: { rgb: bg } }, alignment: { horizontal: 'center', vertical: 'center' } } });
+        const cell = (v: any, bold = false, bg = 'FFFFFF', color = '1e293b', align = 'left') => ({ v, t: typeof v === 'number' ? 'n' : 's', s: { font: { bold, color: { rgb: color }, sz: 10 }, fill: { fgColor: { rgb: bg } }, alignment: { horizontal: align, vertical: 'center' } } });
+        const setW = (ws: any, w: number[]) => { ws['!cols'] = w.map(wch => ({ wch })); };
+
+        // ── Hoja 1: FICHA DE ASESOR ──────────────────────────────
+        const fichaWs: any = {};
+        const fichaData: [string, any][] = [
+            ['🏡 LOS QUETZALES — REPORTE DE ASESOR', ''],
+            ['', ''],
+            ['ASESOR', name.toUpperCase()],
+            ['PERÍODO', periodStr],
+            ['CARTERA TOTAL', cartera.length],
+            [`RECIBIDOS ${periodDisplayLabel.toUpperCase()}`, row?.periodReceived || 0],
+            ['CAMBIOS DE ESTADO', row?.periodStatusChanges || 0],
+            ['DESCARTADOS', row?.periodDiscarded || 0],
+        ];
+        fichaData.forEach(([label, val], r) => {
+            if (r === 0) {
+                fichaWs[XLSX.utils.encode_cell({ r, c: 0 })] = { v: label, t: 's', s: { font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '006b2c' } }, alignment: { horizontal: 'center' } } };
+            } else if (r === 1) {
+                fichaWs[XLSX.utils.encode_cell({ r, c: 0 })] = { v: '', t: 's', s: { fill: { fgColor: { rgb: '006b2c' } } } };
+            } else {
+                const rowBg = r % 2 === 0 ? 'FFFFFF' : 'f0fdf4';
+                fichaWs[XLSX.utils.encode_cell({ r, c: 0 })] = cell(label, true, rowBg, '006b2c');
+                fichaWs[XLSX.utils.encode_cell({ r, c: 1 })] = cell(val, false, rowBg, '1e293b', typeof val === 'number' ? 'center' : 'left');
+            }
+        });
+        fichaWs['!ref'] = `A1:B${fichaData.length}`;
+        fichaWs['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } }];
+        fichaWs['!rows'] = [{ hpt: 32 }];
+        setW(fichaWs, [28, 32]);
+        XLSX.utils.book_append_sheet(wb, fichaWs, '📋 Resumen');
+
+        // ── Hoja 2: CARTERA DE CLIENTES ──────────────────────────
+        const statusBg: Record<string, { bg: string; fg: string }> = {
+            'Citado': { bg: 'd1fae5', fg: '065f46' }, 'Activo': { bg: 'dcfce7', fg: '166534' },
+            'Nuevo': { bg: 'e0f2fe', fg: '0369a1' }, 'No responde': { bg: 'fee2e2', fg: 'b91c1c' },
+            'Descartado': { bg: 'fef3c7', fg: '92400e' }, 'En seguimiento': { bg: 'fde68a', fg: '92400e' },
+        };
+        const cartWs: any = {};
+        ['#', 'Cliente', 'Estado', 'Fecha asignación'].forEach((h, c) => { cartWs[XLSX.utils.encode_cell({ r: 0, c })] = hdr(h); });
+        cartera.forEach((c, ri) => {
+            const st = statusBg[c.status] || { bg: ri % 2 === 0 ? 'FFFFFF' : 'f0fdf4', fg: '1e293b' };
+            cartWs[XLSX.utils.encode_cell({ r: ri+1, c: 0 })] = cell(ri+1, false, ri%2===0?'FFFFFF':'f0fdf4', '1e293b', 'center');
+            cartWs[XLSX.utils.encode_cell({ r: ri+1, c: 1 })] = cell(c.name, false, ri%2===0?'FFFFFF':'f0fdf4');
+            cartWs[XLSX.utils.encode_cell({ r: ri+1, c: 2 })] = cell(c.status, true, st.bg, st.fg, 'center');
+            cartWs[XLSX.utils.encode_cell({ r: ri+1, c: 3 })] = cell(c.date, false, ri%2===0?'FFFFFF':'f0fdf4', '1e293b', 'center');
+        });
+        cartWs['!ref'] = `A1:D${cartera.length+1}`;
+        cartWs['!freeze'] = { xSplit: 0, ySplit: 1 };
+        cartWs['!autofilter'] = { ref: 'A1:D1' };
+        setW(cartWs, [6, 35, 22, 18]);
+        XLSX.utils.book_append_sheet(wb, cartWs, '👥 Clientes asignados');
+
+        // ── Hoja 3: ACTIVIDAD DEL PERÍODO ────────────────────────
+        const evColors: Record<string, { bg: string; fg: string }> = { assignment_change: { bg: 'ede9fe', fg: '6d28d9' }, discarded: { bg: 'fee2e2', fg: 'b91c1c' }, status_change: { bg: 'e0f2fe', fg: '0369a1' } };
+        const actWs: any = {};
+        ['Fecha/Hora', 'Evento', 'Cliente', 'Anterior', 'Nuevo valor'].forEach((h, c) => { actWs[XLSX.utils.encode_cell({ r: 0, c })] = hdr(h, '1e293b'); });
+        eventos.forEach((l, ri) => {
+            const ev = evColors[l.event_type] || { bg: 'FFFFFF', fg: '1e293b' };
+            const rowBg = ri % 2 === 0 ? 'FFFFFF' : 'f8fafc';
+            [fmtDate(l.created_at), EVENT_LABELS[l.event_type]?.label || l.event_type, l.client_name||'—', l.old_value||'—', l.new_value||'—']
+                .forEach((v, c) => { actWs[XLSX.utils.encode_cell({ r: ri+1, c })] = cell(v, c===1, c===1?ev.bg:rowBg, c===1?ev.fg:'1e293b'); });
+        });
+        actWs['!ref'] = `A1:E${eventos.length+1}`;
+        actWs['!freeze'] = { xSplit: 0, ySplit: 1 };
+        setW(actWs, [22, 22, 28, 22, 22]);
+        XLSX.utils.book_append_sheet(wb, actWs, '📅 Actividad del período');
+
+        XLSX.writeFile(wb, `asesor_${name}_${periodStr.replace(/[\s/]/g,'_')}.xlsx`);
     };
 
     return (
@@ -845,11 +1284,37 @@ function TabAuditorias({ role: _role }: { role: string }) {
                         style={{ width: '100%', padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid var(--border-glass)', background: 'var(--bg-panel)', color: 'var(--text-main)', fontFamily: 'inherit', fontSize: '0.83rem', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
 
-                {/* PDF */}
-                <button onClick={exportPdf} disabled={sorted.length === 0}
-                    style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 16px', borderRadius: '8px', border: 'none', background: sorted.length > 0 ? 'var(--primary-accent)' : 'var(--ghost-bg)', color: sorted.length > 0 ? '#fff' : 'var(--text-muted)', fontFamily: 'inherit', fontWeight: '700', fontSize: '0.83rem', cursor: sorted.length > 0 ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>
-                    <Download size={15} /> Descargar PDF
-                </button>
+                {/* Exportar — split button PDF / Excel */}
+                <div style={{ position: 'relative' }}>
+                    <div style={{ display: 'flex', borderRadius: '8px', overflow: 'hidden', border: `1px solid ${sorted.length > 0 ? 'var(--primary-accent)' : 'var(--border-glass)'}` }}>
+                        <button onClick={exportPdf} disabled={sorted.length === 0}
+                            style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 14px', border: 'none', background: sorted.length > 0 ? 'var(--primary-accent)' : 'var(--ghost-bg)', color: sorted.length > 0 ? '#fff' : 'var(--text-muted)', fontFamily: 'inherit', fontWeight: '700', fontSize: '0.83rem', cursor: sorted.length > 0 ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>
+                            <Download size={15} /> PDF
+                        </button>
+                        <button onClick={() => setShowExportMenu(v => !v)} disabled={sorted.length === 0}
+                            title="Más opciones de exportación"
+                            style={{ padding: '8px 10px', border: 'none', borderLeft: '1px solid rgba(255,255,255,0.25)', background: sorted.length > 0 ? 'var(--primary-accent)' : 'var(--ghost-bg)', color: sorted.length > 0 ? '#fff' : 'var(--text-muted)', cursor: sorted.length > 0 ? 'pointer' : 'not-allowed', fontSize: '0.75rem', lineHeight: 1 }}>
+                            ▾
+                        </button>
+                    </div>
+                    {showExportMenu && sorted.length > 0 && (
+                        <div onMouseLeave={() => setShowExportMenu(false)}
+                            style={{ position: 'absolute', top: '110%', right: 0, zIndex: 200, background: 'var(--bg-panel)', border: '1px solid var(--border-glass)', borderRadius: '10px', overflow: 'hidden', minWidth: '180px', boxShadow: '0 8px 28px rgba(0,0,0,0.45)' }}>
+                            <button onClick={() => { exportPdf(); setShowExportMenu(false); }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'var(--ghost-bg)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                                style={{ width: '100%', padding: '11px 16px', background: 'transparent', border: 'none', color: 'var(--text-main)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.84rem', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '9px' }}>
+                                📄 Descargar PDF
+                            </button>
+                            <button onClick={() => { exportExcel(); setShowExportMenu(false); }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'var(--ghost-bg)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                                style={{ width: '100%', padding: '11px 16px', background: 'transparent', border: 'none', borderTop: '1px solid var(--border-glass)', color: 'var(--text-main)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.84rem', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '9px' }}>
+                                📊 Descargar Excel
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* ── KPIs ── */}
@@ -862,33 +1327,115 @@ function TabAuditorias({ role: _role }: { role: string }) {
                 ))}
             </div>
 
-            {/* ── Resumen por asesor ── */}
-            {asesorRows.length > 0 && (
+            {/* ── Leaderboard por asesor ── */}
+            {leaderboardRows.length > 0 && (
                 <div className='glass-panel' style={{ padding: '20px', marginBottom: '20px' }}>
-                    <h3 style={{ margin: '0 0 14px', fontSize: '0.93rem', fontWeight: '700' }}>👤 Resumen por asesor en el período</h3>
-                    <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                            <thead>
-                                <tr>
-                                    {['Asesor', 'Total acciones', 'Asignaciones', 'Cambios estado', 'Descartados'].map(h => (
-                                        <th key={h} style={{ padding: '10px 14px', color: 'var(--text-muted)', fontWeight: '500', textAlign: h === 'Asesor' ? 'left' : 'center', borderBottom: '1px solid var(--border-glass)' }}>{h}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {asesorRows.map(([nombre, c]) => (
-                                    <tr key={nombre}
-                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--ghost-bg)'}
-                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                        <td style={{ padding: '10px 14px', fontWeight: '700' }}>👤 {nombre}</td>
-                                        <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: '700', color: 'var(--primary-accent)' }}>{c.total}</td>
-                                        <td style={{ padding: '10px 14px', textAlign: 'center', color: '#6d28d9' }}>{c.assignments}</td>
-                                        <td style={{ padding: '10px 14px', textAlign: 'center', color: '#0369a1' }}>{c.statusChanges}</td>
-                                        <td style={{ padding: '10px 14px', textAlign: 'center', color: '#b91c1c' }}>{c.discarded}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                        <h3 style={{ margin: 0, fontSize: '0.93rem', fontWeight: '700' }}>🏆 Productividad por asesor</h3>
+                        {/* Toggle de modo */}
+                        <div style={{ display: 'flex', gap: '4px', border: '1px solid var(--border-glass)', borderRadius: '8px', padding: '3px', background: 'var(--ghost-bg)' }}>
+                            <button onClick={() => setLeaderboardMode('cartera')}
+                                style={{ padding: '5px 12px', borderRadius: '6px', border: 'none', fontFamily: 'inherit', fontSize: '0.78rem', fontWeight: leaderboardMode === 'cartera' ? '700' : '400', cursor: 'pointer', background: leaderboardMode === 'cartera' ? 'var(--primary-accent)' : 'transparent', color: leaderboardMode === 'cartera' ? '#fff' : 'var(--text-muted)', transition: 'all 0.15s' }}>
+                                🗂 Cartera total
+                            </button>
+                            <button onClick={() => setLeaderboardMode('asignaciones')}
+                                style={{ padding: '5px 12px', borderRadius: '6px', border: 'none', fontFamily: 'inherit', fontSize: '0.78rem', fontWeight: leaderboardMode === 'asignaciones' ? '700' : '400', cursor: 'pointer', background: leaderboardMode === 'asignaciones' ? '#6d28d9' : 'transparent', color: leaderboardMode === 'asignaciones' ? '#fff' : 'var(--text-muted)', transition: 'all 0.15s' }}>
+                                📥 Asignaciones {periodDisplayLabel}
+                            </button>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {leaderboardRows.map((r, idx) => {
+                            const medalColors = ['#f59e0b', '#94a3b8', '#b45309'];
+                            const avatarColor = idx < 3 ? medalColors[idx] : '#374151';
+                            const displayValue = leaderboardMode === 'cartera' ? r.totalAsignados : r.periodReceived;
+                            const maxValue = leaderboardMode === 'cartera'
+                                ? maxAssigned
+                                : Math.max(...leaderboardRows.map(x => x.periodReceived), 1);
+                            const barPct = Math.round((displayValue / maxValue) * 100);
+                            return (
+                                <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px', borderRadius: '10px', background: 'rgba(255,255,255,0.025)', border: '1px solid var(--border-glass)', transition: 'background 0.2s', position: 'relative' }}
+                                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.025)'; setActiveCardMenu(null); }}>
+                                    {/* Posición + Avatar */}
+                                    <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', width: '36px' }}>
+                                        <span style={{ fontSize: '0.68rem', color: avatarColor, fontWeight: '800' }}>#{idx + 1}</span>
+                                        <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: `${avatarColor}22`, border: `2px solid ${avatarColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: '800', color: avatarColor }}>
+                                            {r.name.charAt(0).toUpperCase()}
+                                        </div>
+                                    </div>
+                                    {/* Nombre + barra + métricas */}
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                            <span style={{ fontWeight: '700', fontSize: '0.9rem' }}>{r.name}</span>
+                                            <span style={{ fontWeight: '800', fontSize: '1.3rem', color: avatarColor, lineHeight: 1 }}>{displayValue}</span>
+                                        </div>
+                                        {/* Barra de progreso */}
+                                        <div style={{ height: '5px', borderRadius: '4px', background: 'rgba(255,255,255,0.08)', marginBottom: '8px', overflow: 'hidden' }}>
+                                            <div style={{ height: '100%', width: `${barPct}%`, borderRadius: '4px', background: `linear-gradient(90deg, ${avatarColor}99, ${avatarColor})`, transition: 'width 0.6s ease' }} />
+                                        </div>
+                                        {/* Mini-métricas — distintas por modo */}
+                                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                            {leaderboardMode === 'cartera' ? (
+                                                /* MODO CARTERA: solo info de cartera, sin temporalidad */
+                                                <>
+                                                    <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(0,107,44,0.15)', color: '#4ade80' }}>
+                                                        🗂 {r.totalAsignados} en cartera total
+                                                    </span>
+                                                    {r.periodReceived > 0 && (
+                                                        <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(109,40,217,0.10)', color: '#a78bfa' }}>
+                                                            📥 {r.periodReceived} recibidos {periodDisplayLabel}
+                                                        </span>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                /* MODO ASIGNACIONES: solo info del período seleccionado */
+                                                <>
+                                                    <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '10px', background: r.periodReceived > 0 ? 'rgba(109,40,217,0.15)' : 'rgba(100,100,100,0.08)', color: r.periodReceived > 0 ? '#8b5cf6' : 'var(--text-muted)' }}>
+                                                        📥 {r.periodReceived > 0 ? `${r.periodReceived} asignados ${periodDisplayLabel}` : `Sin asignaciones ${periodDisplayLabel}`}
+                                                    </span>
+                                                    {r.periodStatusChanges > 0 && (
+                                                        <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(3,105,161,0.12)', color: '#38bdf8' }}>
+                                                            🔄 {r.periodStatusChanges} estados
+                                                        </span>
+                                                    )}
+                                                    {r.periodDiscarded > 0 && (
+                                                        <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(185,28,28,0.12)', color: '#f87171' }}>
+                                                            🗑 {r.periodDiscarded} descartados
+                                                        </span>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {/* Botón reporte individual */}
+                                    <div style={{ flexShrink: 0, position: 'relative' }}>
+                                        <button
+                                            onClick={e => { e.stopPropagation(); setActiveCardMenu(activeCardMenu === r.name ? null : r.name); }}
+                                            title="Generar reporte de este asesor"
+                                            style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border-glass)', background: 'var(--ghost-bg)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                            📄 ▾
+                                        </button>
+                                        {activeCardMenu === r.name && (
+                                            <div style={{ position: 'absolute', top: '110%', right: 0, zIndex: 300, background: 'var(--bg-panel)', border: '1px solid var(--border-glass)', borderRadius: '10px', overflow: 'hidden', minWidth: '185px', boxShadow: '0 8px 28px rgba(0,0,0,0.5)' }}>
+                                                <button onClick={() => { exportPdfAsesor(r.name); setActiveCardMenu(null); }}
+                                                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--ghost-bg)')}
+                                                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                                                    style={{ width: '100%', padding: '11px 15px', background: 'transparent', border: 'none', color: 'var(--text-main)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.83rem', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    📄 PDF — {r.name}
+                                                </button>
+                                                <button onClick={() => { exportExcelAsesor(r.name); setActiveCardMenu(null); }}
+                                                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--ghost-bg)')}
+                                                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                                                    style={{ width: '100%', padding: '11px 15px', background: 'transparent', border: 'none', borderTop: '1px solid var(--border-glass)', color: 'var(--text-main)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.83rem', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    📊 Excel — {r.name}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             )}

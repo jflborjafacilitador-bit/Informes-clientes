@@ -14,6 +14,7 @@ export interface ClientData {
     assigned_to?: string;    // UUID del asesor en Supabase (override)
     assigned_email?: string; // Email del asesor en Supabase (override)
     budget_range?: string;
+    discarded_from_asesor?: string; // Email del asesor anterior al descartar (preservado tras reactivar)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

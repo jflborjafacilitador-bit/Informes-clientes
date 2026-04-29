@@ -94,17 +94,19 @@ export default function Clientes() {
                 if (override) {
                     return {
                         ...client,
-                        status:        override.status        || client.status,
-                        assigned_to:   override.assigned_to   || undefined,
-                        assigned_email: override.assigned_email || undefined,
-                        budget_range:  override.budget_range  || undefined,
-                        synced:        override.synced        ?? false,
-                        origen:        'asignado',
-                        created_at:    client.date || ''
+                        status:                 override.status        || client.status,
+                        assigned_to:            override.assigned_to   || undefined,
+                        assigned_email:         override.assigned_email || undefined,
+                        budget_range:           override.budget_range  || undefined,
+                        synced:                 override.synced        ?? false,
+                        discarded_from_asesor:  override.discarded_from_asesor || undefined,
+                        origen:                 'asignado',
+                        created_at:             client.date || ''
                     };
                 }
                 return { ...client, synced: false, origen: 'asignado', created_at: client.date || '' };
             });
+
 
             // 6. Unimos ambos origenes
             const allClients = [...mappedOwnClients, ...mergedSheets];
@@ -154,6 +156,11 @@ export default function Clientes() {
         const origen = (cliente as any)?.origen;
         const isOwn = origen === 'landing_propia' || origen === 'propio';
 
+        // Capturar asesor anterior ANTES de modificar (para trazabilidad de descarte)
+        const previousAsesor = cliente?.assigned_email && cliente.assigned_email !== 'descartado'
+            ? cliente.assigned_email
+            : (cliente?.sheet_assigned || null);
+
         if (isOwn) {
             // Clientes propios: el estado vive directamente en tabla `clients`
             const { error } = await supabase.from('clients')
@@ -170,6 +177,8 @@ export default function Clientes() {
             if (isDiscarding) {
                 overridePayload.assigned_to = null;
                 overridePayload.assigned_email = 'descartado';
+                // ── Preservar quién tenía el cliente antes del descarte ──
+                overridePayload.discarded_from_asesor = previousAsesor;
             }
             const { error } = await supabase.from('client_overrides').upsert(
                 overridePayload,
@@ -200,6 +209,13 @@ export default function Clientes() {
             field_changed: 'status',
             old_value: oldStatus,
             new_value: newStatus,
+            // ── Contexto enriquecido para descartados ────────────
+            ...(isDiscarding && {
+                extra_context: {
+                    from_asesor: previousAsesor,
+                    from_status: oldStatus,
+                }
+            }),
         }).then(() => { });
         supabase.from('profiles').update({
             last_seen: new Date().toISOString(),
@@ -207,6 +223,7 @@ export default function Clientes() {
         }).eq('id', session?.user?.id).then(() => { });
         loadData();
     };
+
 
     const handleAssign = async (id: string, value: string) => {
         const cliente = clients.find(c => c.id === id);
@@ -552,12 +569,18 @@ export default function Clientes() {
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Origen</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Teléfono</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Asignación</th>
+                                    {originFilter === 'descartado' && (
+                                        <th style={{ padding: '16px', color: '#f59e0b', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                            👤 Asesor anterior
+                                        </th>
+                                    )}
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Presupuesto</th>
                                     <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500' }}>Estado</th>
                                     {!isReadonly && (role === 'super_admin' || role === 'gerente' || role === 'asesor' || role === 'master') && (
                                         <th style={{ padding: '16px', color: 'var(--text-muted)', fontWeight: '500', textAlign: 'center' }}>Acciones</th>
                                     )}
                                 </tr>
+
                             </thead>
                             <tbody>
                                 {paginatedClients.map((client, index) => (
@@ -661,8 +684,28 @@ export default function Clientes() {
                                                 </span>
                                             )}
                                         </td>
+                                        {/* ── Columna Asesor anterior (solo pestaña Descartados) ── */}
+                                        {originFilter === 'descartado' && (
+                                            <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                                                {(client as any).discarded_from_asesor ? (
+                                                    <span style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                                        background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
+                                                        color: '#f59e0b', padding: '3px 8px', borderRadius: '6px',
+                                                        fontSize: '0.82rem', fontWeight: 600
+                                                    }}>
+                                                        👤 {(client as any).discarded_from_asesor.split('@')[0]}
+                                                    </span>
+                                                ) : (
+                                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem', fontStyle: 'italic' }}>
+                                                        Desconocido
+                                                    </span>
+                                                )}
+                                            </td>
+                                        )}
                                         <td style={{ padding: '16px' }}>
                                             {(role === 'super_admin' || role === 'gerente' || role === 'asesor') ? (
+
                                                 <select
                                                     value={client.budget_range || ''}
                                                     onChange={(e) => handleBudgetChange(client.id, e.target.value)}
