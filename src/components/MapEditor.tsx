@@ -798,19 +798,87 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                                      <button className="base-button" style={{flex: 1, padding: '4px', fontSize: '0.75rem'}} onClick={() => rotateSelectedZone(5)}>↻ +5°</button>
                                      <button className="base-button" style={{flex: 1, padding: '4px', fontSize: '0.75rem'}} onClick={() => rotateSelectedZone(90)}>Rotar 90°</button>
                                  </div>
-                                 <div style={{ display: 'flex', gap: '4px', marginBottom: '12px' }}>
-                                     <button className="base-button" style={{flex: 1, padding: '4px', fontSize: '0.75rem'}} onClick={() => scaleSelectedZone(1.05, 1)}>↔ +Ancho</button>
-                                     <button className="base-button" style={{flex: 1, padding: '4px', fontSize: '0.75rem'}} onClick={() => scaleSelectedZone(0.95, 1)}>&gt;&lt; -Ancho</button>
+                                 {/* ── Ancho ───────────────────────────────── */}
+                                 <div style={{ marginBottom: '12px' }}>
+                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                         <span style={{ fontSize: '0.75rem', color: '#00f0ff' }}>↔ Ancho</span>
+                                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                             <input
+                                                 type="number"
+                                                 min="10" max="500" step="1"
+                                                 value={Math.round(selectedW * w / 100)}
+                                                 onChange={e => {
+                                                     const targetPx = Number(e.target.value);
+                                                     const currentPx = selectedW * w / 100;
+                                                     if (currentPx > 0) scaleSelectedZone(targetPx / currentPx, 1);
+                                                 }}
+                                                 style={{
+                                                     width: '60px', padding: '2px 4px', fontSize: '0.75rem',
+                                                     background: 'rgba(0,240,255,0.1)', border: '1px solid rgba(0,240,255,0.3)',
+                                                     color: '#00f0ff', borderRadius: '4px', textAlign: 'center', outline: 'none'
+                                                 }}
+                                             />
+                                             <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>px</span>
+                                         </div>
+                                     </div>
+                                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                         <button className="base-button" style={{ padding: '2px 6px', fontSize: '0.72rem' }} onClick={() => scaleSelectedZone(0.99, 1)}>−</button>
+                                         <input
+                                             type="range" min="0.1" max="5" step="0.01"
+                                             value={(selectedW > 0 ? selectedW : 0.01).toFixed(4)}
+                                             onChange={e => {
+                                                 const newW = Number(e.target.value);
+                                                 if (selectedW > 0) scaleSelectedZone(newW / selectedW, 1);
+                                             }}
+                                             style={{ flex: 1 }}
+                                         />
+                                         <button className="base-button" style={{ padding: '2px 6px', fontSize: '0.72rem' }} onClick={() => scaleSelectedZone(1.01, 1)}>+</button>
+                                     </div>
                                  </div>
-                                 <div style={{ display: 'flex', gap: '4px', marginBottom: '12px' }}>
-                                     <button className="base-button" style={{flex: 1, padding: '4px', fontSize: '0.75rem'}} onClick={() => scaleSelectedZone(1, 1.05)}>↕ +Alto</button>
-                                     <button className="base-button" style={{flex: 1, padding: '4px', fontSize: '0.75rem'}} onClick={() => scaleSelectedZone(1, 0.95)}>v^ -Alto</button>
+
+                                 {/* ── Alto ────────────────────────────────── */}
+                                 <div style={{ marginBottom: '12px' }}>
+                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                         <span style={{ fontSize: '0.75rem', color: '#a855f7' }}>↕ Alto</span>
+                                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                             <input
+                                                 type="number"
+                                                 min="10" max="500" step="1"
+                                                 value={Math.round(selectedH * h / 100)}
+                                                 onChange={e => {
+                                                     const targetPx = Number(e.target.value);
+                                                     const currentPx = selectedH * h / 100;
+                                                     if (currentPx > 0) scaleSelectedZone(1, targetPx / currentPx);
+                                                 }}
+                                                 style={{
+                                                     width: '60px', padding: '2px 4px', fontSize: '0.75rem',
+                                                     background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)',
+                                                     color: '#a855f7', borderRadius: '4px', textAlign: 'center', outline: 'none'
+                                                 }}
+                                             />
+                                             <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>px</span>
+                                         </div>
+                                     </div>
+                                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                         <button className="base-button" style={{ padding: '2px 6px', fontSize: '0.72rem' }} onClick={() => scaleSelectedZone(1, 0.99)}>−</button>
+                                         <input
+                                             type="range" min="0.1" max="5" step="0.01"
+                                             value={(selectedH > 0 ? selectedH : 0.01).toFixed(4)}
+                                             onChange={e => {
+                                                 const newH = Number(e.target.value);
+                                                 if (selectedH > 0) scaleSelectedZone(1, newH / selectedH);
+                                             }}
+                                             style={{ flex: 1 }}
+                                         />
+                                         <button className="base-button" style={{ padding: '2px 6px', fontSize: '0.72rem' }} onClick={() => scaleSelectedZone(1, 1.01)}>+</button>
+                                     </div>
                                  </div>
-                                 
-                                 <div style={{ fontSize: '0.75rem', color: '#a0aec0', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', padding: '0 4px' }}>
+
+                                 <div style={{ fontSize: '0.72rem', color: '#a0aec0', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', padding: '0 4px' }}>
                                      <span>W: {(selectedW * w / 100).toFixed(1)}px</span>
                                      <span>H: {(selectedH * h / 100).toFixed(1)}px</span>
                                  </div>
+
                                  
                                  <div style={{ fontSize: '0.75rem', color: '#00f0ff', marginBottom: '16px', textAlign: 'center', background: 'rgba(0,240,255,0.1)', padding: '6px', borderRadius: '4px' }}>
                                      💡 <b>Tip:</b> Usa las <b>Flechas del teclado</b> para mover el lote con precisión. (Shift + Flechas para mover más rápido)
