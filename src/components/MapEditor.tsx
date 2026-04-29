@@ -407,17 +407,20 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
         img.src = imageUrl;
         img.onload = () => {
             const canvas = document.createElement('canvas');
-            canvas.width  = img.naturalWidth  || w;
-            canvas.height = img.naturalHeight || h;
+            // ⚠️ Usar las dimensiones del LAYOUT (donde están calibrados los polígonos),
+            // no las dimensiones naturales de la imagen. Así los % coinciden exactamente.
+            canvas.width  = w;
+            canvas.height = h;
             const ctx = canvas.getContext('2d')!;
 
-            // 1. Fondo blanco + imagen
+            // 1. Fondo blanco + imagen escalada al tamaño del layout
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-            const cw = canvas.width;
-            const ch = canvas.height;
+            const cw = canvas.width;   // = w (layout width)
+            const ch = canvas.height;  // = h (layout height)
+
 
             // 2. Polígonos con color de estatus semi-transparente
             const fillColors: Record<EstatusManual, string> = {
