@@ -451,7 +451,8 @@ export default function Inventario() {
                         <MapEditor 
                             key="mza3"
                             condominio="Manzana 3" 
-                            imageUrl="/Planos/CONDOMINIO 3 AVE DE PARAISO 03-02-26.png" 
+                            imageUrl="/Planos/plano manzana 3 2.1.jpeg" 
+
                             houseStatuses={statusesMap}
                             itemsData={itemsDataMap}
                         />
