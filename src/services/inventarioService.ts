@@ -37,7 +37,8 @@ export const fetchInventario = async (): Promise<InventarioItem[]> => {
                 return (
                     mza !== '' &&
                     !isNaN(Number(mza)) &&
-                    (cond.includes('TUCAN') || cond.includes('AVE') || cond.includes('PARAISO'))
+                    // Tolerante a typos: TUCA cubre TUCAN, TUCÁN, etc.
+                    (cond.includes('TUC') || cond.includes('AVE') || cond.includes('PARAISO'))
                 );
             })
             .map(row => ({
@@ -53,7 +54,12 @@ export const fetchInventario = async (): Promise<InventarioItem[]> => {
                 excedente: String(row[10] || '').trim(),
                 esquina: String(row[11] || '').trim(),
                 esquemaVenta: String(row[12] || '').trim(),
-                estatus: String(row[13] || '').trim().toUpperCase(),
+                estatus: (() => {
+                    const raw = String(row[13] || '').trim().toUpperCase();
+                    // Normalizar typos comunes del Excel
+                    if (raw === 'DUSPONIBLE' || raw === 'DISPOINBLE' || raw === 'DISPONBLE') return 'DISPONIBLE';
+                    return raw;
+                })(),
                 fechaEscrituracion: String(row[14] || '').trim(),
             }));
 
