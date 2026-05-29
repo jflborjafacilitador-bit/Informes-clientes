@@ -17,7 +17,7 @@ export interface InventarioItem {
     fechaEscrituracion: string;
 }
 
-const EXCEL_URL = '/Inventario/inventario 13-5-26.xlsx';
+const EXCEL_URL = '/Inventario/inventario 28 de mayo.xlsx';
 
 export const fetchInventario = async (): Promise<InventarioItem[]> => {
     try {
