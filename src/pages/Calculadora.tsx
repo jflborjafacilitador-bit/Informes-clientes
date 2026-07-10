@@ -697,6 +697,29 @@ export default function Calculadora() {
 
             // Añadir extras a la propiedad
             if (num(descuento) > 0) propertyBody.push(['Descuento', `-${fmt(num(descuento))}`]);
+            
+            // Si la versión no es AUSTERA, detallar el equipamiento incluido de serie
+            const versionUpper = version.toUpperCase();
+            const esEquipada = versionUpper.includes('EQUIPADA');
+            const esElite = versionUpper.includes('ELITE');
+            const esPlus = modelo.toUpperCase().includes('PLUS');
+
+            if (esEquipada) {
+                const closetVal = esPlus ? 68000 : 29000;
+                const persianasVal = esPlus ? 16500 : 11500;
+                propertyBody.push(
+                    ['Equipamiento: Cocina con Granito', `Incluido (${fmt(65000)})`],
+                    ['Equipamiento: Clósets en Recámaras', `Incluido (${fmt(closetVal)})`],
+                    ['Equipamiento: Persianas de Serie', `Incluido (${fmt(persianasVal)})`],
+                    ['Equipamiento: Cancel de Baño (Rec. Principal)', `Incluido (${fmt(10000)})`]
+                );
+            }
+            if (esElite) {
+                propertyBody.push(
+                    ['Equipamiento: Recámara Adicional PB (Elite)', `Incluido (${fmt(88000)})`]
+                );
+            }
+
             if (extraEsquina) propertyBody.push(['Extra: Terreno Excedente / Esquina', fmt(num(costoEsquina))]);
             extrasSeleccionados.forEach(item => {
                 propertyBody.push([`Extra: ${item.nombre}`, fmt(item.precio)]);
