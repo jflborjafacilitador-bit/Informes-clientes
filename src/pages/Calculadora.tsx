@@ -583,11 +583,17 @@ export default function Calculadora() {
     useEffect(() => {
         const loadInventario = async () => {
             try {
-                const [data, ovr] = await Promise.all([fetchInventario(), fetchEstatusOverrides()]);
+                const data = await fetchInventario();
                 setInventarioItems(data);
+            } catch (err) {
+                console.error("Error al cargar inventario desde Excel:", err);
+            }
+            try {
+                const ovr = await fetchEstatusOverrides();
                 setEstatusOverrides(ovr);
             } catch (err) {
-                console.error("Error al cargar inventario para la calculadora:", err);
+                console.error("Error al cargar estatus overrides desde Supabase:", err);
+                setEstatusOverrides(new Map());
             }
         };
         loadInventario();

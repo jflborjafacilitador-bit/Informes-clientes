@@ -161,11 +161,18 @@ export default function Inventario() {
         setLoading(true);
         setError(null);
         try {
-            const [data, ovr] = await Promise.all([fetchInventario(), fetchEstatusOverrides()]);
+            const data = await fetchInventario();
             setItems(data);
+        } catch (err) {
+            console.error("Error al cargar inventario desde Excel:", err);
+            setError('No se pudo cargar el archivo de inventario. Verifica tu conexión.');
+        }
+        try {
+            const ovr = await fetchEstatusOverrides();
             setOverrides(ovr);
-        } catch {
-            setError('No se pudo cargar el inventario. Verifica tu conexión.');
+        } catch (err) {
+            console.error("Error al cargar estatus overrides desde Supabase:", err);
+            setOverrides(new Map());
         } finally {
             setLoading(false);
         }

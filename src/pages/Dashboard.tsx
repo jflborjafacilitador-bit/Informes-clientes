@@ -92,7 +92,21 @@ export default function Dashboard() {
         if (session && role) {
             loadData();
             // Cargar inventario
-            Promise.all([fetchInventario(), fetchEstatusOverrides()]).then(([items, overrides]) => {
+            const loadInventarioData = async () => {
+                let items: any[] = [];
+                let overrides = new Map<string, any>();
+                try {
+                    items = await fetchInventario();
+                } catch (err) {
+                    console.error("Error al cargar inventario desde Excel:", err);
+                    return;
+                }
+                try {
+                    overrides = await fetchEstatusOverrides();
+                } catch (err) {
+                    console.error("Error al cargar estatus overrides desde Supabase:", err);
+                }
+
                 let disp = 0;
                 const mzaDisp: Record<string, number> = {};
                 items.forEach(i => {
@@ -107,7 +121,8 @@ export default function Dashboard() {
                 setInvDisponibles(disp);
                 setInvTotal(items.length);
                 setInvDisponiblesMza(mzaDisp);
-            }).catch(() => { });
+            };
+            loadInventarioData();
             const channel = supabase.channel('realtime_dashboard')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'client_overrides' }, () => { loadData(); })
                 .subscribe();
