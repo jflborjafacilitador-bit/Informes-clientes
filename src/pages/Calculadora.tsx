@@ -4,6 +4,8 @@ import { useSearchParams } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { PRECIOS } from '../data/precios';
+import { fetchInventario, type InventarioItem } from '../services/inventarioService';
+import { fetchEstatusOverrides, resolveEstatus } from '../services/inventarioEstatusService';
 
 type TipoCredito =
     | 'INFONAVIT'
@@ -29,10 +31,19 @@ const fmt = (n: number) =>
 // Remove symbols so formatting like "$83,000" correctly parses into `83000`.
 const num = (v: string | number) => typeof v === 'number' ? v : (parseFloat((v || '').replace(/[^0-9.-]+/g, '')) || 0);
 
+const cleanProto = (p: string): string => {
+    const s = (p || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (s.includes('ROOF')) return 'ROOF';
+    if (s.includes('FA')) return 'FA';
+    if (s.includes('PLUS')) return 'PLUS';
+    if (s.includes('QUETZAL')) return 'QUETZAL';
+    return s;
+};
+
 const Field = ({
-    label, value, onChange, readOnly = false, helperText, prefix,
+    label, value, onChange, readOnly = false, helperText, prefix, placeholder,
 }: {
-    label: string; value: string; onChange?: (v: string) => void; readOnly?: boolean; helperText?: React.ReactNode; prefix?: string;
+    label: string; value: string; onChange?: (v: string) => void; readOnly?: boolean; helperText?: React.ReactNode; prefix?: string; placeholder?: string;
 }) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -44,6 +55,7 @@ const Field = ({
                 type="text"
                 readOnly={readOnly}
                 value={value}
+                placeholder={placeholder}
                 onChange={e => onChange?.(e.target.value)}
                 style={{
                     background: readOnly ? 'rgba(34,197,94,0.05)' : 'var(--panel-item-bg)',
@@ -98,8 +110,8 @@ const Select = ({ label, value, options, onChange }: {
                     outline: 'none',
                 }}
             >
-                <option value="" style={{ color: 'var(--text-main)', background: 'var(--panel-item-bg)' }}>— Seleccionar —</option>
-                {options.map(o => <option key={o} value={o} style={{ color: 'var(--text-main)', background: 'var(--panel-item-bg)' }}>{o}</option>)}
+                <option value="" style={{ color: 'var(--text-main)', background: 'var(--bg-dark)' }}>— Seleccionar —</option>
+                {options.map(o => <option key={o} value={o} style={{ color: 'var(--text-main)', background: 'var(--bg-dark)' }}>{o}</option>)}
             </select>
             <ChevronDown size={16} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
         </div>
@@ -158,6 +170,12 @@ export default function Calculadora() {
     const [modelo, setModelo] = useState(initialModelo);
     const [version, setVersion] = useState(searchParams.get('version') || '');
     const [tipo, setTipo] = useState<TipoCredito | ''>('');
+    const [nombreCliente, setNombreCliente] = useState('');
+
+    // Inventario y disponibilidad de casas
+    const [inventarioItems, setInventarioItems] = useState<InventarioItem[]>([]);
+    const [estatusOverrides, setEstatusOverrides] = useState<Map<string, any>>(new Map());
+    const [casaSeleccionada, setCasaSeleccionada] = useState('');
 
     // Campos editables
     const [gastosNot, setGastosNot] = useState('');
@@ -171,6 +189,24 @@ export default function Calculadora() {
     // Especial Contado / CFE
     const [montoDisponible, setMontoDisponible] = useState('');
     const [usarAvaluo, setUsarAvaluo] = useState(false);
+
+    // Nuevas configuraciones de crédito conyugal y subtipos
+    const [esConyugal, setEsConyugal] = useState(false);
+    const [esFovisssteDirecto, setEsFovisssteDirecto] = useState(false);
+    const [creditoConyuge, setCreditoConyuge] = useState('');
+    const [subcuentaConyuge, setSubcuentaConyuge] = useState('');
+    const [creditoBancoConyuge, setCreditoBancoConyuge] = useState('');
+    const [ahorroVoluntarioConyuge, setAhorroVoluntarioConyuge] = useState('');
+
+    // Nuevos campos de gastos e impuestos editables
+    const [ahorroVoluntario, setAhorroVoluntario] = useState('');
+    const [costoAvaluo, setCostoAvaluo] = useState('');
+    const [gastosTitulacion, setGastosTitulacion] = useState('');
+    const [gastosTitulacionConyuge, setGastosTitulacionConyuge] = useState('');
+    const [gastosOriginacion, setGastosOriginacion] = useState('');
+    const [gastosOriginacionConyuge, setGastosOriginacionConyuge] = useState('');
+    const [impuestosDerechos, setImpuestosDerechos] = useState('');
+    const [pagoInicial, setPagoInicial] = useState('');
 
     // Extras
     const [extraPersianas, setExtraPersianas] = useState(false);
@@ -186,6 +222,32 @@ export default function Calculadora() {
 
     const versiones = useMemo(() =>
         (manzana && PRECIOS[manzana] && modelo) ? PRECIOS[manzana].filter(r => r.modelo === modelo).map(r => r.version) : [], [manzana, modelo]);
+
+    const casasFiltradas = useMemo(() => {
+        if (!manzana || !modelo) return [];
+        const selMzaNum = manzana.replace(/[^0-9]/g, '');
+        const targetCleanProto = cleanProto(modelo);
+        return inventarioItems.filter(item => {
+            const mzaNum = item.mza.replace(/[^0-9]/g, '');
+            const mzaOk = mzaNum === selMzaNum;
+            if (!mzaOk) return false;
+            
+            // Estricta coincidencia de modelo
+            if (cleanProto(item.prototipo) !== targetCleanProto) return false;
+
+            // Solo mostrar casas con estatus DISPONIBLE
+            const est = resolveEstatus(item.mza, item.casa, item.estatus, estatusOverrides);
+            return est === 'DISPONIBLE';
+        });
+    }, [inventarioItems, manzana, modelo, estatusOverrides]);
+
+    const estatusCasaSeleccionada = useMemo(() => {
+        if (!casaSeleccionada || !manzana) return null;
+        const selMzaNum = manzana.replace(/[^0-9]/g, '');
+        const item = inventarioItems.find(i => i.mza.replace(/[^0-9]/g, '') === selMzaNum && i.casa === casaSeleccionada);
+        if (!item) return null;
+        return resolveEstatus(item.mza, item.casa, item.estatus, estatusOverrides);
+    }, [casaSeleccionada, manzana, inventarioItems, estatusOverrides]);
 
     const precioBase = useMemo(() => {
         if (!manzana || !PRECIOS[manzana] || !modelo || !version) return 0;
@@ -213,105 +275,303 @@ export default function Calculadora() {
         if (!tipo || !precioOperacion) return null;
         const subtotal = precioOperacion - num(descuento);
         const pv = subtotal + extrasTotal; // Precio de Venta (con extras)
-        const gn = num(gastosNot);
-        const total = pv + gn;
         const apt = num(apartado);
+
         let diferencia = 0;
         let desglose: { label: string; monto: number }[] = [];
 
+        // Parsing fields
+        const credVal = num(credito);
+        const subVal = num(subcuenta);
+        const ahorroVal = num(ahorroVoluntario);
+        const impDerVal = num(impuestosDerechos);
+        const avaluoVal = num(costoAvaluo);
+        const titVal = num(gastosTitulacion);
+
+        const credConyVal = num(creditoConyuge);
+        const subConyVal = num(subcuentaConyuge);
+        const titConyVal = num(gastosTitulacionConyuge);
+        const ahorroConyVal = num(ahorroVoluntarioConyuge);
+
+        const origVal = num(gastosOriginacion);
+        const origConyVal = num(gastosOriginacionConyuge);
+
+        const credBcoVal = num(creditoBanco);
+        const credBcoConyVal = num(creditoBancoConyuge);
+
+        const pagoInitVal = num(pagoInicial);
+
         if (tipo === 'INFONAVIT') {
-            const cred = num(credito);
-            const sub = num(subcuenta);
-            diferencia = total - cred - sub - apt;
-            desglose = [
-                { label: 'Valor Vivienda', monto: pv },
-                { label: 'Gastos Notariales', monto: gn },
-                { label: 'Valor Total', monto: total },
-                { label: 'Crédito INFONAVIT', monto: -cred },
-                { label: 'Subcuenta Vivienda', monto: -sub },
-                { label: 'Apartado', monto: -apt },
-            ];
+            if (esConyugal) {
+                // INFONAVIT Conyugal
+                const capacidadTitular = credVal + subVal - titVal;
+                const capacidadConyuge = credConyVal + subConyVal - titConyVal;
+                const capacidadTotal = capacidadTitular + capacidadConyuge + ahorroVal - impDerVal - avaluoVal;
+                diferencia = pv - capacidadTotal;
+
+                desglose = [
+                    { label: 'Valor Vivienda (con Extras)', monto: pv },
+                    { label: 'Impuestos y Derechos (Aprox.)', monto: impDerVal },
+                    { label: 'Costo de Avalúo', monto: avaluoVal },
+                    { label: 'Crédito INFONAVIT Titular', monto: -credVal },
+                    { label: 'Subcuenta Vivienda Titular', monto: -subVal },
+                    { label: 'Gastos Titulación Titular', monto: titVal },
+                    { label: 'Crédito INFONAVIT Cónyuge', monto: -credConyVal },
+                    { label: 'Subcuenta Vivienda Cónyuge', monto: -subConyVal },
+                    { label: 'Gastos Titulación Cónyuge', monto: titConyVal },
+                    { label: 'Ahorro Voluntario', monto: -ahorroVal },
+                    { label: 'Apartado', monto: -apt },
+                ];
+            } else {
+                // INFONAVIT Individual
+                const capacidadTotal = credVal + subVal + ahorroVal - impDerVal - avaluoVal - titVal;
+                diferencia = pv - capacidadTotal;
+
+                desglose = [
+                    { label: 'Valor Vivienda (con Extras)', monto: pv },
+                    { label: 'Impuestos y Derechos (Aprox.)', monto: impDerVal },
+                    { label: 'Costo de Avalúo', monto: avaluoVal },
+                    { label: 'Gastos de Titulación', monto: titVal },
+                    { label: 'Crédito INFONAVIT', monto: -credVal },
+                    { label: 'Subcuenta de Vivienda', monto: -subVal },
+                    { label: 'Ahorro Voluntario', monto: -ahorroVal },
+                    { label: 'Apartado', monto: -apt },
+                ];
+            }
         } else if (tipo === 'FOVISSSTE') {
-            const cred = num(credito);
-            diferencia = total - cred - apt;
-            desglose = [
-                { label: 'Valor Vivienda', monto: pv },
-                { label: 'Gastos Notariales', monto: gn },
-                { label: 'Valor Total', monto: total },
-                { label: 'Crédito FOVISSSTE', monto: -cred },
-                { label: 'Apartado', monto: -apt },
-            ];
+            if (esFovisssteDirecto) {
+                // FOVISSSTE Directo
+                if (esConyugal) {
+                    // FOVISSSTE Directo Conyugal
+                    const totalCost = pv + impDerVal + origVal + origConyVal;
+                    diferencia = totalCost - credVal - credConyVal;
+
+                    desglose = [
+                        { label: 'Valor Vivienda (con Extras)', monto: pv },
+                        { label: 'Gastos Notariales / Derechos', monto: impDerVal },
+                        { label: 'Gastos Originación Titular', monto: origVal },
+                        { label: 'Gastos Originación Cónyuge', monto: origConyVal },
+                        { label: 'Crédito FOVISSSTE Titular', monto: -credVal },
+                        { label: 'Crédito FOVISSSTE Cónyuge', monto: -credConyVal },
+                        { label: 'Apartado / Anticipo', monto: -apt },
+                    ];
+                } else {
+                    // FOVISSSTE Directo Individual
+                    const totalCost = pv + impDerVal + origVal;
+                    diferencia = totalCost - credVal;
+
+                    desglose = [
+                        { label: 'Valor Vivienda (con Extras)', monto: pv },
+                        { label: 'Gastos Notariales y Avalúo', monto: impDerVal },
+                        { label: 'Gastos de Originación', monto: origVal },
+                        { label: 'Crédito FOVISSSTE', monto: -credVal },
+                        { label: 'Apartado / Anticipo', monto: -apt },
+                    ];
+                }
+            } else {
+                // FOVISSSTE Tradicional
+                if (esConyugal) {
+                    // FOVISSSTE Tradicional Conyugal
+                    const totalCost = pv + impDerVal;
+                    diferencia = totalCost - credVal - credConyVal;
+
+                    desglose = [
+                        { label: 'Valor Vivienda (con Extras)', monto: pv },
+                        { label: 'Gastos Notariales y Avalúo', monto: impDerVal },
+                        { label: 'Crédito FOVISSSTE Titular', monto: -credVal },
+                        { label: 'Crédito FOVISSSTE Cónyuge', monto: -credConyVal },
+                        { label: 'Apartado', monto: -apt },
+                    ];
+                } else {
+                    // FOVISSSTE Tradicional Individual
+                    const totalCost = pv + impDerVal;
+                    diferencia = totalCost - credVal;
+
+                    desglose = [
+                        { label: 'Valor Vivienda (con Extras)', monto: pv },
+                        { label: 'Gastos Notariales y Avalúo', monto: impDerVal },
+                        { label: 'Crédito FOVISSSTE', monto: -credVal },
+                        { label: 'Apartado', monto: -apt },
+                    ];
+                }
+            }
         } else if (tipo === 'CFE') {
-            const disponible = num(montoDisponible);
-            diferencia = total - disponible - apt;
+            // Contado / CFE
+            const totalCost = pv;
+            diferencia = totalCost - pagoInitVal - apt;
+
             desglose = [
-                { label: 'Valor Vivienda', monto: pv },
-                { label: 'Gastos Notariales', monto: gn },
-                { label: 'Valor Total', monto: total },
-                { label: 'Monto Disponible', monto: -disponible },
+                { label: 'Valor Vivienda (con Extras)', monto: pv },
+                { label: 'Pago Inicial', monto: -pagoInitVal },
                 { label: 'Apartado', monto: -apt },
             ];
         } else if (tipo === 'BANCARIO') {
-            const cred = num(creditoBanco);
-            diferencia = total - cred - apt;
-            desglose = [
-                { label: 'Valor Vivienda', monto: pv },
-                { label: 'Gastos Notariales', monto: gn },
-                { label: 'Valor Total', monto: total },
-                { label: 'Crédito Bancario', monto: -cred },
-                { label: 'Apartado', monto: -apt },
-            ];
+            // Bancario
+            const totalCost = pv + impDerVal;
+            const recursos = esConyugal
+                ? (credBcoVal + credBcoConyVal + ahorroVal + ahorroConyVal)
+                : (credBcoVal + ahorroVal);
+            diferencia = totalCost - recursos;
+
+            if (esConyugal) {
+                desglose = [
+                    { label: 'Valor Vivienda (con Extras)', monto: pv },
+                    { label: 'Gastos Notariales Aprox.', monto: impDerVal },
+                    { label: 'Crédito Bancario Titular', monto: -credBcoVal },
+                    { label: 'Ahorro Voluntario Titular', monto: -ahorroVal },
+                    { label: 'Crédito Bancario Cónyuge', monto: -credBcoConyVal },
+                    { label: 'Ahorro Voluntario Cónyuge', monto: -ahorroConyVal },
+                    { label: 'Apartado', monto: -apt },
+                ];
+            } else {
+                desglose = [
+                    { label: 'Valor Vivienda (con Extras)', monto: pv },
+                    { label: 'Gastos Notariales Aprox.', monto: impDerVal },
+                    { label: 'Crédito Bancario', monto: -credBcoVal },
+                    { label: 'Ahorro Voluntario', monto: -ahorroVal },
+                    { label: 'Apartado', monto: -apt },
+                ];
+            }
         } else if (tipo === 'COFINAVIT') {
-            const credInf = num(credito);
-            const sub = num(subcuenta);
-            const credBco = num(creditoBanco);
-            diferencia = total - credInf - sub - credBco - apt;
-            desglose = [
-                { label: 'Valor Vivienda', monto: pv },
-                { label: 'Gastos Notariales', monto: gn },
-                { label: 'Valor Total', monto: total },
-                { label: 'Crédito INFONAVIT', monto: -credInf },
-                { label: 'Subcuenta Vivienda', monto: -sub },
-                { label: 'Crédito Banco', monto: -credBco },
-                { label: 'Apartado', monto: -apt },
-            ];
+            // Cofinavit
+            const totalCost = pv + impDerVal;
+            const recursosTitular = credVal + subVal + ahorroVal + credBcoVal;
+            const recursosConyuge = credConyVal + subConyVal + ahorroConyVal + credBcoConyVal;
+            const recursos = esConyugal ? (recursosTitular + recursosConyuge) : recursosTitular;
+            diferencia = totalCost - recursos;
+
+            if (esConyugal) {
+                desglose = [
+                    { label: 'Valor Vivienda (con Extras)', monto: pv },
+                    { label: 'Gastos Notariales Aprox.', monto: impDerVal },
+                    { label: 'Crédito Cofinavit Titular', monto: -credVal },
+                    { label: 'Subcuenta Vivienda Titular', monto: -subVal },
+                    { label: 'Crédito Bancario Titular', monto: -credBcoVal },
+                    { label: 'Ahorro Voluntario Titular', monto: -ahorroVal },
+                    { label: 'Crédito Cofinavit Cónyuge', monto: -credConyVal },
+                    { label: 'Subcuenta Vivienda Cónyuge', monto: -subConyVal },
+                    { label: 'Crédito Bancario Cónyuge', monto: -credBcoConyVal },
+                    { label: 'Ahorro Voluntario Cónyuge', monto: -ahorroConyVal },
+                    { label: 'Apartado', monto: -apt },
+                ];
+            } else {
+                desglose = [
+                    { label: 'Valor Vivienda (con Extras)', monto: pv },
+                    { label: 'Gastos Notariales Aprox.', monto: impDerVal },
+                    { label: 'Crédito Cofinavit', monto: -credVal },
+                    { label: 'Subcuenta de Vivienda', monto: -subVal },
+                    { label: 'Crédito Bancario', monto: -credBcoVal },
+                    { label: 'Ahorro Voluntario', monto: -ahorroVal },
+                    { label: 'Apartado', monto: -apt },
+                ];
+            }
         } else if (tipo === 'FOVISSSTE_INFONAVIT') {
-            const credInf = num(credito);
-            const sub = num(subcuenta);
-            const credFov = num(creditoFoviss);
-            diferencia = total - credInf - sub - credFov - apt;
+            // Info-Fovissste (Inherently Joint)
+            const totalCost = pv + impDerVal;
+            const recursosFovissste = credVal + subVal;
+            const recursosInfonavit = credConyVal + subConyVal + ahorroConyVal - titConyVal;
+            diferencia = totalCost - recursosFovissste - recursosInfonavit;
+
             desglose = [
-                { label: 'Valor Vivienda', monto: pv },
-                { label: 'Gastos Not. FOVISSSTE', monto: gn },
-                { label: 'Valor Total', monto: total },
-                { label: 'Crédito INFONAVIT', monto: -credInf },
-                { label: 'Subcuenta Vivienda', monto: -sub },
-                { label: 'Crédito FOVISSSTE', monto: -credFov },
+                { label: 'Valor Vivienda (con Extras)', monto: pv },
+                { label: 'Gastos Notariales', monto: impDerVal },
+                { label: 'Crédito FOVISSSTE (Titular)', monto: -credVal },
+                { label: 'Subcuenta FOVISSSTE (Titular)', monto: -subVal },
+                { label: 'Crédito INFONAVIT (Cónyuge)', monto: -credConyVal },
+                { label: 'Subcuenta INFONAVIT (Cónyuge)', monto: -subConyVal },
+                { label: 'Gastos Titulación (Cónyuge)', monto: titConyVal },
+                { label: 'Ahorro Voluntario (Cónyuge)', monto: -ahorroConyVal },
                 { label: 'Apartado', monto: -apt },
             ];
         }
 
-        return { diferencia, desglose, total, extrasTotal };
-    }, [tipo, precioOperacion, descuento, gastosNot, credito, subcuenta, creditoBanco, creditoFoviss, apartado, extrasTotal, montoDisponible]);
+        const diferenciaFinal = diferencia - apt;
+        return { diferencia: diferenciaFinal, desglose, total: pv + impDerVal, extrasTotal };
+    }, [
+        tipo, precioOperacion, descuento, gastosNot, credito, subcuenta, creditoBanco, creditoFoviss, apartado, extrasTotal,
+        esConyugal, esFovisssteDirecto, creditoConyuge, subcuentaConyuge, creditoBancoConyuge, ahorroVoluntarioConyuge,
+        ahorroVoluntario, costoAvaluo, gastosTitulacion, gastosTitulacionConyuge, gastosOriginacion, gastosOriginacionConyuge,
+        impuestosDerechos, pagoInicial, montoDisponible
+    ]);
 
     // Efecto para calcular Gastos Notariales en base al Avalúo
     useEffect(() => {
         if (!tipo || !precioBase) return;
 
         const currentItem = PRECIOS[manzana]?.find(r => r.modelo === modelo && r.version === version);
-        if (!currentItem || !currentItem.avaluo) return;
+        const av = currentItem?.avaluo || precioBase;
 
-        let pct = 0;
-        if (tipo === 'INFONAVIT') pct = 0.05;
-        else if (tipo === 'FOVISSSTE' || tipo === 'CFE' || tipo === 'FOVISSSTE_INFONAVIT') pct = 0.07;
-        else if (tipo === 'BANCARIO' || tipo === 'COFINAVIT') pct = 0.06;
+        // 1. Impuestos y Derechos
+        let pctImpuestos = 0.05; // Infonavit / Cofinavit
+        if (tipo === 'FOVISSSTE' || tipo === 'FOVISSSTE_INFONAVIT') pctImpuestos = 0.07;
+        else if (tipo === 'BANCARIO') pctImpuestos = 0.075;
+        setImpuestosDerechos(fmt(av * pctImpuestos));
 
-        if (pct > 0) {
-            setGastosNot(fmt(currentItem.avaluo * pct));
+        // 2. Costo de Avalúo
+        if (tipo === 'INFONAVIT' || tipo === 'FOVISSSTE' || tipo === 'FOVISSSTE_INFONAVIT' || tipo === 'COFINAVIT') {
+            setCostoAvaluo(fmt(7000));
         } else {
-            setGastosNot('');
+            setCostoAvaluo('$0');
         }
-    }, [tipo, manzana, modelo, version, precioBase]);
+
+        // 3. Gastos de Titulación (titular)
+        const credVal = num(credito);
+        if (tipo === 'INFONAVIT' || tipo === 'COFINAVIT') {
+            setGastosTitulacion(fmt(credVal * 0.03));
+        } else {
+            setGastosTitulacion('$0');
+        }
+
+        // 4. Gastos de Titulación (cónyuge)
+        const credConyVal = num(creditoConyuge);
+        if (esConyugal && (tipo === 'INFONAVIT' || tipo === 'COFINAVIT')) {
+            setGastosTitulacionConyuge(fmt(credConyVal * 0.03));
+        } else {
+            setGastosTitulacionConyuge('$0');
+        }
+
+        // 5. Gastos de Originación
+        if (tipo === 'FOVISSSTE' && esFovisssteDirecto) {
+            setGastosOriginacion(fmt(37500));
+            if (esConyugal) {
+                setGastosOriginacionConyuge(fmt(37500));
+            } else {
+                setGastosOriginacionConyuge('$0');
+            }
+        } else {
+            setGastosOriginacion('$0');
+            setGastosOriginacionConyuge('$0');
+        }
+
+        // 6. Pago Inicial (Contado / CFE)
+        if (tipo === 'CFE') {
+            setPagoInicial(fmt(10000));
+        } else {
+            setPagoInicial('$0');
+        }
+
+        // 7. Gastos Notariales Aprox. (Para pantallas viejas que usan gastosNot)
+        let pctNot = 0.05;
+        if (tipo === 'INFONAVIT') pctNot = 0.05;
+        else if (tipo === 'FOVISSSTE' || tipo === 'CFE' || tipo === 'FOVISSSTE_INFONAVIT') pctNot = 0.07;
+        else if (tipo === 'BANCARIO' || tipo === 'COFINAVIT') pctNot = 0.06;
+        setGastosNot(fmt(av * pctNot));
+
+    }, [tipo, manzana, modelo, version, precioBase, credito, creditoConyuge, esConyugal, esFovisssteDirecto]);
+
+    // Cargar inventario al montar
+    useEffect(() => {
+        const loadInventario = async () => {
+            try {
+                const [data, ovr] = await Promise.all([fetchInventario(), fetchEstatusOverrides()]);
+                setInventarioItems(data);
+                setEstatusOverrides(ovr);
+            } catch (err) {
+                console.error("Error al cargar inventario para la calculadora:", err);
+            }
+        };
+        loadInventario();
+    }, []);
 
     // Reset al cambiar manzana
     const handleManzana = (v: string) => {
@@ -329,6 +589,24 @@ export default function Calculadora() {
         setMontoDisponible('');
         setExtraPersianas(false); setExtraCancel(false); setExtraProtecciones(false); setExtraEsquina(false);
         setUsarAvaluo(false);
+
+        // Reset nuevos campos
+        setEsConyugal(false);
+        setEsFovisssteDirecto(false);
+        setCreditoConyuge('');
+        setSubcuentaConyuge('');
+        setCreditoBancoConyuge('');
+        setAhorroVoluntarioConyuge('');
+        setAhorroVoluntario('');
+        setCostoAvaluo('');
+        setGastosTitulacion('');
+        setGastosTitulacionConyuge('');
+        setGastosOriginacion('');
+        setGastosOriginacionConyuge('');
+        setImpuestosDerechos('');
+        setPagoInicial('');
+        setNombreCliente('');
+        setCasaSeleccionada('');
     };
 
     // Funciones de conveniencia para botón "Apartado"
@@ -376,12 +654,25 @@ export default function Calculadora() {
             doc.setFont('helvetica', 'bold');
             doc.text('Datos de la Propiedad', 15, 50);
 
-            let propertyBody = [
+            let propertyBody = [];
+            if (nombreCliente.trim()) {
+                propertyBody.push(['Cliente', nombreCliente.trim()]);
+            }
+            propertyBody.push(
                 ['Manzana', manzana],
                 ['Modelo', modelo],
-                ['Versión', version],
+                ['Versión', version]
+            );
+            if (casaSeleccionada) {
+                propertyBody.push(['Casa / Lote', casaSeleccionada]);
+                if (estatusCasaSeleccionada) {
+                    const estLabel = estatusCasaSeleccionada === 'DISPONIBLE' ? 'Disponible' : estatusCasaSeleccionada === 'EN_PROCESO' ? 'En Proceso / Reservada' : 'Vendida';
+                    propertyBody.push(['Disponibilidad', estLabel]);
+                }
+            }
+            propertyBody.push(
                 [usarAvaluo ? 'Valor de Avalúo (Base Calculada)' : 'Precio Base', fmt(precioOperacion || 0)]
-            ];
+            );
 
             // Añadir extras a la propiedad
             if (num(descuento) > 0) propertyBody.push(['Descuento', `-${fmt(num(descuento))}`]);
@@ -509,13 +800,7 @@ export default function Calculadora() {
         }
     };
 
-    // Campos visibles según tipo
-    const showGN = tipo; // Ahora GN se muestra en todos
-    const showCredito = tipo && ['INFONAVIT', 'FOVISSSTE', 'COFINAVIT', 'FOVISSSTE_INFONAVIT'].includes(tipo);
-    const showSubcuenta = tipo && ['INFONAVIT', 'COFINAVIT', 'FOVISSSTE_INFONAVIT'].includes(tipo);
-    const showBanco = tipo && ['BANCARIO', 'COFINAVIT'].includes(tipo);
-    const showFoviss = tipo === 'FOVISSSTE_INFONAVIT';
-    const showMontoDisponible = tipo === 'CFE';
+
 
     const panelStyle: React.CSSProperties = {
         background: 'var(--bg-panel)',
@@ -582,7 +867,32 @@ export default function Calculadora() {
                         <Select label="Manzana" value={manzana} options={Object.keys(PRECIOS)} onChange={handleManzana} />
                         <Select label="Modelo" value={modelo} options={modelos} onChange={handleModelo} />
                         <Select label="Versión" value={version} options={versiones} onChange={handleVersion} />
+                        {manzana && modelo && (
+                            <Select
+                                label="Casa / Lote (Opcional)"
+                                value={casaSeleccionada}
+                                options={['', ...casasFiltradas.map(c => c.casa)]}
+                                onChange={setCasaSeleccionada}
+                            />
+                        )}
                     </div>
+
+                    {casaSeleccionada && estatusCasaSeleccionada && (
+                        <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Estatus de disponibilidad:</span>
+                            <span style={{
+                                fontWeight: 700,
+                                padding: '3px 10px',
+                                borderRadius: '12px',
+                                fontSize: '0.75rem',
+                                background: estatusCasaSeleccionada === 'DISPONIBLE' ? 'rgba(34,197,94,0.15)' : estatusCasaSeleccionada === 'EN_PROCESO' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
+                                color: estatusCasaSeleccionada === 'DISPONIBLE' ? '#22c55e' : estatusCasaSeleccionada === 'EN_PROCESO' ? '#f59e0b' : '#ef4444',
+                                border: `1px solid ${estatusCasaSeleccionada === 'DISPONIBLE' ? 'rgba(34,197,94,0.3)' : estatusCasaSeleccionada === 'EN_PROCESO' ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)'}`
+                            }}>
+                                {estatusCasaSeleccionada === 'DISPONIBLE' ? '🟢 DISPONIBLE' : estatusCasaSeleccionada === 'EN_PROCESO' ? '🟡 EN PROCESO / RESERVADA' : '🔴 VENDIDA'}
+                            </span>
+                        </div>
+                    )}
 
                     {/* Precio base y avalúo */}
                     {precioBase > 0 && (
@@ -657,6 +967,35 @@ export default function Calculadora() {
                                 </button>
                             ))}
                         </div>
+
+                        {/* Sub-opciones de Crédito conyugal y directo */}
+                        {tipo && (tipo === 'INFONAVIT' || tipo === 'FOVISSSTE' || tipo === 'BANCARIO' || tipo === 'COFINAVIT') && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: '1.25rem', padding: '12px', borderRadius: 8, background: 'var(--ghost-bg)', border: '1px solid var(--border-glass)' }}>
+                                <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={esConyugal}
+                                            onChange={e => setEsConyugal(e.target.checked)}
+                                            style={{ cursor: 'pointer', accentColor: 'var(--primary-accent)' }}
+                                        />
+                                        ¿Es crédito conyugal / Unamos Créditos?
+                                    </label>
+
+                                    {tipo === 'FOVISSSTE' && (
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={esFovisssteDirecto}
+                                                onChange={e => setEsFovisssteDirecto(e.target.checked)}
+                                                style={{ cursor: 'pointer', accentColor: 'var(--primary-accent)' }}
+                                            />
+                                            ¿Es Fovissste Directo? (Con Gastos de Originación)
+                                        </label>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -667,37 +1006,135 @@ export default function Calculadora() {
                             3 · Datos del Crédito
                         </h2>
                         <div style={gridStyle}>
+                            <Field label="Nombre del Cliente (Opcional)" value={nombreCliente} onChange={setNombreCliente} placeholder="Ej. Juan Pérez" />
                             <Field label="Costo Total de Operación" value={fmt(precioOperacion + (resultado?.extrasTotal || 0))} readOnly helperText={(usarAvaluo ? "Valor Avalúo" : "Precio Base") + " + Extras"} />
                             <Field label="Descuento (opcional)" value={descuento} onChange={setDescuento} />
 
-                            {showGN && (
+                            {tipo !== 'CFE' && (
                                 <Field
-                                    label="Gastos Notariales"
-                                    value={gastosNot}
-                                    onChange={setGastosNot}
-                                    helperText="Calculado automático según avalúo (Ignorar si no aplica)"
+                                    label="Impuestos y Derechos (Aprox.)"
+                                    value={impuestosDerechos}
+                                    onChange={setImpuestosDerechos}
+                                    helperText="Tasa estimada según tipo de crédito"
                                 />
                             )}
 
-                            {showMontoDisponible && (
+                            {(tipo === 'INFONAVIT' || tipo === 'FOVISSSTE' || tipo === 'FOVISSSTE_INFONAVIT' || tipo === 'COFINAVIT') && (
                                 <Field
-                                    label="Monto que tiene el cliente (Disponible)"
-                                    value={montoDisponible}
-                                    onChange={setMontoDisponible}
-                                    helperText="Fondos propios que aportará"
+                                    label="Costo de Avalúo"
+                                    value={costoAvaluo}
+                                    onChange={setCostoAvaluo}
                                 />
                             )}
 
-                            {showCredito && (
+                            {tipo === 'CFE' && (
                                 <Field
-                                    label={tipo === 'FOVISSSTE' ? 'Crédito FOVISSSTE' : tipo === 'COFINAVIT' || tipo === 'FOVISSSTE_INFONAVIT' ? 'Crédito INFONAVIT' : 'Crédito'}
-                                    value={credito} onChange={setCredito}
+                                    label="Pago Inicial"
+                                    value={pagoInicial}
+                                    onChange={setPagoInicial}
+                                    helperText="Monto inicial del plan de pagos"
                                 />
                             )}
-                            {showSubcuenta && <Field label="Subcuenta Vivienda" value={subcuenta} onChange={setSubcuenta} />}
-                            {showBanco && <Field label="Crédito Bancario" value={creditoBanco} onChange={setCreditoBanco} />}
-                            {showFoviss && <Field label="Crédito FOVISSSTE" value={creditoFoviss} onChange={setCreditoFoviss} />}
 
+                            {/* ─── DATOS TITULAR ─── */}
+                            {tipo !== 'CFE' && (
+                                <Field
+                                    label={esConyugal ? "Crédito Titular" : "Monto de Crédito Autorizado"}
+                                    value={credito}
+                                    onChange={setCredito}
+                                />
+                            )}
+
+                            {['INFONAVIT', 'COFINAVIT', 'FOVISSSTE_INFONAVIT'].includes(tipo) && (
+                                <Field
+                                    label={esConyugal ? "Subcuenta Titular" : "Subcuenta de Vivienda"}
+                                    value={subcuenta}
+                                    onChange={setSubcuenta}
+                                />
+                            )}
+
+                            {['INFONAVIT', 'COFINAVIT'].includes(tipo) && (
+                                <Field
+                                    label={esConyugal ? "Gastos Titulación Titular" : "Gastos de Titulación y Financieros"}
+                                    value={gastosTitulacion}
+                                    onChange={setGastosTitulacion}
+                                    helperText="Aproximadamente 3% del crédito"
+                                />
+                            )}
+
+                            {tipo === 'FOVISSSTE' && esFovisssteDirecto && (
+                                <Field
+                                    label={esConyugal ? "Gastos Originación Titular" : "Gastos de Originación"}
+                                    value={gastosOriginacion}
+                                    onChange={setGastosOriginacion}
+                                    helperText="Costo fijo de originación de crédito"
+                                />
+                            )}
+
+                            {['BANCARIO', 'COFINAVIT'].includes(tipo) && (
+                                <Field
+                                    label={esConyugal ? "Crédito Bancario Titular" : "Crédito Bancario"}
+                                    value={creditoBanco}
+                                    onChange={setCreditoBanco}
+                                />
+                            )}
+
+                            {['INFONAVIT', 'BANCARIO', 'COFINAVIT'].includes(tipo) && (
+                                <Field
+                                    label={esConyugal ? "Ahorro Voluntario Titular" : "Ahorro Voluntario"}
+                                    value={ahorroVoluntario}
+                                    onChange={setAhorroVoluntario}
+                                />
+                            )}
+
+                            {/* ─── DATOS CÓNYUGE (Si aplica) ─── */}
+                            {(esConyugal || tipo === 'FOVISSSTE_INFONAVIT') && (
+                                <>
+                                    <Field
+                                        label={tipo === 'FOVISSSTE_INFONAVIT' ? "Crédito INFONAVIT (Cónyuge)" : "Crédito Cónyuge"}
+                                        value={creditoConyuge}
+                                        onChange={setCreditoConyuge}
+                                    />
+                                    {['INFONAVIT', 'COFINAVIT', 'FOVISSSTE_INFONAVIT'].includes(tipo) && (
+                                        <Field
+                                            label={tipo === 'FOVISSSTE_INFONAVIT' ? "Subcuenta INFONAVIT (Cónyuge)" : "Subcuenta Cónyuge"}
+                                            value={subcuentaConyuge}
+                                            onChange={setSubcuentaConyuge}
+                                        />
+                                    )}
+                                    {['INFONAVIT', 'COFINAVIT', 'FOVISSSTE_INFONAVIT'].includes(tipo) && (
+                                        <Field
+                                            label="Gastos Titulación Cónyuge"
+                                            value={gastosTitulacionConyuge}
+                                            onChange={setGastosTitulacionConyuge}
+                                            helperText="Aproximadamente 3% del crédito"
+                                        />
+                                    )}
+                                    {tipo === 'FOVISSSTE' && esFovisssteDirecto && (
+                                        <Field
+                                            label="Gastos Originación Cónyuge"
+                                            value={gastosOriginacionConyuge}
+                                            onChange={setGastosOriginacionConyuge}
+                                        />
+                                    )}
+                                    {['BANCARIO', 'COFINAVIT'].includes(tipo) && (
+                                        <Field
+                                            label="Crédito Bancario Cónyuge"
+                                            value={creditoBancoConyuge}
+                                            onChange={setCreditoBancoConyuge}
+                                        />
+                                    )}
+                                    {['INFONAVIT', 'BANCARIO', 'COFINAVIT', 'FOVISSSTE_INFONAVIT'].includes(tipo) && (
+                                        <Field
+                                            label="Ahorro Voluntario Cónyuge"
+                                            value={ahorroVoluntarioConyuge}
+                                            onChange={setAhorroVoluntarioConyuge}
+                                        />
+                                    )}
+                                </>
+                            )}
+
+                            {/* ─── APARTADO Y PRESETS ─── */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                 <Field label="Apartado" value={apartado} onChange={setApartado} />
                                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
@@ -758,6 +1195,26 @@ export default function Calculadora() {
                             }} className="glow-text">
                                 {resultado.diferencia <= 0 ? '+' : '-'}{fmt(Math.abs(resultado.diferencia))}
                             </div>
+                        </div>
+
+                        {/* Botón de descargar PDF al final */}
+                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.25rem' }}>
+                            <button
+                                onClick={handleDownloadPDF}
+                                disabled={isGenerating}
+                                style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                    width: '100%',
+                                    background: 'var(--primary-accent)', color: '#0a0f0d',
+                                    border: 'none', borderRadius: 10,
+                                    padding: '12px 24px', fontSize: '0.95rem', fontWeight: 700,
+                                    cursor: isGenerating ? 'wait' : 'pointer', transition: 'all 0.2s',
+                                    boxShadow: '0 4px 12px rgba(34,197,94,0.3)',
+                                }}
+                            >
+                                <Download size={18} />
+                                {isGenerating ? 'Generando PDF...' : 'Descargar Cotización en PDF'}
+                            </button>
                         </div>
                     </div>
                 )}

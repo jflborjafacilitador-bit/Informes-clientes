@@ -105,6 +105,10 @@
   outline: none;
   box-shadow: 0 0 0 3px rgba(0, 107, 44, 0.12) !important;
 }
+select option {
+  background-color: #0a0f0d;
+  color: #e2e8f0;
+}
 [data-theme='light'] select option {
   background: #ffffff;
   color: #171c20;
