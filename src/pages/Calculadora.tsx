@@ -160,20 +160,23 @@ interface ExtraItem {
 }
 
 const EXTRAS_DISPONIBLES: ExtraItem[] = [
-    { id: 'cocina_granito', nombre: 'Cocina Integral Equipada con Barra de Granito', precio: 65000 },
-    { id: 'closet_quetzal', nombre: 'Clóset Quetzal', precio: 29000 },
-    { id: 'closet_quetzal_plus', nombre: 'Clóset Quetzal Plus', precio: 68000 },
-    { id: 'persianas_quetzal', nombre: 'Persianas Quetzal', precio: 11500 },
-    { id: 'persianas_quetzal_plus', nombre: 'Persianas Quetzal Plus', precio: 16500 },
-    { id: 'jaula_patio', nombre: 'Jaula Patio de Servicio', precio: 5000 },
-    { id: 'proteccion_puerta', nombre: 'Protección Puerta Principal', precio: 7800 },
-    { id: 'puerta_ventanal', nombre: 'Puerta Ventanal PB.', precio: 13000 },
-    { id: 'cancel_cristal', nombre: 'Cancel de Baño con Cristal', precio: 10000 },
-    { id: 'paquete_persianas_cocina', nombre: 'Paquete Persianas Cocina y Escaleras', precio: 6000 },
-    { id: 'paquete_herreria_completo', nombre: 'Paquete Herrería Completo', precio: 71781 },
-    { id: 'paquete_herreria_pb', nombre: 'Paquete 1 Herrería P.B', precio: 29557, descripcion: 'Corrediza puerta principal, corrediza ventanal principal, jaula patio de servicio, ventana escalera (tronera)' },
-    { id: 'paquete_herreria_n1', nombre: 'Paquete 2 Herrería N1', precio: 22017, descripcion: 'Corrediza ventanal recámara 1 (terraza), protección recámara 2 (patio trasero), protección baño, ventana escalera (tronera)' },
-    { id: 'paquete_herreria_n2', nombre: 'Paquete 3 Herrería N2', precio: 20207, descripcion: 'Corrediza ventanal recámara 3 (terraza), protección recámara 3 (patio trasero), protección baño' }
+    { id: 'cocina_granito', nombre: 'Cocina Integral Equipada con Barra de Granito', precio: 69000 },
+    { id: 'closet_quetzal', nombre: 'Clóset Duo Quetzal', precio: 34000 },
+    { id: 'closet_quetzal_plus', nombre: 'Clóset Quetzal Plus', precio: 77000 },
+    { id: 'persianas_quetzal', nombre: 'Persianas Quetzal', precio: 12000 },
+    { id: 'persianas_quetzal_plus', nombre: 'Persianas Quetzal Plus', precio: 17000 },
+    { id: 'jaula_patio', nombre: 'Jaula Patio Servicio', precio: 6500 },
+    { id: 'proteccion_puerta', nombre: 'Protección Puerta Principal', precio: 8000 },
+    { id: 'puerta_ventanal', nombre: 'Corrediza Ventanal', precio: 13000 },
+    { id: 'cancel_cristal', nombre: 'Cancel de Baño con Cristal Templado', precio: 10000 },
+    { id: 'paquete_persianas_cocina', nombre: 'Paquete Persianas de Cocina y Escaleras', precio: 8000 },
+    { id: 'paquete_herreria_completo', nombre: 'Paquete Herrería Completo', precio: 72000 },
+    { id: 'paquete_herreria_pb', nombre: 'Paquete 1 Herrería P.B', precio: 31000, descripcion: 'Corrediza puerta principal, corrediza ventanal principal, jaula patio de servicio, ventana escalera (tronera)' },
+    { id: 'paquete_herreria_n1', nombre: 'Paquete 2 Herrería N1', precio: 25000, descripcion: 'Corrediza ventanal recámara 1 (terraza), protección recámara 2 (patio trasero), protección baño, ventana escalera (tronera)' },
+    { id: 'paquete_herreria_n2', nombre: 'Paquete 3 Herrería N2', precio: 21000, descripcion: 'Corrediza ventanal recámara 3 (terraza), protección recámara 3 (patio trasero), protección baño' },
+    { id: 'troneras', nombre: 'Troneras', precio: 900 },
+    { id: 'pergola_roof', nombre: 'Pérgola Roof', precio: 125000 },
+    { id: 'pergola_amplia_n1', nombre: 'Pérgola Amplia N1', precio: 18000 }
 ];
 
 export default function Calculadora() {
