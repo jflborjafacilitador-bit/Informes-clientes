@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Calculator, ChevronDown, Download, CheckSquare, Square } from 'lucide-react';
+import { Calculator, ChevronDown, Download, CheckSquare, Square, AlertTriangle } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -515,13 +515,31 @@ export default function Calculadora() {
             ];
         }
 
-        const diferenciaFinal = diferencia - apt;
-        return { diferencia: diferenciaFinal, desglose, total: pv + impDerVal, extrasTotal };
+        let diferenciaFinal = diferencia - apt;
+
+        // ─── Excedente sobre Avalúo ───────────────────────────────────
+        // El Valor de Avalúo es el tope máximo que el banco reconoce.
+        // Si el costo total (vivienda + gastos notariales + extras) rebasa
+        // el avalúo, esa diferencia la debe cubrir el cliente con recurso propio.
+        // Además, el banco NO puede dar más dinero que el avalúo, por lo tanto
+        // el cliente NUNCA tendrá "saldo a favor" cuando hay excedente.
+        let excedenteAvaluo = 0;
+        if (valAvaluo > 0 && tipo !== 'CFE') {
+            const costoTotal = pv + impDerVal;
+            if (costoTotal > valAvaluo) {
+                excedenteAvaluo = costoTotal - valAvaluo;
+                // La diferencia no puede ser negativa (a favor) cuando hay excedente:
+                // el banco solo financia hasta el avalúo, no devuelve la diferencia.
+                diferenciaFinal = Math.max(diferenciaFinal, excedenteAvaluo);
+            }
+        }
+
+        return { diferencia: diferenciaFinal, desglose, total: pv + impDerVal, extrasTotal, excedenteAvaluo };
     }, [
         tipo, precioOperacion, descuento, gastosNot, credito, subcuenta, creditoBanco, creditoFoviss, apartado, extrasTotal,
         esConyugal, esFovisssteDirecto, creditoConyuge, subcuentaConyuge, creditoBancoConyuge, ahorroVoluntarioConyuge,
         ahorroVoluntario, gastosTitulacion, gastosTitulacionConyuge, gastosOriginacion, gastosOriginacionConyuge,
-        impuestosDerechos, pagoInicial, montoDisponible
+        impuestosDerechos, pagoInicial, montoDisponible, valAvaluo
     ]);
 
     // Efecto para calcular Gastos Notariales en base al Avalúo
@@ -776,8 +794,44 @@ export default function Calculadora() {
                 }
             });
 
-            // 4. Resultado Final
+            // 3.5. Alerta de Excedente sobre Avalúo (si aplica)
             finalY = (doc as any).lastAutoTable.finalY + 10;
+            if ((resultado?.excedenteAvaluo || 0) > 0) {
+                const ambar = [245, 158, 11];
+                // Verificar si hay espacio en la página actual
+                if (finalY + 30 > 265) {
+                    doc.addPage();
+                    finalY = 20;
+                }
+                // Fondo ámbar claro
+                doc.setFillColor(255, 248, 230);
+                doc.rect(15, finalY, 180, 28, 'F');
+                // Borde ámbar
+                doc.setDrawColor(ambar[0], ambar[1], ambar[2]);
+                doc.rect(15, finalY, 180, 28, 'D');
+
+                doc.setTextColor(ambar[0], ambar[1], ambar[2]);
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'bold');
+                doc.text('⚠ EXCEDENTE SOBRE VALOR DE AVALÚO', 20, finalY + 8);
+
+                doc.setTextColor(60, 60, 60);
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'normal');
+                const alertText = `El costo total (${fmt(resultado?.total || 0)}) supera el Valor de Avalúo (${fmt(valAvaluo)}). La diferencia de ${fmt(resultado?.excedenteAvaluo || 0)} debe ser cubierta por el cliente con recursos propios.`;
+                const alertLines = doc.splitTextToSize(alertText, 140);
+                doc.text(alertLines, 20, finalY + 14);
+
+                doc.setTextColor(ambar[0], ambar[1], ambar[2]);
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.text(fmt(resultado?.excedenteAvaluo || 0), 185, finalY + 18, { align: 'right' });
+
+                finalY += 35;
+            }
+
+            // 4. Resultado Final
+            // finalY is already correct if excedente box was rendered above
             const esAFavor = (resultado?.diferencia || 0) <= 0;
             const colorResultado = esAFavor ? verdeQuetzal : [37, 99, 235]; // Verde o Azul
 
@@ -1315,6 +1369,50 @@ export default function Calculadora() {
                                 </div>
                             ))}
                         </div>
+
+                        {/* ─── Alerta: Excedente sobre Valor de Avalúo ─── */}
+                        {resultado.excedenteAvaluo > 0 && (
+                            <div style={{
+                                padding: '1rem 1.25rem',
+                                borderRadius: 12,
+                                background: 'rgba(245,158,11,0.12)',
+                                border: '1px solid rgba(245,158,11,0.4)',
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: 12,
+                                marginBottom: '1rem',
+                            }}>
+                                <AlertTriangle size={22} color="#f59e0b" style={{ flexShrink: 0, marginTop: 2 }} />
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f59e0b', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                        Excedente sobre Valor de Avalúo
+                                    </div>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', lineHeight: 1.5 }}>
+                                        El costo total de la operación (vivienda + gastos notariales{extrasTotal > 0 ? ' + extras' : ''}) supera el <strong>Valor de Avalúo ({fmt(valAvaluo)})</strong>.
+                                        El banco solo financia hasta el monto del avalúo; la diferencia de <strong style={{ color: '#f59e0b' }}>{fmt(resultado.excedenteAvaluo)}</strong> debe ser cubierta por el cliente con <strong>recursos propios</strong>.
+                                    </div>
+                                    <div style={{
+                                        marginTop: 10,
+                                        padding: '8px 12px',
+                                        background: 'rgba(245,158,11,0.08)',
+                                        borderRadius: 8,
+                                        border: '1px solid rgba(245,158,11,0.2)',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        flexWrap: 'wrap',
+                                        gap: 8,
+                                    }}>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                            Costo Total: {fmt(resultado.total)} — Avalúo: {fmt(valAvaluo)}
+                                        </span>
+                                        <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#f59e0b' }}>
+                                            {fmt(resultado.excedenteAvaluo)}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Diferencia final */}
                         <div style={{
