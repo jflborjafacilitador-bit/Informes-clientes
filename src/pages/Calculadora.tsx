@@ -343,8 +343,12 @@ export default function Calculadora() {
         const credBcoEfectivo = Math.min(credBcoVal, maxFinanciable);
         const credBcoConyEfectivo = Math.min(credBcoConyVal, Math.max(0, maxFinanciable - credBcoEfectivo));
 
-        const credInfEfectivo = Math.min(credVal, maxFinanciable);
-        const credInfConyEfectivo = Math.min(credConyVal, Math.max(0, maxFinanciable - credInfEfectivo));
+        // En INFONAVIT: El crédito real a solicitar se ajusta descontando la subcuenta
+        // para que entre Crédito + Subcuenta no se rebase el valor avalúo
+        const subTotalInf = subVal + (esConyugal ? subConyVal : 0);
+        const maxCreditoInfonavit = valAvaluo > 0 ? Math.max(0, valAvaluo - subTotalInf) : Infinity;
+        const credInfEfectivo = Math.min(credVal, maxCreditoInfonavit);
+        const credInfConyEfectivo = Math.min(credConyVal, Math.max(0, maxCreditoInfonavit - credInfEfectivo));
 
         const credFovEfectivo = Math.min(credVal, maxFinanciable);
         const credFovConyEfectivo = Math.min(credConyVal, Math.max(0, maxFinanciable - credFovEfectivo));
@@ -554,7 +558,7 @@ export default function Calculadora() {
         const excedentePendiente = Math.max(0, excedenteAvaluo - recursosPropiosAportados);
         const creditoTopadoPorAvaluo = (
             (tipo === 'BANCARIO' && (credBcoVal + credBcoConyVal) > maxFinanciable) ||
-            (tipo === 'INFONAVIT' && (credVal + credConyVal) > maxFinanciable) ||
+            (tipo === 'INFONAVIT' && (credVal + credConyVal) > maxCreditoInfonavit) ||
             (tipo === 'FOVISSSTE' && (credVal + credConyVal) > maxFinanciable)
         );
 
@@ -589,18 +593,28 @@ export default function Calculadora() {
         else if (tipo === 'BANCARIO') pctImpuestos = 0.075;
         setImpuestosDerechos(fmt(av * pctImpuestos));
 
-        // 3. Gastos de Titulación (titular)
+        // 3. Gastos de Titulación (3% sobre el crédito efectivamente a solicitar)
+        // El monto a solicitar se topa al avalúo descontando la subcuenta de vivienda
+        const subVal = num(subcuenta);
+        const subConyVal = num(subcuentaConyuge);
+        const subTotal = subVal + (esConyugal ? subConyVal : 0);
+        const maxFinanciable = av > 0 ? av : Infinity;
+        const maxCreditoSolicitar = Math.max(0, maxFinanciable - subTotal);
+
         const credVal = num(credito);
+        const credEfectivo = Math.min(credVal, maxCreditoSolicitar);
+
         if (tipo === 'INFONAVIT' || tipo === 'COFINAVIT') {
-            setGastosTitulacion(fmt(credVal * 0.03));
+            setGastosTitulacion(fmt(credEfectivo * 0.03));
         } else {
             setGastosTitulacion('$0');
         }
 
         // 4. Gastos de Titulación (cónyuge)
         const credConyVal = num(creditoConyuge);
+        const credConyEfectivo = Math.min(credConyVal, Math.max(0, maxCreditoSolicitar - credEfectivo));
         if (esConyugal && (tipo === 'INFONAVIT' || tipo === 'COFINAVIT')) {
-            setGastosTitulacionConyuge(fmt(credConyVal * 0.03));
+            setGastosTitulacionConyuge(fmt(credConyEfectivo * 0.03));
         } else {
             setGastosTitulacionConyuge('$0');
         }
@@ -632,7 +646,7 @@ export default function Calculadora() {
         else if (tipo === 'BANCARIO' || tipo === 'COFINAVIT') pctNot = 0.06;
         setGastosNot(fmt(av * pctNot));
 
-    }, [tipo, manzana, modelo, version, precioBase, credito, creditoConyuge, esConyugal, esFovisssteDirecto]);
+    }, [tipo, manzana, modelo, version, precioBase, credito, creditoConyuge, subcuenta, subcuentaConyuge, esConyugal, esFovisssteDirecto]);
 
     // Cargar inventario al montar
     useEffect(() => {
@@ -1289,7 +1303,7 @@ export default function Calculadora() {
                                     label={esConyugal ? "Gastos Titulación Titular" : "Gastos de Titulación y Financieros"}
                                     value={gastosTitulacion}
                                     onChange={setGastosTitulacion}
-                                    helperText="Aproximadamente 3% del crédito"
+                                    helperText="3% del crédito efectivamente a solicitar (topado a avalúo menos subcuenta)"
                                 />
                             )}
 
@@ -1338,7 +1352,7 @@ export default function Calculadora() {
                                             label="Gastos Titulación Cónyuge"
                                             value={gastosTitulacionConyuge}
                                             onChange={setGastosTitulacionConyuge}
-                                            helperText="Aproximadamente 3% del crédito"
+                                            helperText="3% del crédito efectivamente a solicitar (cónyuge)"
                                         />
                                     )}
                                     {tipo === 'FOVISSSTE' && esFovisssteDirecto && (
@@ -1428,7 +1442,7 @@ export default function Calculadora() {
                                     <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', lineHeight: 1.5 }}>
                                         {resultado.creditoTopadoPorAvaluo && (
                                             <div style={{ marginBottom: 6 }}>
-                                                📌 <strong>Tope de financiamiento:</strong> El crédito capturado supera el Valor de Avalúo ({fmt(valAvaluo)}). Se toma el avalúo como financiamiento máximo ya que la institución no desembolsa por encima de ese valor.
+                                                📌 <strong>Tope de financiamiento:</strong> El crédito capturado supera el Valor de Avalúo ({fmt(valAvaluo)}). {num(subcuenta) > 0 ? `Tomando en cuenta la subcuenta de vivienda (${fmt(num(subcuenta))}), el crédito a solicitar se ajusta al monto real requerido para no rebasar el avalúo, y los gastos de titulación (3%) se calculan sobre ese crédito real.` : `Se toma el avalúo como financiamiento máximo ya que la institución no desembolsa por encima de ese valor.`}
                                             </div>
                                         )}
                                         {resultado.excedenteAvaluo > 0 && (
