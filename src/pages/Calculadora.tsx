@@ -333,21 +333,37 @@ export default function Calculadora() {
 
         const pagoInitVal = num(pagoInicial);
 
+        // ─── Tope de Financiamiento: Valor de Avalúo ─────────────────
+        // Ninguna institución financiera desembolsa por encima del avalúo.
+        // Si el cliente tiene un crédito autorizado mayor al avalúo,
+        // el monto financiable real para la compra es a lo sumo el avalúo.
+        const maxFinanciable = valAvaluo > 0 ? valAvaluo : Infinity;
+
+        // Créditos efectivos topados al avalúo
+        const credBcoEfectivo = Math.min(credBcoVal, maxFinanciable);
+        const credBcoConyEfectivo = Math.min(credBcoConyVal, Math.max(0, maxFinanciable - credBcoEfectivo));
+
+        const credInfEfectivo = Math.min(credVal, maxFinanciable);
+        const credInfConyEfectivo = Math.min(credConyVal, Math.max(0, maxFinanciable - credInfEfectivo));
+
+        const credFovEfectivo = Math.min(credVal, maxFinanciable);
+        const credFovConyEfectivo = Math.min(credConyVal, Math.max(0, maxFinanciable - credFovEfectivo));
+
         if (tipo === 'INFONAVIT') {
             if (esConyugal) {
                 // INFONAVIT Conyugal
-                const capacidadTitular = credVal + subVal - titVal;
-                const capacidadConyuge = credConyVal + subConyVal - titConyVal;
+                const capacidadTitular = credInfEfectivo + subVal - titVal;
+                const capacidadConyuge = credInfConyEfectivo + subConyVal - titConyVal;
                 const capacidadTotal = capacidadTitular + capacidadConyuge + ahorroVal - impDerVal - avaluoVal;
                 diferencia = pv - capacidadTotal;
 
                 desglose = [
                     { label: 'Valor Vivienda (con Extras)', monto: pv },
                     { label: 'Impuestos y Derechos (Aprox.)', monto: impDerVal },
-                    { label: 'Crédito INFONAVIT Titular', monto: -credVal },
+                    { label: credVal > credInfEfectivo ? 'Crédito INFONAVIT Titular (Topado a Avalúo)' : 'Crédito INFONAVIT Titular', monto: -credInfEfectivo },
                     { label: 'Subcuenta Vivienda Titular', monto: -subVal },
                     { label: 'Gastos Titulación Titular', monto: titVal },
-                    { label: 'Crédito INFONAVIT Cónyuge', monto: -credConyVal },
+                    { label: credConyVal > credInfConyEfectivo ? 'Crédito INFONAVIT Cónyuge (Topado a Avalúo)' : 'Crédito INFONAVIT Cónyuge', monto: -credInfConyEfectivo },
                     { label: 'Subcuenta Vivienda Cónyuge', monto: -subConyVal },
                     { label: 'Gastos Titulación Cónyuge', monto: titConyVal },
                     { label: 'Ahorro Voluntario', monto: -ahorroVal },
@@ -355,14 +371,14 @@ export default function Calculadora() {
                 ];
             } else {
                 // INFONAVIT Individual
-                const capacidadTotal = credVal + subVal + ahorroVal - impDerVal - avaluoVal - titVal;
+                const capacidadTotal = credInfEfectivo + subVal + ahorroVal - impDerVal - avaluoVal - titVal;
                 diferencia = pv - capacidadTotal;
 
                 desglose = [
                     { label: 'Valor Vivienda (con Extras)', monto: pv },
                     { label: 'Impuestos y Derechos (Aprox.)', monto: impDerVal },
                     { label: 'Gastos de Titulación', monto: titVal },
-                    { label: 'Crédito INFONAVIT', monto: -credVal },
+                    { label: credVal > credInfEfectivo ? 'Crédito INFONAVIT (Topado a Avalúo)' : 'Crédito INFONAVIT', monto: -credInfEfectivo },
                     { label: 'Subcuenta de Vivienda', monto: -subVal },
                     { label: 'Ahorro Voluntario', monto: -ahorroVal },
                     { label: 'Apartado', monto: -apt },
@@ -372,55 +388,51 @@ export default function Calculadora() {
             if (esFovisssteDirecto) {
                 // FOVISSSTE Directo
                 if (esConyugal) {
-                    // FOVISSSTE Directo Conyugal
                     const totalCost = pv + impDerVal + origVal + origConyVal;
-                    diferencia = totalCost - credVal - credConyVal;
+                    diferencia = totalCost - credFovEfectivo - credFovConyEfectivo;
 
                     desglose = [
                         { label: 'Valor Vivienda (con Extras)', monto: pv },
                         { label: 'Gastos Notariales / Derechos', monto: impDerVal },
                         { label: 'Gastos Originación Titular', monto: origVal },
                         { label: 'Gastos Originación Cónyuge', monto: origConyVal },
-                        { label: 'Crédito FOVISSSTE Titular', monto: -credVal },
-                        { label: 'Crédito FOVISSSTE Cónyuge', monto: -credConyVal },
+                        { label: credVal > credFovEfectivo ? 'Crédito FOVISSSTE Titular (Topado a Avalúo)' : 'Crédito FOVISSSTE Titular', monto: -credFovEfectivo },
+                        { label: credConyVal > credFovConyEfectivo ? 'Crédito FOVISSSTE Cónyuge (Topado a Avalúo)' : 'Crédito FOVISSSTE Cónyuge', monto: -credFovConyEfectivo },
                         { label: 'Apartado / Anticipo', monto: -apt },
                     ];
                 } else {
-                    // FOVISSSTE Directo Individual
                     const totalCost = pv + impDerVal + origVal;
-                    diferencia = totalCost - credVal;
+                    diferencia = totalCost - credFovEfectivo;
 
                     desglose = [
                         { label: 'Valor Vivienda (con Extras)', monto: pv },
                         { label: 'Gastos Notariales y Avalúo', monto: impDerVal },
                         { label: 'Gastos de Originación', monto: origVal },
-                        { label: 'Crédito FOVISSSTE', monto: -credVal },
+                        { label: credVal > credFovEfectivo ? 'Crédito FOVISSSTE (Topado a Avalúo)' : 'Crédito FOVISSSTE', monto: -credFovEfectivo },
                         { label: 'Apartado / Anticipo', monto: -apt },
                     ];
                 }
             } else {
                 // FOVISSSTE Tradicional
                 if (esConyugal) {
-                    // FOVISSSTE Tradicional Conyugal
                     const totalCost = pv + impDerVal;
-                    diferencia = totalCost - credVal - credConyVal;
+                    diferencia = totalCost - credFovEfectivo - credFovConyEfectivo;
 
                     desglose = [
                         { label: 'Valor Vivienda (con Extras)', monto: pv },
                         { label: 'Gastos Notariales y Avalúo', monto: impDerVal },
-                        { label: 'Crédito FOVISSSTE Titular', monto: -credVal },
-                        { label: 'Crédito FOVISSSTE Cónyuge', monto: -credConyVal },
+                        { label: credVal > credFovEfectivo ? 'Crédito FOVISSSTE Titular (Topado a Avalúo)' : 'Crédito FOVISSSTE Titular', monto: -credFovEfectivo },
+                        { label: credConyVal > credFovConyEfectivo ? 'Crédito FOVISSSTE Cónyuge (Topado a Avalúo)' : 'Crédito FOVISSSTE Cónyuge', monto: -credFovConyEfectivo },
                         { label: 'Apartado', monto: -apt },
                     ];
                 } else {
-                    // FOVISSSTE Tradicional Individual
                     const totalCost = pv + impDerVal;
-                    diferencia = totalCost - credVal;
+                    diferencia = totalCost - credFovEfectivo;
 
                     desglose = [
                         { label: 'Valor Vivienda (con Extras)', monto: pv },
                         { label: 'Gastos Notariales y Avalúo', monto: impDerVal },
-                        { label: 'Crédito FOVISSSTE', monto: -credVal },
+                        { label: credVal > credFovEfectivo ? 'Crédito FOVISSSTE (Topado a Avalúo)' : 'Crédito FOVISSSTE', monto: -credFovEfectivo },
                         { label: 'Apartado', monto: -apt },
                     ];
                 }
@@ -428,7 +440,7 @@ export default function Calculadora() {
         } else if (tipo === 'CFE') {
             // Contado / CFE
             const totalCost = pv;
-            diferencia = totalCost - pagoInitVal - apt;
+            diferencia = totalCost - pagoInitVal;
 
             desglose = [
                 { label: 'Valor Vivienda (con Extras)', monto: pv },
@@ -439,17 +451,17 @@ export default function Calculadora() {
             // Bancario
             const totalCost = pv + impDerVal;
             const recursos = esConyugal
-                ? (credBcoVal + credBcoConyVal + ahorroVal + ahorroConyVal)
-                : (credBcoVal + ahorroVal);
+                ? (credBcoEfectivo + credBcoConyEfectivo + ahorroVal + ahorroConyVal)
+                : (credBcoEfectivo + ahorroVal);
             diferencia = totalCost - recursos;
 
             if (esConyugal) {
                 desglose = [
                     { label: 'Valor Vivienda (con Extras)', monto: pv },
                     { label: 'Gastos Notariales Aprox.', monto: impDerVal },
-                    { label: 'Crédito Bancario Titular', monto: -credBcoVal },
+                    { label: credBcoVal > credBcoEfectivo ? 'Crédito Bancario Titular (Topado a Avalúo)' : 'Crédito Bancario Titular', monto: -credBcoEfectivo },
                     { label: 'Ahorro Voluntario Titular', monto: -ahorroVal },
-                    { label: 'Crédito Bancario Cónyuge', monto: -credBcoConyVal },
+                    { label: credBcoConyVal > credBcoConyEfectivo ? 'Crédito Bancario Cónyuge (Topado a Avalúo)' : 'Crédito Bancario Cónyuge', monto: -credBcoConyEfectivo },
                     { label: 'Ahorro Voluntario Cónyuge', monto: -ahorroConyVal },
                     { label: 'Apartado', monto: -apt },
                 ];
@@ -457,16 +469,21 @@ export default function Calculadora() {
                 desglose = [
                     { label: 'Valor Vivienda (con Extras)', monto: pv },
                     { label: 'Gastos Notariales Aprox.', monto: impDerVal },
-                    { label: 'Crédito Bancario', monto: -credBcoVal },
+                    { label: credBcoVal > credBcoEfectivo ? 'Crédito Bancario (Topado a Avalúo)' : 'Crédito Bancario', monto: -credBcoEfectivo },
                     { label: 'Ahorro Voluntario', monto: -ahorroVal },
                     { label: 'Apartado', monto: -apt },
                 ];
             }
         } else if (tipo === 'COFINAVIT') {
             // Cofinavit
+            const credCofInfEfectivo = Math.min(credVal, maxFinanciable);
+            const credCofBcoEfectivo = Math.min(credBcoVal, Math.max(0, maxFinanciable - credCofInfEfectivo));
+            const credCofInfConyEfectivo = Math.min(credConyVal, Math.max(0, maxFinanciable - credCofInfEfectivo - credCofBcoEfectivo));
+            const credCofBcoConyEfectivo = Math.min(credBcoConyVal, Math.max(0, maxFinanciable - credCofInfEfectivo - credCofBcoEfectivo - credCofInfConyEfectivo));
+
             const totalCost = pv + impDerVal;
-            const recursosTitular = credVal + subVal + ahorroVal + credBcoVal;
-            const recursosConyuge = credConyVal + subConyVal + ahorroConyVal + credBcoConyVal;
+            const recursosTitular = credCofInfEfectivo + subVal + ahorroVal + credCofBcoEfectivo;
+            const recursosConyuge = credCofInfConyEfectivo + subConyVal + ahorroConyVal + credCofBcoConyEfectivo;
             const recursos = esConyugal ? (recursosTitular + recursosConyuge) : recursosTitular;
             diferencia = totalCost - recursos;
 
@@ -474,13 +491,13 @@ export default function Calculadora() {
                 desglose = [
                     { label: 'Valor Vivienda (con Extras)', monto: pv },
                     { label: 'Gastos Notariales Aprox.', monto: impDerVal },
-                    { label: 'Crédito Cofinavit Titular', monto: -credVal },
+                    { label: 'Crédito Cofinavit Titular', monto: -credCofInfEfectivo },
                     { label: 'Subcuenta Vivienda Titular', monto: -subVal },
-                    { label: 'Crédito Bancario Titular', monto: -credBcoVal },
+                    { label: 'Crédito Bancario Titular', monto: -credCofBcoEfectivo },
                     { label: 'Ahorro Voluntario Titular', monto: -ahorroVal },
-                    { label: 'Crédito Cofinavit Cónyuge', monto: -credConyVal },
+                    { label: 'Crédito Cofinavit Cónyuge', monto: -credCofInfConyEfectivo },
                     { label: 'Subcuenta Vivienda Cónyuge', monto: -subConyVal },
-                    { label: 'Crédito Bancario Cónyuge', monto: -credBcoConyVal },
+                    { label: 'Crédito Bancario Cónyuge', monto: -credCofBcoConyEfectivo },
                     { label: 'Ahorro Voluntario Cónyuge', monto: -ahorroConyVal },
                     { label: 'Apartado', monto: -apt },
                 ];
@@ -488,26 +505,29 @@ export default function Calculadora() {
                 desglose = [
                     { label: 'Valor Vivienda (con Extras)', monto: pv },
                     { label: 'Gastos Notariales Aprox.', monto: impDerVal },
-                    { label: 'Crédito Cofinavit', monto: -credVal },
+                    { label: 'Crédito Cofinavit', monto: -credCofInfEfectivo },
                     { label: 'Subcuenta de Vivienda', monto: -subVal },
-                    { label: 'Crédito Bancario', monto: -credBcoVal },
+                    { label: 'Crédito Bancario', monto: -credCofBcoEfectivo },
                     { label: 'Ahorro Voluntario', monto: -ahorroVal },
                     { label: 'Apartado', monto: -apt },
                 ];
             }
         } else if (tipo === 'FOVISSSTE_INFONAVIT') {
             // Info-Fovissste (Inherently Joint)
+            const credJointFovEfectivo = Math.min(credVal, maxFinanciable);
+            const credJointInfEfectivo = Math.min(credConyVal, Math.max(0, maxFinanciable - credJointFovEfectivo));
+
             const totalCost = pv + impDerVal;
-            const recursosFovissste = credVal + subVal;
-            const recursosInfonavit = credConyVal + subConyVal + ahorroConyVal - titConyVal;
+            const recursosFovissste = credJointFovEfectivo + subVal;
+            const recursosInfonavit = credJointInfEfectivo + subConyVal + ahorroConyVal - titConyVal;
             diferencia = totalCost - recursosFovissste - recursosInfonavit;
 
             desglose = [
                 { label: 'Valor Vivienda (con Extras)', monto: pv },
                 { label: 'Gastos Notariales', monto: impDerVal },
-                { label: 'Crédito FOVISSSTE (Titular)', monto: -credVal },
+                { label: 'Crédito FOVISSSTE (Titular)', monto: -credJointFovEfectivo },
                 { label: 'Subcuenta FOVISSSTE (Titular)', monto: -subVal },
-                { label: 'Crédito INFONAVIT (Cónyuge)', monto: -credConyVal },
+                { label: 'Crédito INFONAVIT (Cónyuge)', monto: -credJointInfEfectivo },
                 { label: 'Subcuenta INFONAVIT (Cónyuge)', monto: -subConyVal },
                 { label: 'Gastos Titulación (Cónyuge)', monto: titConyVal },
                 { label: 'Ahorro Voluntario (Cónyuge)', monto: -ahorroConyVal },
@@ -515,26 +535,40 @@ export default function Calculadora() {
             ];
         }
 
-        let diferenciaFinal = diferencia - apt;
+        // El apartado siempre se descuenta de lo pendiente de pago.
+        // Si entre financiamiento máximo y apartado se cubre todo, la diferencia
+        // a favor se le reembolsa/deposita al cliente.
+        const diferenciaFinal = diferencia - apt;
 
         // ─── Excedente sobre Avalúo ───────────────────────────────────
-        // El Valor de Avalúo es el tope máximo que el banco reconoce.
-        // Si el costo total (vivienda + gastos notariales + extras) rebasa
-        // el avalúo, esa diferencia la debe cubrir el cliente con recurso propio.
-        // Además, el banco NO puede dar más dinero que el avalúo, por lo tanto
-        // el cliente NUNCA tendrá "saldo a favor" cuando hay excedente.
-        let excedenteAvaluo = 0;
-        if (valAvaluo > 0 && tipo !== 'CFE') {
-            const costoTotal = pv + impDerVal;
-            if (costoTotal > valAvaluo) {
-                excedenteAvaluo = costoTotal - valAvaluo;
-                // La diferencia no puede ser negativa (a favor) cuando hay excedente:
-                // el banco solo financia hasta el avalúo, no devuelve la diferencia.
-                diferenciaFinal = Math.max(diferenciaFinal, excedenteAvaluo);
-            }
-        }
+        // Si el costo total (vivienda + gastos notariales) rebasa el avalúo,
+        // esa porción no puede ser financiada por la institución y requiere recurso propio.
+        const costoTotalOperacion = pv + impDerVal;
+        const excedenteAvaluo = (valAvaluo > 0 && tipo !== 'CFE' && costoTotalOperacion > valAvaluo)
+            ? (costoTotalOperacion - valAvaluo)
+            : 0;
 
-        return { diferencia: diferenciaFinal, desglose, total: pv + impDerVal, extrasTotal, excedenteAvaluo };
+        // Recursos propios aportados por el cliente (Apartado + Ahorro voluntario)
+        const recursosPropiosAportados = apt + ahorroVal + (esConyugal ? ahorroConyVal : 0);
+        const excedenteCubiertoPorRecursos = excedenteAvaluo > 0 && recursosPropiosAportados >= excedenteAvaluo;
+        const excedentePendiente = Math.max(0, excedenteAvaluo - recursosPropiosAportados);
+        const creditoTopadoPorAvaluo = (
+            (tipo === 'BANCARIO' && (credBcoVal + credBcoConyVal) > maxFinanciable) ||
+            (tipo === 'INFONAVIT' && (credVal + credConyVal) > maxFinanciable) ||
+            (tipo === 'FOVISSSTE' && (credVal + credConyVal) > maxFinanciable)
+        );
+
+        return {
+            diferencia: diferenciaFinal,
+            desglose,
+            total: pv + impDerVal,
+            extrasTotal,
+            excedenteAvaluo,
+            recursosPropiosAportados,
+            excedenteCubiertoPorRecursos,
+            excedentePendiente,
+            creditoTopadoPorAvaluo,
+        };
     }, [
         tipo, precioOperacion, descuento, gastosNot, credito, subcuenta, creditoBanco, creditoFoviss, apartado, extrasTotal,
         esConyugal, esFovisssteDirecto, creditoConyuge, subcuentaConyuge, creditoBancoConyuge, ahorroVoluntarioConyuge,
@@ -796,33 +830,35 @@ export default function Calculadora() {
 
             // 3.5. Alerta de Excedente sobre Avalúo (si aplica)
             finalY = (doc as any).lastAutoTable.finalY + 10;
-            if ((resultado?.excedenteAvaluo || 0) > 0) {
-                const ambar = [245, 158, 11];
-                // Verificar si hay espacio en la página actual
+            if ((resultado?.excedenteAvaluo || 0) > 0 || (resultado?.creditoTopadoPorAvaluo)) {
+                const esCubierto = resultado?.excedenteCubiertoPorRecursos;
+                const colorBox = esCubierto ? [34, 197, 94] : [245, 158, 11];
+                const bgBox = esCubierto ? [240, 253, 244] : [255, 248, 230];
+
                 if (finalY + 30 > 265) {
                     doc.addPage();
                     finalY = 20;
                 }
-                // Fondo ámbar claro
-                doc.setFillColor(255, 248, 230);
+                doc.setFillColor(bgBox[0], bgBox[1], bgBox[2]);
                 doc.rect(15, finalY, 180, 28, 'F');
-                // Borde ámbar
-                doc.setDrawColor(ambar[0], ambar[1], ambar[2]);
+                doc.setDrawColor(colorBox[0], colorBox[1], colorBox[2]);
                 doc.rect(15, finalY, 180, 28, 'D');
 
-                doc.setTextColor(ambar[0], ambar[1], ambar[2]);
+                doc.setTextColor(colorBox[0], colorBox[1], colorBox[2]);
                 doc.setFontSize(9);
                 doc.setFont('helvetica', 'bold');
-                doc.text('⚠ EXCEDENTE SOBRE VALOR DE AVALÚO', 20, finalY + 8);
+                doc.text(esCubierto ? '✓ EXCEDENTE DE AVALÚO CUBIERTO CON RECURSOS PROPIOS' : '⚠ EXCEDENTE SOBRE VALOR DE AVALÚO', 20, finalY + 8);
 
                 doc.setTextColor(60, 60, 60);
                 doc.setFontSize(8);
                 doc.setFont('helvetica', 'normal');
-                const alertText = `El costo total (${fmt(resultado?.total || 0)}) supera el Valor de Avalúo (${fmt(valAvaluo)}). La diferencia de ${fmt(resultado?.excedenteAvaluo || 0)} debe ser cubierta por el cliente con recursos propios.`;
+                const alertText = esCubierto
+                    ? `El costo total (${fmt(resultado?.total || 0)}) supera el Avalúo (${fmt(valAvaluo)}). El excedente de ${fmt(resultado?.excedenteAvaluo || 0)} queda cubierto con el apartado/recursos propios del cliente.`
+                    : `El costo total (${fmt(resultado?.total || 0)}) supera el Avalúo (${fmt(valAvaluo)}). La diferencia de ${fmt(resultado?.excedentePendiente || 0)} debe ser cubierta por el cliente con recursos propios.`;
                 const alertLines = doc.splitTextToSize(alertText, 140);
                 doc.text(alertLines, 20, finalY + 14);
 
-                doc.setTextColor(ambar[0], ambar[1], ambar[2]);
+                doc.setTextColor(colorBox[0], colorBox[1], colorBox[2]);
                 doc.setFontSize(14);
                 doc.setFont('helvetica', 'bold');
                 doc.text(fmt(resultado?.excedenteAvaluo || 0), 185, finalY + 18, { align: 'right' });
@@ -1370,46 +1406,69 @@ export default function Calculadora() {
                             ))}
                         </div>
 
-                        {/* ─── Alerta: Excedente sobre Valor de Avalúo ─── */}
-                        {resultado.excedenteAvaluo > 0 && (
+                        {/* ─── Alerta: Excedente sobre Valor de Avalúo / Tope de Crédito ─── */}
+                        {(resultado.excedenteAvaluo > 0 || resultado.creditoTopadoPorAvaluo) && (
                             <div style={{
                                 padding: '1rem 1.25rem',
                                 borderRadius: 12,
-                                background: 'rgba(245,158,11,0.12)',
-                                border: '1px solid rgba(245,158,11,0.4)',
+                                background: resultado.excedenteCubiertoPorRecursos ? 'rgba(34,197,94,0.08)' : 'rgba(245,158,11,0.12)',
+                                border: `1px solid ${resultado.excedenteCubiertoPorRecursos ? 'rgba(34,197,94,0.3)' : 'rgba(245,158,11,0.4)'}`,
                                 display: 'flex',
                                 alignItems: 'flex-start',
                                 gap: 12,
                                 marginBottom: '1rem',
                             }}>
-                                <AlertTriangle size={22} color="#f59e0b" style={{ flexShrink: 0, marginTop: 2 }} />
+                                <AlertTriangle size={22} color={resultado.excedenteCubiertoPorRecursos ? '#22c55e' : '#f59e0b'} style={{ flexShrink: 0, marginTop: 2 }} />
                                 <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f59e0b', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                        Excedente sobre Valor de Avalúo
+                                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: resultado.excedenteCubiertoPorRecursos ? '#22c55e' : '#f59e0b', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                        {resultado.excedenteCubiertoPorRecursos
+                                            ? 'Excedente de Avalúo Cubierto con Recursos Propios'
+                                            : 'Excedente sobre Valor de Avalúo'}
                                     </div>
                                     <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', lineHeight: 1.5 }}>
-                                        El costo total de la operación (vivienda + gastos notariales{extrasTotal > 0 ? ' + extras' : ''}) supera el <strong>Valor de Avalúo ({fmt(valAvaluo)})</strong>.
-                                        El banco solo financia hasta el monto del avalúo; la diferencia de <strong style={{ color: '#f59e0b' }}>{fmt(resultado.excedenteAvaluo)}</strong> debe ser cubierta por el cliente con <strong>recursos propios</strong>.
+                                        {resultado.creditoTopadoPorAvaluo && (
+                                            <div style={{ marginBottom: 6 }}>
+                                                📌 <strong>Tope de financiamiento:</strong> El crédito capturado supera el Valor de Avalúo ({fmt(valAvaluo)}). Se toma el avalúo como financiamiento máximo ya que la institución no desembolsa por encima de ese valor.
+                                            </div>
+                                        )}
+                                        {resultado.excedenteAvaluo > 0 && (
+                                            resultado.excedenteCubiertoPorRecursos ? (
+                                                <span>
+                                                    El costo total de la operación ({fmt(resultado.total)}) supera el <strong>Valor de Avalúo ({fmt(valAvaluo)})</strong> por <strong style={{ color: '#22c55e' }}>{fmt(resultado.excedenteAvaluo)}</strong>. Este excedente queda <strong>cubierto con el apartado/recursos propios ({fmt(resultado.recursosPropiosAportados)})</strong>, por lo que la diferencia restante resulta en saldo a favor a reembolsarle al cliente.
+                                                </span>
+                                            ) : (
+                                                <span>
+                                                    El costo total de la operación ({fmt(resultado.total)}) supera el <strong>Valor de Avalúo ({fmt(valAvaluo)})</strong> por <strong style={{ color: '#f59e0b' }}>{fmt(resultado.excedenteAvaluo)}</strong>. La institución financiera solo financia hasta el avalúo; la diferencia debe ser cubierta por el cliente con <strong>recursos propios</strong>.
+                                                    {resultado.recursosPropiosAportados > 0 && (
+                                                        <span> (Ya aportó {fmt(resultado.recursosPropiosAportados)} de apartado; restan {fmt(resultado.excedentePendiente)}).</span>
+                                                    )}
+                                                </span>
+                                            )
+                                        )}
                                     </div>
-                                    <div style={{
-                                        marginTop: 10,
-                                        padding: '8px 12px',
-                                        background: 'rgba(245,158,11,0.08)',
-                                        borderRadius: 8,
-                                        border: '1px solid rgba(245,158,11,0.2)',
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        flexWrap: 'wrap',
-                                        gap: 8,
-                                    }}>
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                            Costo Total: {fmt(resultado.total)} — Avalúo: {fmt(valAvaluo)}
-                                        </span>
-                                        <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#f59e0b' }}>
-                                            {fmt(resultado.excedenteAvaluo)}
-                                        </span>
-                                    </div>
+                                    {resultado.excedenteAvaluo > 0 && (
+                                        <div style={{
+                                            marginTop: 10,
+                                            padding: '8px 12px',
+                                            background: resultado.excedenteCubiertoPorRecursos ? 'rgba(34,197,94,0.06)' : 'rgba(245,158,11,0.08)',
+                                            borderRadius: 8,
+                                            border: `1px solid ${resultado.excedenteCubiertoPorRecursos ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)'}`,
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            flexWrap: 'wrap',
+                                            gap: 8,
+                                        }}>
+                                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                                Costo Total: {fmt(resultado.total)} — Tope Avalúo: {fmt(valAvaluo)}
+                                            </span>
+                                            <span style={{ fontSize: '1.1rem', fontWeight: 800, color: resultado.excedenteCubiertoPorRecursos ? '#22c55e' : '#f59e0b' }}>
+                                                {resultado.excedenteCubiertoPorRecursos
+                                                    ? `✓ Cubierto (${fmt(resultado.excedenteAvaluo)})`
+                                                    : `Falta: ${fmt(resultado.excedentePendiente)}`}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
