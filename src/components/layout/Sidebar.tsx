@@ -20,6 +20,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     const escrituracionLinks = [
       { to: '/inventario', icon: Building2, label: 'Inventario' },
       { to: '/calculadora', icon: Calculator, label: 'Calculadora' },
+      { to: '/contratos', icon: FileSignature, label: 'Contratos' },
       { to: '/configuracion', icon: Settings, label: 'Configuración' },
     ];
     return (
@@ -93,6 +94,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     { to: '/catering', icon: UtensilsCrossed, label: 'Catering' },
     { to: '/calendario', icon: CalendarDays, label: 'Calendario' },
     ...(!isRecepcion ? [{ to: '/calculadora', icon: Calculator, label: 'Calculadora' }] : []),
+    ...(!isRecepcion ? [{ to: '/contratos', icon: FileSignature, label: 'Contratos' }] : []),
     ...(!isRecepcion ? [{ to: '/precios', icon: Tag, label: 'Precios' }] : []),
     { to: '/configuracion', icon: Settings, label: 'Configuración' },
     ...(role === 'super_admin' ? [{ to: '/usuarios', icon: UserCog, label: 'Usuarios' }] : []),
