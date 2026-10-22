@@ -1,4 +1,10 @@
 export const PRECIOS: Record<string, { modelo: string; version: string; precio: number; avaluo?: number }[]> = {
+    'Manzana 2': [
+        { modelo: 'QUETZAL PLUS', version: 'EQUIPADA', precio: 1860000, avaluo: 2018000 },
+        { modelo: 'QUETZAL PLUS', version: 'EQUIPADA ELITE', precio: 1953564.89, avaluo: 2018000 },
+        { modelo: 'QUETZAL PLUS', version: 'AUSTERA', precio: 1689070, avaluo: 2018000 },
+        { modelo: 'QUETZAL PLUS', version: 'AUSTERA ELITE', precio: 1776070, avaluo: 2018000 },
+    ],
     'Manzana 3': [
         { modelo: 'QUETZAL C/ROOF GARDEN', version: 'EQUIPADA', precio: 1752000, avaluo: 1870000 },
         { modelo: 'QUETZAL C/ROOF GARDEN', version: 'EQUIPADA ELITE', precio: 1839000, avaluo: 1870000 },

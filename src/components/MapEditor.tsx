@@ -688,8 +688,8 @@ export default function MapEditor({ condominio, imageUrl, houseStatuses, itemsDa
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Prototipo:</span> <span style={{ color: 'white' }}>{activeItem.prototipo}</span></div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Terreno:</span> <span style={{ color: 'white' }}>{activeItem.m2Terreno}</span></div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Construcción:</span> <span style={{ color: 'white' }}>{activeItem.m2Construccion}</span></div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>DTU:</span> <span style={{ color: activeItem.dtu === 'Si' ? '#22c55e' : 'white' }}>{activeItem.dtu === 'Si' ? '✓ Listo' : activeItem.fechaDtu}</span></div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Escrituración:</span> <span style={{ color: activeItem.fechaEscrituracion.toUpperCase() === 'INMEDIATA' ? '#f59e0b' : 'white' }}>{activeItem.fechaEscrituracion}</span></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>DTU:</span> <span style={{ color: activeItem.dtu?.toUpperCase() === 'SI' ? '#22c55e' : 'white' }}>{activeItem.dtu?.toUpperCase() === 'SI' ? '✓ Listo' : activeItem.fechaDtu}</span></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Escrituración:</span> <span style={{ color: ['INMEDIATA', 'LISTA'].includes(activeItem.fechaEscrituracion?.toUpperCase()) ? '#f59e0b' : 'white' }}>{activeItem.fechaEscrituracion}</span></div>
                                         
                                         {clickedZone && activeStatus === 'DISPONIBLE' && (
                                             showVersionsFor === activeId ? (

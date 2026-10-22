@@ -209,7 +209,7 @@ export default function Inventario() {
     const vendidas = items.filter(i => resolveEstatus(i.mza, i.casa, i.estatus, overrides) === 'VENDIDA').length;
     const inmediatas = items.filter(
         i => resolveEstatus(i.mza, i.casa, i.estatus, overrides) === 'DISPONIBLE' &&
-            i.fechaEscrituracion.toUpperCase() === 'INMEDIATA'
+            ['INMEDIATA', 'LISTA'].includes(i.fechaEscrituracion.toUpperCase())
     ).length;
 
     // ── Precomputar Mapas de Datos para MapEditor ──
@@ -407,8 +407,8 @@ export default function Inventario() {
                                                         {item.prototipo}
                                                     </span>
                                                 </td>
-                                                <td style={{ padding: '12px 16px', color: item.dtu === 'Si' ? '#22c55e' : 'var(--text-muted)' }}>
-                                                    {item.dtu === 'Si' ? '✓ Listo' : item.fechaDtu}
+                                                <td style={{ padding: '12px 16px', color: item.dtu.toUpperCase() === 'SI' ? '#22c55e' : 'var(--text-muted)' }}>
+                                                    {item.dtu.toUpperCase() === 'SI' ? '✓ Listo' : item.fechaDtu}
                                                 </td>
                                                 <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{item.m2Construccion}</td>
                                                 <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{item.m2Terreno}</td>
@@ -420,8 +420,8 @@ export default function Inventario() {
                                                 </td>
                                                 <td style={{
                                                     padding: '12px 16px',
-                                                    color: item.fechaEscrituracion.toUpperCase() === 'INMEDIATA' ? '#f59e0b' : 'var(--text-muted)',
-                                                    fontWeight: item.fechaEscrituracion.toUpperCase() === 'INMEDIATA' ? '600' : '400',
+                                                    color: ['INMEDIATA', 'LISTA'].includes(item.fechaEscrituracion.toUpperCase()) ? '#f59e0b' : 'var(--text-muted)',
+                                                    fontWeight: ['INMEDIATA', 'LISTA'].includes(item.fechaEscrituracion.toUpperCase()) ? '600' : '400',
                                                 }}>
                                                     {item.fechaEscrituracion}
                                                 </td>

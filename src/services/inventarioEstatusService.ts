@@ -17,7 +17,8 @@ export const casaKey = (mza: string, casa: string) => `${mza}||${casa}`;
 export const fetchEstatusOverrides = async (): Promise<Map<string, EstatusManual>> => {
     const { data, error } = await supabase
         .from('inventario_estatus')
-        .select('mza, casa, estatus');
+        .select('mza, casa, estatus')
+        .gte('updated_at', '2026-10-22T00:00:00Z');
 
     if (error) {
         console.error('Error cargando estatus overrides:', error);
