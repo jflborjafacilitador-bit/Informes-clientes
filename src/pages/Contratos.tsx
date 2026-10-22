@@ -278,6 +278,7 @@ export default function Contratos() {
     ]);
     const [direccionCliente, setDireccionCliente] = useState('');
     const [telefonoCliente, setTelefonoCliente] = useState('');
+    const [correoCliente, setCorreoCliente] = useState('');
     const [mostrarNombrePie, setMostrarNombrePie] = useState(false);
 
     // ── 2. Esquema y Campos de la Tabla Financiera ──
@@ -290,6 +291,7 @@ export default function Contratos() {
     const [valorVivienda, setValorVivienda] = useState('1622000');
     const [gastosNotariales, setGastosNotariales] = useState('88500');
     const [autoGastos, setAutoGastos] = useState(false);
+    const [incluirGastosCfe, setIncluirGastosCfe] = useState(false);
 
     // Créditos según esquema
     const [credito, setCredito] = useState('1500000');
@@ -427,8 +429,8 @@ export default function Contratos() {
         const crFov = parseNum(creditoFovissste);
         const apt = parseNum(apartado);
 
-        const valorTotal = vv + gn;
-        const diferenciaTotalCfe = vv - cr;
+        const valorTotal = vv + (esquema === 'CFE' && !incluirGastosCfe ? 0 : gn);
+        const diferenciaTotalCfe = (incluirGastosCfe ? valorTotal : vv) - cr;
 
         let diferencia = 0;
         let montoCreditoTexto = cr;
@@ -480,7 +482,7 @@ export default function Contratos() {
             diferencia,
             montoCreditoTexto,
         };
-    }, [esquema, valorAvaluo, valorVivienda, gastosNotariales, credito, subcuenta, creditoBanco, creditoFovissste, apartado]);
+    }, [esquema, valorAvaluo, valorVivienda, gastosNotariales, credito, subcuenta, creditoBanco, creditoFovissste, apartado, incluirGastosCfe]);
 
     // ── Filas de la tabla según el esquema seleccionado (idéntico al Excel) ──
     const filasTabla = useMemo(() => {
@@ -519,6 +521,12 @@ export default function Contratos() {
                 { label: 'UBICACIÓN', value: ubicacion, isMoney: false, editable: true },
                 { label: 'VALOR AVALUO', value: fmtMoney(av), isMoney: true, editable: false },
                 { label: 'VALOR VIVIENDA', value: fmtMoney(vv), isMoney: true, editable: true },
+                ...(incluirGastosCfe
+                    ? [
+                          { label: 'GASTOS NOTARIALES (APROX.)', value: fmtMoney(gn), isMoney: true, editable: false },
+                          { label: 'VALOR TOTAL', value: fmtMoney(valorTotal), isMoney: true, editable: false },
+                      ]
+                    : []),
                 { label: 'CREDITO', value: fmtMoney(cr), isMoney: true, editable: true },
                 { label: 'DIFERENCIA TOTAL', value: fmtMoney(diferenciaTotalCfe), isMoney: true, editable: false },
                 { label: 'APARTADO', value: fmtMoney(apt), isMoney: true, editable: true },
@@ -567,7 +575,7 @@ export default function Contratos() {
             { label: 'APARTADO', value: fmtMoney(apt), isMoney: true, editable: true },
             { label: 'DIFERENCIA', value: fmtMoney(Math.abs(diferencia)), isMoney: true, editable: false },
         ];
-    }, [esquema, modelo, ubicacion, calculos]);
+    }, [esquema, modelo, ubicacion, calculos, incluirGastosCfe]);
 
     // ── Textos compuestos para el contrato ──
     const nombresCompradoresStr = useMemo(() => {
@@ -1003,19 +1011,64 @@ export default function Contratos() {
                                 />
                             </div>
 
-                            {esquema !== 'CFE' && (
+                            {esquema === 'CFE' && (
+                                <div style={{ gridColumn: '1 / -1' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const next = !incluirGastosCfe;
+                                            setIncluirGastosCfe(next);
+                                            if (next && parseNum(gastosNotariales) === 0) {
+                                                setGastosNotariales(
+                                                    String(Math.round(parseNum(valorAvaluo) * 0.07 * 100) / 100)
+                                                );
+                                            }
+                                        }}
+                                        style={{
+                                            width: '100%',
+                                            padding: '8px 12px',
+                                            borderRadius: '8px',
+                                            border: `1px solid ${incluirGastosCfe ? 'var(--primary-accent)' : 'rgba(56,189,248,0.35)'}`,
+                                            background: incluirGastosCfe ? 'rgba(34,197,94,0.12)' : 'rgba(56,189,248,0.08)',
+                                            color: incluirGastosCfe ? 'var(--primary-accent)' : '#38bdf8',
+                                            fontSize: '0.8rem',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            fontFamily: 'inherit',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '6px',
+                                            marginBottom: incluirGastosCfe ? '8px' : 0,
+                                        }}
+                                    >
+                                        {incluirGastosCfe ? (
+                                            <>✓ Gastos Notariales (Valor Aproximado) Incluidos — Quitar</>
+                                        ) : (
+                                            <>+ Agregar Gastos Notariales (Valor Aproximado)</>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
+
+                            {(esquema !== 'CFE' || incluirGastosCfe) && (
                                 <div style={{ gridColumn: '1 / -1' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                                         <label style={{ ...labelStyle, marginBottom: 0 }}>
-                                            {esquema === 'FOVISSSTE_INFONAVIT' ? 'Gastos Notariales Fovissste ($)' : 'Gastos Notariales ($)'}
+                                            {esquema === 'FOVISSSTE_INFONAVIT'
+                                                ? 'Gastos Notariales Fovissste ($)'
+                                                : esquema === 'CFE'
+                                                ? 'Gastos Notariales Aprox. ($)'
+                                                : 'Gastos Notariales ($)'}
                                         </label>
                                         <button
                                             type="button"
                                             onClick={() => {
                                                 const cfg = ESQUEMAS.find(e => e.id === esquema);
-                                                if (cfg && cfg.pctGastosDefault > 0) {
+                                                const pct = esquema === 'CFE' ? 0.07 : cfg?.pctGastosDefault ?? 0.05;
+                                                if (pct > 0) {
                                                     setGastosNotariales(
-                                                        String(Math.round(parseNum(valorAvaluo) * cfg.pctGastosDefault * 100) / 100)
+                                                        String(Math.round(parseNum(valorAvaluo) * pct * 100) / 100)
                                                     );
                                                 }
                                             }}
@@ -1032,7 +1085,7 @@ export default function Contratos() {
                                             }}
                                             title="Calcular porcentaje automático sobre avalúo"
                                         >
-                                            <RotateCcw size={11} /> Calcular % Avalúo
+                                            <RotateCcw size={11} /> Calcular % Avalúo {esquema === 'CFE' ? '(7%)' : ''}
                                         </button>
                                     </div>
                                     <input
@@ -1248,6 +1301,16 @@ export default function Contratos() {
                                     placeholder="Dejar vacío para llenar a mano"
                                     value={telefonoCliente}
                                     onChange={e => setTelefonoCliente(e.target.value)}
+                                    style={inputStyle}
+                                />
+                            </div>
+                            <div style={{ gridColumn: '1 / -1' }}>
+                                <label style={labelStyle}>Correo Electrónico (Opcional)</label>
+                                <input
+                                    type="email"
+                                    placeholder="Dejar vacío para llenar a mano (ej. cliente@correo.com)"
+                                    value={correoCliente}
+                                    onChange={e => setCorreoCliente(e.target.value)}
                                     style={inputStyle}
                                 />
                             </div>
@@ -1616,6 +1679,7 @@ export default function Contratos() {
                                 <div>NOMBRE: {mostrarNombrePie ? <span style={{ fontWeight: 'normal' }}>{nombresCompradoresStr}</span> : null}</div>
                                 <div>DIRECCION: {direccionCliente ? <span style={{ fontWeight: 'normal' }}>{direccionCliente}</span> : null}</div>
                                 <div>TELEFONO: {telefonoCliente ? <span style={{ fontWeight: 'normal' }}>{telefonoCliente}</span> : null}</div>
+                                <div>CORREO: {correoCliente ? <span style={{ fontWeight: 'normal' }}>{correoCliente}</span> : null}</div>
                             </div>
 
                             {/* Línea de Firma al fondo de la columna derecha */}

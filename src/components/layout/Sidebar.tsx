@@ -1,4 +1,4 @@
-import { Home, Users, BarChart2, Settings, LogOut, UserCog, X, Building2, UtensilsCrossed, CalendarDays, Calculator, FileSignature, Tag, MessageCircle, LayoutTemplate } from 'lucide-react';
+import { Home, Users, BarChart2, Settings, LogOut, UserCog, X, Building2, UtensilsCrossed, CalendarDays, Calculator, FileSignature, FileCheck, Tag, MessageCircle, LayoutTemplate } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import pkg from '../../../package.json';
@@ -21,6 +21,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       { to: '/inventario', icon: Building2, label: 'Inventario' },
       { to: '/calculadora', icon: Calculator, label: 'Calculadora' },
       { to: '/contratos', icon: FileSignature, label: 'Contratos' },
+      { to: '/carta-compromiso', icon: FileCheck, label: 'Carta Compromiso' },
       { to: '/configuracion', icon: Settings, label: 'Configuración' },
     ];
     return (
@@ -95,6 +96,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     { to: '/calendario', icon: CalendarDays, label: 'Calendario' },
     ...(!isRecepcion ? [{ to: '/calculadora', icon: Calculator, label: 'Calculadora' }] : []),
     ...(!isRecepcion ? [{ to: '/contratos', icon: FileSignature, label: 'Contratos' }] : []),
+    ...(!isRecepcion ? [{ to: '/carta-compromiso', icon: FileCheck, label: 'Carta Compromiso' }] : []),
     ...(!isRecepcion ? [{ to: '/precios', icon: Tag, label: 'Precios' }] : []),
     { to: '/configuracion', icon: Settings, label: 'Configuración' },
     ...(role === 'super_admin' ? [{ to: '/usuarios', icon: UserCog, label: 'Usuarios' }] : []),

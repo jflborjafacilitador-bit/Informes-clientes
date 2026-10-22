@@ -13,6 +13,7 @@ import Catering from './pages/Catering';
 import Calendario from './pages/Calendario';
 import Calculadora from './pages/Calculadora';
 import Contratos from './pages/Contratos';
+import CartaCompromiso from './pages/CartaCompromiso';
 import Precios from './pages/Precios';
 import InicioRecepcion from './pages/InicioRecepcion';
 import WhatsApp from './pages/WhatsApp';
@@ -172,6 +173,7 @@ function App() {
               <Route path="/calendario" element={<ProtectedRoute><Calendario /></ProtectedRoute>} />
               <Route path="/calculadora" element={<ProtectedRoute><Calculadora /></ProtectedRoute>} />
               <Route path="/contratos" element={<ProtectedRoute><Contratos /></ProtectedRoute>} />
+              <Route path="/carta-compromiso" element={<ProtectedRoute><CartaCompromiso /></ProtectedRoute>} />
               <Route path="/precios" element={<ProtectedRoute><Precios /></ProtectedRoute>} />
               <Route path="/usuarios" element={<ProtectedRoute><Usuarios /></ProtectedRoute>} />
               <Route path="/landings" element={<ProtectedRoute><LandingManager /></ProtectedRoute>} />
