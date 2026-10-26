@@ -5,9 +5,6 @@ on:
     branches:
       - main
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -18,13 +15,13 @@ jobs:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          submodules: false
 
       # 2. Configurar Node.js
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       # 3. Instalar dependencias
@@ -47,32 +44,63 @@ jobs:
       - name: Instalar lftp
         run: sudo apt-get update -y && sudo apt-get install -y lftp openssh-client
 
-      # 6. Desplegar dist/ al servidor via protocolo nativo SFTP protegido
-      - name: Desplegar via SFTP a Hostinger
+      # 6. Desplegar dist/ al servidor via SFTP (con respaldo FTP si SSH está inactivo en Hostinger)
+      - name: Desplegar a Hostinger
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PASS: ${{ secrets.SSH_PASSWORD }}
+          FTP_USER: ${{ secrets.FTP_USERNAME }}
+          FTP_PASS: ${{ secrets.FTP_PASSWORD }}
         run: |
-          for attempt in 1 2 3; do
-            echo "Intento de despliegue SFTP #$attempt..."
-            if lftp -u "$SSH_USER","$SSH_PASS" sftp://$SSH_HOST:$SSH_PORT << 'SFTP_SCRIPT'
-              set sftp:auto-confirm yes
-              set sftp:connect-program "ssh -a -x -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ConnectTimeout=30"
-              set net:timeout 60
-              set net:max-retries 4
-              set net:reconnect-interval-base 5
-              set net:reconnect-interval-multiplier 1
-              mirror --reverse --parallel=2 --overwrite --verbose --exclude-glob *.map --exclude-glob *.tmp \
-                ./dist/ ./domains/registro.residenciallosquetzales.com/public_html/
-              bye
-          SFTP_SCRIPT
+          echo "Intentando despliegue vía SFTP..."
+          if lftp -u "$SSH_USER","$SSH_PASS" sftp://$SSH_HOST:$SSH_PORT << 'EOF_SFTP'
+          set sftp:auto-confirm yes
+          set net:timeout 60
+          set net:max-retries 2
+          set xfer:use-temp-file yes
+          set xfer:temp-file-name *.tmp
+          mirror --reverse --parallel=10 --transfer-all --overwrite --verbose --exclude-glob *.map \
+            ./dist/ ./domains/registro.residenciallosquetzales.com/public_html/
+          bye
+          EOF_SFTP
+          then
+            echo "Despliegue vía SFTP exitoso."
+            exit 0
+          fi
+
+          echo "SFTP devolvió error de acceso. Intentando vía FTP con credenciales SSH_USER..."
+          if lftp -u "$SSH_USER","$SSH_PASS" ftp://$SSH_HOST << 'EOF_FTP1'
+          set ssl:verify-certificate no
+          set ftp:ssl-allow yes
+          set net:timeout 60
+          set net:max-retries 2
+          mirror --reverse --parallel=5 --transfer-all --overwrite --verbose --exclude-glob *.map \
+            ./dist/ ./domains/registro.residenciallosquetzales.com/public_html/
+          bye
+          EOF_FTP1
+          then
+            echo "Despliegue vía FTP (SSH_USER) exitoso."
+            exit 0
+          fi
+
+          if [ -n "$FTP_USER" ] && [ -n "$FTP_PASS" ]; then
+            echo "Intentando vía FTP con FTP_USERNAME..."
+            if lftp -u "$FTP_USER","$FTP_PASS" ftp://$SSH_HOST << 'EOF_FTP2'
+            set ssl:verify-certificate no
+            set ftp:ssl-allow yes
+            set net:timeout 60
+            set net:max-retries 2
+            mirror --reverse --parallel=5 --transfer-all --overwrite --verbose --exclude-glob *.map \
+              ./dist/ ./
+            bye
+          EOF_FTP2
             then
-              echo "Despliegue SFTP completado con éxito."
+              echo "Despliegue vía FTP (FTP_USERNAME) exitoso."
               exit 0
             fi
-            echo "Fallo en intento #$attempt, esperando 10 segundos antes de reintentar..."
-            sleep 10
-          done
+          fi
+
+          echo "ERROR: Hostinger rechazó el login SFTP/FTP (Login incorrect). Verifica que el acceso SSH esté Activo en el panel de Hostinger o que la contraseña SSH_PASSWORD no haya cambiado."
           exit 1
