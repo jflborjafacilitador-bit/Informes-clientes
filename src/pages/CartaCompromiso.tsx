@@ -96,7 +96,7 @@ export default function CartaCompromiso() {
   });
 
   // Textos de mantenimiento y fondo de emergencia
-  const [textoMantenimiento, setTextoMantenimiento] = useState<string>('PAGO MANTENIMIENTO MENSUAL $1,000');
+  const [textoMantenimiento, setTextoMantenimiento] = useState<string>('PAGO MANTENIMIENTO MENSUAL $1,200');
   const [textoFondoEmergencia, setTextoFondoEmergencia] = useState<string>('PAGO FONDO EMERGENCIA ANUAL $2,600');
 
   const [exporting, setExporting] = useState<boolean>(false);
