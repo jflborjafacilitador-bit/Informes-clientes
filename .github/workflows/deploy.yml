@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -14,6 +17,8 @@ jobs:
       # 1. Descargar el código
       - name: Checkout del repositorio
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       # 2. Configurar Node.js
       - name: Configurar Node.js
@@ -40,7 +45,7 @@ jobs:
 
       # 5. Instalar lftp
       - name: Instalar lftp
-        run: sudo apt-get install -y lftp
+        run: sudo apt-get update -y && sudo apt-get install -y lftp openssh-client
 
       # 6. Desplegar dist/ al servidor via protocolo nativo SFTP protegido
       - name: Desplegar via SFTP a Hostinger
@@ -50,13 +55,24 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PASS: ${{ secrets.SSH_PASSWORD }}
         run: |
-          lftp -u "$SSH_USER","$SSH_PASS" sftp://$SSH_HOST:$SSH_PORT << 'SFTP_SCRIPT'
-            set sftp:auto-confirm yes
-            set net:timeout 120
-            set net:max-retries 3
-            set xfer:use-temp-file yes
-            set xfer:temp-file-name *.tmp
-            mirror --reverse --parallel=10 --transfer-all --overwrite --verbose --exclude-glob *.map \
-              ./dist/ ./domains/registro.residenciallosquetzales.com/public_html/
-            bye
+          for attempt in 1 2 3; do
+            echo "Intento de despliegue SFTP #$attempt..."
+            if lftp -u "$SSH_USER","$SSH_PASS" sftp://$SSH_HOST:$SSH_PORT << 'SFTP_SCRIPT'
+              set sftp:auto-confirm yes
+              set sftp:connect-program "ssh -a -x -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ConnectTimeout=30"
+              set net:timeout 60
+              set net:max-retries 4
+              set net:reconnect-interval-base 5
+              set net:reconnect-interval-multiplier 1
+              mirror --reverse --parallel=2 --overwrite --verbose --exclude-glob *.map --exclude-glob *.tmp \
+                ./dist/ ./domains/registro.residenciallosquetzales.com/public_html/
+              bye
           SFTP_SCRIPT
+            then
+              echo "Despliegue SFTP completado con éxito."
+              exit 0
+            fi
+            echo "Fallo en intento #$attempt, esperando 10 segundos antes de reintentar..."
+            sleep 10
+          done
+          exit 1
